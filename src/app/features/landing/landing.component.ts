@@ -85,7 +85,7 @@ import { SessionService } from '../../core/services/session.service';
 
               <!-- 3D Mascot Image with Animation -->
               <div class="mascot-frame">
-                <img src="/assets/mascot.jpg" alt="Vamoo Pingüino Explorador" class="mascot-img" />
+                <img src="assets/mascot.jpg" alt="Vamoo Pingüino Explorador" class="mascot-img" />
                 <div class="mascot-glow"></div>
               </div>
 

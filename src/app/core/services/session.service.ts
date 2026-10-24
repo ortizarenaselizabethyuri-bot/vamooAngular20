@@ -11,7 +11,7 @@ export class SessionService {
     userId: 'usr_84920',
     username: 'ExploradorVamoo',
     email: 'explorador@vamoo.app',
-    avatar: '/assets/mascot.jpg',
+    avatar: 'assets/mascot.jpg',
     rank: 'Pingüino',
     xp: 210,
     targetRank: 'Flamenco',

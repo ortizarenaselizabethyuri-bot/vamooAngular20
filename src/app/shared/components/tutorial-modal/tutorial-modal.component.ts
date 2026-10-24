@@ -12,7 +12,7 @@ import { SessionService } from '../../../core/services/session.service';
         <!-- Top Mascot Graphic -->
         <div class="mascot-header">
           <div class="mascot-img-wrap">
-            <img src="/assets/mascot.jpg" alt="Vamoo Mascot" class="mascot-avatar" />
+            <img src="assets/mascot.jpg" alt="Vamoo Mascot" class="mascot-avatar" />
             <span class="greeting-badge">👋 ¡Bienvenido Explorador!</span>
           </div>
         </div>
