@@ -78,7 +78,7 @@ import { MapPoi } from '../../core/models/map.model';
         [style.transform]="'scale(' + mapService.zoomLevel() + ') translate(' + mapService.panOffset().x + 'px, ' + mapService.panOffset().y + 'px)'"
       >
         <!-- Background Map Image -->
-        <img src="/assets/hero_city.jpg" alt="Mapa de Exploración Vamoo" class="map-bg-image" />
+        <img src="assets/hero_city.jpg" alt="Mapa de Exploración Vamoo" class="map-bg-image" />
 
         <!-- Dynamic Pedestrian Walking Trail (SVG) -->
         @if (mapService.isRouteVisible() && mapService.currentDestinationCoords(); as dest) {
@@ -357,7 +357,7 @@ import { MapPoi } from '../../core/models/map.model';
               </div>
 
               <div class="celebration-speech">
-                <img src="/assets/mascot.jpg" alt="Mascota Vamoo" class="mascot-thumb" />
+                <img src="assets/mascot.jpg" alt="Mascota Vamoo" class="mascot-thumb" />
                 <div class="speech-bubble">
                   <span>"¡Gran trabajo explorador! Cada paso te acerca a la cima de la liga semanal."</span>
                 </div>

@@ -301,7 +301,7 @@ export class AchievementsService {
       rankPosition: 4,
       userId: 'usr_curr',
       username: 'ExploradorVamoo',
-      avatar: '/assets/mascot.jpg',
+      avatar: 'assets/mascot.jpg',
       weeklyXp: 210,
       isCurrentUser: true,
       tierBadge: '🐧 Pingüino',

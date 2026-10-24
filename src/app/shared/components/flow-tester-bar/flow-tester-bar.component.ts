@@ -13,17 +13,32 @@ import { ProfileService } from '../../../core/services/profile.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="tester-wrapper" [class.collapsed]="isCollapsed()">
-      <!-- Toggle button -->
-      <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())" title="Simulador de Casos del Diagrama">
-        <div class="toggle-title">
-          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 07 Completados)</span>
-          <span class="active-step-badge">Paso 7: Sistema Completo Activo</span>
-        </div>
-        <span class="chevron">{{ isCollapsed() ? '▲ Desplegar' : '▼ Ocultar' }}</span>
+    @if (isCollapsed()) {
+      <!-- Floating Trigger Button (Non-intrusive for end-users) -->
+      <button class="floating-pill-trigger" (click)="isCollapsed.set(false)" title="Simulador de Casos y Pruebas UML">
+        <span class="pill-glow"></span>
+        <span class="pill-icon">🧪</span>
+        <span class="pill-text">Simulador UML</span>
+        <span class="pill-badge">v2.0</span>
       </button>
+    } @else {
+      <!-- Floating Modal/Drawer Overlay -->
+      <div class="tester-backdrop" (click)="isCollapsed.set(true)"></div>
+      
+      <div class="tester-floating-panel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span class="header-icon">🧪</span>
+            <div>
+              <h3 class="header-title">Simulador de Flujos y Casos UML</h3>
+              <p class="header-subtitle">Módulos 01 a 07 (Vamoo Web Gamificada)</p>
+            </div>
+          </div>
+          <button class="close-btn" (click)="isCollapsed.set(true)" title="Ocultar Simulador">
+            ✕
+          </button>
+        </div>
 
-      @if (!isCollapsed()) {
         <div class="tester-content">
           <!-- Resumen de Estados Reactivos -->
           <div class="status-summary">
@@ -234,67 +249,137 @@ import { ProfileService } from '../../../core/services/profile.service';
             </div>
           </div>
         </div>
-      }
-    </div>
+      </div>
+    }
   `,
   styles: [`
-    .tester-wrapper {
-      background: #0b1120;
-      color: #f8fafc;
-      font-size: 0.8rem;
-      border-bottom: 2px solid #6366f1;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-      z-index: 999;
-      position: relative;
-    }
-
-    .toggle-btn {
-      width: 100%;
-      padding: 7px 18px;
+    /* Floating Pill Trigger (discreet for end users) */
+    .floating-pill-trigger {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 1000;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      color: #cbd5e1;
+      gap: 8px;
+      padding: 10px 18px;
+      background: #0f172a;
+      border: 1px solid #6366f1;
+      border-radius: var(--radius-pill);
+      color: #f8fafc;
       font-weight: 700;
-      font-size: 0.78rem;
-      letter-spacing: 0.03em;
+      font-size: 0.85rem;
       cursor: pointer;
-      background: transparent;
-      border: none;
-      transition: background 0.15s;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+      transition: all var(--transition-fast);
+      backdrop-filter: blur(8px);
     }
-    .toggle-btn:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.05);
+    .floating-pill-trigger:hover {
+      transform: translateY(-2px) scale(1.04);
+      background: #1e1b4b;
+      box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
+      border-color: #818cf8;
+    }
+    .pill-icon {
+      font-size: 1.1rem;
+    }
+    .pill-badge {
+      background: #06b6d4;
+      color: #082f49;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
     }
 
-    .toggle-title {
+    /* Modal Backdrop */
+    .tester-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      z-index: 9998;
+    }
+
+    /* Floating Panel Drawer */
+    .tester-floating-panel {
+      position: fixed;
+      bottom: 24px;
+      left: 20px;
+      right: 20px;
+      max-width: 1040px;
+      max-height: 82vh;
+      margin: 0 auto;
+      background: #0f172a;
+      border: 1px solid #6366f1;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header {
+      padding: 12px 20px;
+      background: #1e1b4b;
+      border-bottom: 1px solid #312e81;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-left {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-
-    .active-step-badge {
-      font-size: 0.68rem;
-      font-weight: 800;
-      background: #06b6d4;
-      color: #082f49;
-      padding: 1px 8px;
-      border-radius: var(--radius-pill);
+    .header-icon {
+      font-size: 1.4rem;
     }
-
-    .chevron {
+    .header-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #f8fafc;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .header-subtitle {
       font-size: 0.75rem;
       color: #94a3b8;
+      margin: 0;
+    }
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid #475569;
+      background: #1e293b;
+      color: #cbd5e1;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+    .close-btn:hover {
+      background: #dc2626;
+      border-color: #ef4444;
+      color: #ffffff;
     }
 
     .tester-content {
-      padding: 10px 18px 14px 18px;
+      padding: 16px 20px;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      background: #0f172a;
+      gap: 12px;
     }
 
     .status-summary {
@@ -414,9 +499,19 @@ import { ProfileService } from '../../../core/services/profile.service';
       background: #7f1d1d;
     }
 
-    @keyframes pulse {
-      from { opacity: 0.8; }
-      to { opacity: 1; transform: scale(1.02); }
+    @media (max-width: 860px) {
+      .floating-pill-trigger {
+        bottom: 74px;
+        left: 14px;
+        padding: 7px 12px;
+        font-size: 0.75rem;
+      }
+      .tester-floating-panel {
+        bottom: 12px;
+        left: 10px;
+        right: 10px;
+        max-height: 85vh;
+      }
     }
   `]
 })
@@ -428,7 +523,7 @@ export class FlowTesterBarComponent {
   missionsService = inject(MissionsService);
   routesService = inject(RoutesService);
   profileService = inject(ProfileService);
-  isCollapsed = signal<boolean>(false);
+  isCollapsed = signal<boolean>(true);
 
   // Módulo 07 Actions: Perfil & Avatar
   goToProfile(tab: 'summary' | 'avatar' | 'stats' | 'settings' = 'summary'): void {

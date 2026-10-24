@@ -60,7 +60,7 @@ import { AuthMode, AuthMethod } from '../../../core/models/auth.model';
 
         <!-- Mascota Vamoo Mini Helper -->
         <div class="mascot-tip-bar">
-          <img src="/assets/mascot.jpg" alt="Vamoo" class="tip-avatar" />
+          <img src="assets/mascot.jpg" alt="Vamoo" class="tip-avatar" />
           <div class="tip-speech">
             @switch (authService.authMode()) {
               @case ('login') {
