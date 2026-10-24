@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SessionService } from '../../../core/services/session.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -99,7 +100,7 @@ import { SessionService } from '../../../core/services/session.service';
               </div>
             </div>
 
-            <button class="btn-logout" title="Cerrar sesión" (click)="sessionService.setAsVisitor()">
+            <button class="btn-logout" title="Cerrar sesión" (click)="authService.logout()">
               <span>🚪 Salir</span>
             </button>
           }
@@ -433,4 +434,5 @@ import { SessionService } from '../../../core/services/session.service';
 })
 export class NavbarComponent {
   sessionService = inject(SessionService);
+  authService = inject(AuthService);
 }

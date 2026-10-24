@@ -31,7 +31,7 @@ import { SessionService } from '../../core/services/session.service';
           <div class="hero-text-col">
             <div class="release-tag">
               <span class="tag-dot"></span>
-              <span>Gamificación Urbana • Paso 1: Portada e Inicio</span>
+              <span>Gamificación Urbana • Paso 2: Autenticación y Cuentas Activo</span>
             </div>
 
             <h1 class="hero-title">
@@ -119,29 +119,31 @@ import { SessionService } from '../../core/services/session.service';
         </div>
 
         <div class="modules-grid">
-          <!-- Módulo 1 (Activo) -->
-          <div class="module-card active-step">
+          <!-- Módulo 1 (Completado) -->
+          <div class="module-card completed-step">
             <div class="card-status status-active">
-              <span>● Paso 1: En Evaluación</span>
+              <span>✓ Paso 1: Portada e Inicio</span>
             </div>
             <div class="card-icon">🏠</div>
             <h3>01. Inicio y Portada</h3>
             <p>Portada pública, sesión, información, privacidad, tutorial interactivo de bienvenida y gestión de GPS.</p>
             <div class="card-footer">
-              <span class="step-label">Módulo Actual</span>
+              <span class="step-label">✓ Implementado</span>
             </div>
           </div>
 
-          <!-- Módulo 2 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 2: Próximo</span>
+          <!-- Módulo 2 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.openModal('auth')">
+            <div class="card-status status-active">
+              <span>● Paso 2: Autenticación Activo</span>
             </div>
             <div class="card-icon">🔑</div>
-            <h3>02. Autenticación</h3>
-            <p>Registro con Google o correo, verificación de nombre único, edad mínima y recuperación de credenciales.</p>
+            <h3>02. Autenticación y Cuentas</h3>
+            <p>Registro Google/Correo, validación de edad >= 14, nombre único con sugerencias, OTP por email, recuperación y control de intentos fallidos.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 3 y 4</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.openModal('auth')">
+                Probar Autenticación ➔
+              </button>
             </div>
           </div>
 
@@ -614,6 +616,24 @@ import { SessionService } from '../../core/services/session.service';
       border: 2px solid var(--color-primary);
       box-shadow: 0 10px 30px rgba(92, 71, 255, 0.15);
       background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
+      cursor: pointer;
+    }
+
+    .btn-module-action {
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary);
+      color: #ffffff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(92, 71, 255, 0.3);
+    }
+    .btn-module-action:hover {
+      background: var(--color-primary-hover);
+      transform: translateY(-1px);
     }
 
     .card-status {

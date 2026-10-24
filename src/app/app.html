@@ -53,6 +53,6 @@
   <app-session-expired-modal></app-session-expired-modal>
 }
 
-@if (sessionService.activeModal() === 'auth-sim') {
-  <app-auth-sim-modal></app-auth-sim-modal>
+@if (sessionService.activeModal() === 'auth' || sessionService.activeModal() === 'auth-sim') {
+  <app-auth-modal></app-auth-modal>
 }
