@@ -31,7 +31,7 @@ import { SessionService } from '../../core/services/session.service';
           <div class="hero-text-col">
             <div class="release-tag">
               <span class="tag-dot"></span>
-              <span>Gamificación Urbana • Paso 3: Mapa y Proximidad Activo</span>
+              <span>Gamificación Urbana • Paso 4: Logros, Rangos y Ligas Activo</span>
             </div>
 
             <h1 class="hero-title">
@@ -160,16 +160,18 @@ import { SessionService } from '../../core/services/session.service';
             </div>
           </div>
 
-          <!-- Módulo 4 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 4</span>
+          <!-- Módulo 4 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.navigate('achievements')">
+            <div class="card-status status-active">
+              <span>● Paso 4: Logros y Ligas Activo</span>
             </div>
             <div class="card-icon">🎖️</div>
-            <h3>04. Logros y Ligas</h3>
-            <p>Rangos (Pingüino a Flamenco), catálogo de insignias, cupones canjeables y clasificación semanal.</p>
+            <h3>04. Logros, Rangos y Ligas</h3>
+            <p>Escalafón Pingüino a Cóndor, insignias por vertiente, cupones de comercios aliados («include» Validar Campaña) y podio de liga semanal en vivo.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 6 a 9</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.navigate('achievements')">
+                Ver Logros y Ligas ➔
+              </button>
             </div>
           </div>
 
