@@ -4,6 +4,7 @@ import { SessionService } from '../../../core/services/session.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { MapService } from '../../../core/services/map.service';
 import { AchievementsService } from '../../../core/services/achievements.service';
+import { MissionsService } from '../../../core/services/missions.service';
 
 @Component({
   selector: 'app-flow-tester-bar',
@@ -14,8 +15,8 @@ import { AchievementsService } from '../../../core/services/achievements.service
       <!-- Toggle button -->
       <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())" title="Simulador de Casos del Diagrama">
         <div class="toggle-title">
-          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 04)</span>
-          <span class="active-step-badge">Paso 4: Logros y Ligas Activo</span>
+          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 05)</span>
+          <span class="active-step-badge">Paso 5: Misiones Urbanas Activo</span>
         </div>
         <span class="chevron">{{ isCollapsed() ? '▲ Desplegar' : '▼ Ocultar' }}</span>
       </button>
@@ -27,17 +28,17 @@ import { AchievementsService } from '../../../core/services/achievements.service
             <span class="badge" [class.badge-active]="sessionService.isAuthenticated()">
               Sesión: {{ sessionService.isAuthenticated() ? '🟢 ' + sessionService.session().username : '⚪ Visitante' }}
             </span>
+            <span class="badge" [class.badge-active]="missionsService.activeMission() !== null" [class.badge-warn]="missionsService.reconnectionSecondsLeft() !== null">
+              Misión: {{ missionsService.reconnectionSecondsLeft() !== null ? '⏳ Reconexión (' + missionsService.reconnectionSecondsLeft() + 's)' : (missionsService.activeMission() ? '🎯 ' + missionsService.activeMission()?.title : 'Ninguna') }}
+            </span>
+            <span class="badge" [class.badge-active]="missionsService.isWithinArrivalZone()" [class.badge-warn]="missionsService.activeMission() && !missionsService.isWithinArrivalZone()">
+              Proximidad: {{ missionsService.activeMission() ? (missionsService.isWithinArrivalZone() ? '✓ En Zona (<35m)' : '🚶 A ' + missionsService.distanceToTarget() + 'm') : 'N/A' }}
+            </span>
             <span class="badge" [class.badge-active]="sessionService.session().rank === 'Flamenco'" [class.badge-view]="sessionService.session().rank === 'Pingüino'">
               Rango: {{ sessionService.session().rank === 'Flamenco' ? '🦩' : '🐧' }} {{ sessionService.session().rank }} ({{ sessionService.session().xp }} XP)
             </span>
-            <span class="badge" [class.badge-active]="achievementsService.leagueState().isEnrolled">
-              Liga: {{ achievementsService.leagueState().isEnrolled ? 'Puesto #' + achievementsService.leagueState().userRank + ' (' + achievementsService.leagueState().userWeeklyXp + ' XP)' : 'No Inscrito' }}
-            </span>
             <span class="badge" [class.badge-active]="sessionService.session().locationPermission === 'granted'" [class.badge-warn]="sessionService.session().locationPermission === 'denied' || sessionService.session().locationPermission === 'blocked' || mapService.isGpsLost()">
               GPS: {{ mapService.isGpsLost() ? '⚠️ Pérdida Señal' : sessionService.session().locationPermission }}
-            </span>
-            <span class="badge" [class.badge-active]="mapService.activeMission() !== null">
-              Misión: {{ mapService.activeMission() ? '🎯 ' + mapService.activeMission()?.poiName : 'Ninguna' }}
             </span>
             <span class="badge badge-view">
               Vista: {{ sessionService.currentView() }}
@@ -46,6 +47,36 @@ import { AchievementsService } from '../../../core/services/achievements.service
 
           <!-- Botones de Acción de Prueba -->
           <div class="tester-actions-grid">
+            <!-- GRUPO MÓDULO 05: MISIONES URBANAS Y RETOS -->
+            <div class="action-group">
+              <span class="group-label">Módulo 05: Misiones Urbanas</span>
+              <div class="buttons-row">
+                <button class="test-btn primary" (click)="goToMissions()">
+                  🎯 Ver Misiones
+                </button>
+                <button class="test-btn accent" (click)="testStartMission1()">
+                  🚀 Iniciar Misión 1 (Fuente)
+                </button>
+                <button class="test-btn warn" (click)="testTriggerConflict()">
+                  ⚠️ Simular Conflicto (M2)
+                </button>
+                <button class="test-btn success" (click)="mapService.simulateWalkCloser()">
+                  🚶 Acercar Avatar (&lt;35m)
+                </button>
+                <button class="test-btn success" (click)="missionsService.completeActiveMission()">
+                  🎉 Validar y Completar
+                </button>
+                <button class="test-btn danger" (click)="missionsService.requestAbandonActiveMission()">
+                  🚫 Abandonar sin XP
+                </button>
+                <button class="test-btn warn" (click)="missionsService.simulateAppCloseGracePeriod()">
+                  🔌 Desconexión / Margen 30s
+                </button>
+                <button class="test-btn" (click)="testSecurityRestriction()">
+                  🛡️ Probar Restricción Seg.
+                </button>
+              </div>
+            </div>
             <!-- GRUPO MÓDULO 04: LOGROS, RANGOS Y LIGAS -->
             <div class="action-group">
               <span class="group-label">Módulo 04: Logros & Ligas</span>
@@ -343,7 +374,38 @@ export class FlowTesterBarComponent {
   authService = inject(AuthService);
   mapService = inject(MapService);
   achievementsService = inject(AchievementsService);
+  missionsService = inject(MissionsService);
   isCollapsed = signal<boolean>(false);
+
+  // Módulo 05 Actions
+  goToMissions(): void {
+    this.sessionService.navigate('missions');
+  }
+
+  testStartMission1(): void {
+    const m1 = this.missionsService.missions()[0];
+    this.missionsService.requestStartMission(m1);
+    this.sessionService.navigate('missions');
+  }
+
+  testTriggerConflict(): void {
+    // Si no tiene misión activa, inicia la 1
+    if (!this.missionsService.activeMission()) {
+      this.testStartMission1();
+    }
+    // Intenta iniciar la 2 para provocar el modal de conflicto
+    const m2 = this.missionsService.missions()[1];
+    this.missionsService.requestStartMission(m2);
+    this.sessionService.navigate('missions');
+  }
+
+  testSecurityRestriction(): void {
+    const m6 = this.missionsService.missions().find(m => m.securityStatus === 'maintenance');
+    if (m6) {
+      this.missionsService.requestStartMission(m6);
+      this.sessionService.navigate('missions');
+    }
+  }
 
   // Módulo 04 Actions
   goToAchievements(tab: 'ranks' | 'badges' | 'rewards' | 'leagues' = 'ranks'): void {

@@ -31,7 +31,7 @@ import { SessionService } from '../../core/services/session.service';
           <div class="hero-text-col">
             <div class="release-tag">
               <span class="tag-dot"></span>
-              <span>Gamificación Urbana • Paso 4: Logros, Rangos y Ligas Activo</span>
+              <span>Gamificación Urbana • Paso 5: Misiones Urbanas Activo</span>
             </div>
 
             <h1 class="hero-title">
@@ -175,16 +175,18 @@ import { SessionService } from '../../core/services/session.service';
             </div>
           </div>
 
-          <!-- Módulo 5 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 5</span>
+          <!-- Módulo 5 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.navigate('missions')">
+            <div class="card-status status-active">
+              <span>● Paso 5: Misiones Urbanas Activo</span>
             </div>
             <div class="card-icon">🎯</div>
             <h3>05. Misiones Urbanas</h3>
-            <p>Catálogo de retos de descubrimiento y exploración, rutas peatonales y validación GPS segura.</p>
+            <p>Catálogo de retos de descubrimiento y exploración, resolución de conflictos de misión activa, lugares seguros (Conflicto C) y validación GPS real.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 9 a 13</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.navigate('missions')">
+                Ver Misiones Urbanas ➔
+              </button>
             </div>
           </div>
 
