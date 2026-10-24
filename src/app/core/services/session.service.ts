@@ -25,7 +25,7 @@ export class SessionService {
   readonly currentView = signal<'landing' | 'map' | 'missions' | 'routes' | 'achievements' | 'profile'>('landing');
 
   // Modals state
-  readonly activeModal = signal<'info' | 'privacy' | 'tutorial' | 'location' | 'session-expired' | 'auth-sim' | null>(null);
+  readonly activeModal = signal<'info' | 'privacy' | 'tutorial' | 'location' | 'session-expired' | 'auth' | 'auth-sim' | null>(null);
 
   // Computed signals
   readonly isAuthenticated = computed(() => this.session().isAuthenticated);
@@ -69,8 +69,8 @@ export class SessionService {
    */
   handlePlayClick(): void {
     if (!this.session().isAuthenticated) {
-      // Usuario visitante -> Ir a autenticación
-      this.openModal('auth-sim');
+      // Usuario visitante -> Ir a autenticación (Módulo 02)
+      this.openModal('auth');
       return;
     }
 
@@ -230,7 +230,7 @@ export class SessionService {
     this.closeModal();
   }
 
-  openModal(modal: 'info' | 'privacy' | 'tutorial' | 'location' | 'session-expired' | 'auth-sim'): void {
+  openModal(modal: 'info' | 'privacy' | 'tutorial' | 'location' | 'session-expired' | 'auth' | 'auth-sim'): void {
     this.activeModal.set(modal);
   }
 

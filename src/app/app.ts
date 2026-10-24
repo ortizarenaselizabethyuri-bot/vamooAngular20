@@ -9,7 +9,7 @@ import { InfoModalComponent } from './shared/components/info-modal/info-modal.co
 import { TutorialModalComponent } from './shared/components/tutorial-modal/tutorial-modal.component';
 import { LocationModalComponent } from './shared/components/location-modal/location-modal.component';
 import { SessionExpiredModalComponent } from './shared/components/session-expired-modal/session-expired-modal.component';
-import { AuthSimModalComponent } from './shared/components/auth-sim-modal/auth-sim-modal.component';
+import { AuthModalComponent } from './shared/components/auth-modal/auth-modal.component';
 
 @Component({
   selector: 'app-root',
@@ -24,7 +24,7 @@ import { AuthSimModalComponent } from './shared/components/auth-sim-modal/auth-s
     TutorialModalComponent,
     LocationModalComponent,
     SessionExpiredModalComponent,
-    AuthSimModalComponent
+    AuthModalComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'
