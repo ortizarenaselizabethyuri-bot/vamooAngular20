@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SessionService } from '../../../core/services/session.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { MapService } from '../../../core/services/map.service';
 
 @Component({
   selector: 'app-flow-tester-bar',
@@ -12,8 +13,8 @@ import { AuthService } from '../../../core/services/auth.service';
       <!-- Toggle button -->
       <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())" title="Simulador de Casos del Diagrama">
         <div class="toggle-title">
-          <span>🧪 Panel de Pruebas de Flujos UML (Módulo 01 y Módulo 02)</span>
-          <span class="active-step-badge">Paso 2: Autenticación Activo</span>
+          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01, 02 y 03)</span>
+          <span class="active-step-badge">Paso 3: Mapa y Proximidad Activo</span>
         </div>
         <span class="chevron">{{ isCollapsed() ? '▲ Desplegar' : '▼ Ocultar' }}</span>
       </button>
@@ -25,15 +26,14 @@ import { AuthService } from '../../../core/services/auth.service';
             <span class="badge" [class.badge-active]="sessionService.isAuthenticated()">
               Sesión: {{ sessionService.isAuthenticated() ? '🟢 ' + sessionService.session().username : '⚪ Visitante' }}
             </span>
-            <span class="badge" [class.badge-active]="sessionService.session().tutorialCompleted">
-              Tutorial: {{ sessionService.session().tutorialCompleted ? '✓ Completado' : '⏳ Pendiente' }}
+            <span class="badge" [class.badge-active]="sessionService.session().locationPermission === 'granted'" [class.badge-warn]="sessionService.session().locationPermission === 'denied' || sessionService.session().locationPermission === 'blocked' || mapService.isGpsLost()">
+              GPS: {{ mapService.isGpsLost() ? '⚠️ Pérdida Señal' : sessionService.session().locationPermission }}
             </span>
-            <span class="badge" [class.badge-active]="sessionService.session().locationPermission === 'granted'" [class.badge-warn]="sessionService.session().locationPermission === 'denied' || sessionService.session().locationPermission === 'blocked'">
-              GPS: {{ sessionService.session().locationPermission }}
+            <span class="badge" [class.badge-active]="mapService.activeMission() !== null">
+              Misión: {{ mapService.activeMission() ? '🎯 ' + mapService.activeMission()?.poiName : 'Ninguna' }}
             </span>
-            <span class="badge" [class.badge-warn]="authService.failedLoginAttempts() > 0" [class.badge-danger]="authService.isLockedOut()">
-              Intentos Fallidos: {{ authService.failedLoginAttempts() }}/{{ authService.maxFailedAttempts }}
-              {{ authService.isLockedOut() ? ' (🔒 Bloqueado ' + authService.lockoutSecondsRemaining() + 's)' : '' }}
+            <span class="badge" [class.badge-active]="mapService.isWithinArrivalZone()" [class.badge-warn]="mapService.activeMission() && !mapService.isWithinArrivalZone()">
+              Proximidad: {{ mapService.activeMission() ? (mapService.isWithinArrivalZone() ? '✓ En Zona (<35m)' : '🚶 A ' + mapService.liveDistanceToTarget() + 'm') : 'N/A' }}
             </span>
             <span class="badge badge-view">
               Vista: {{ sessionService.currentView() }}
@@ -42,29 +42,64 @@ import { AuthService } from '../../../core/services/auth.service';
 
           <!-- Botones de Acción de Prueba -->
           <div class="tester-actions-grid">
+            <!-- GRUPO MÓDULO 03: MAPA Y PROXIMIDAD -->
+            <div class="action-group">
+              <span class="group-label">Módulo 03: Mapa & Proximidad</span>
+              <div class="buttons-row">
+                <button class="test-btn primary" (click)="goToMap()">
+                  🗺️ Ver Mapa 2D
+                </button>
+                <button class="test-btn accent" (click)="testSelectPoiAndRoute()">
+                  📍 Trazar Ruta a POI
+                </button>
+                <button class="test-btn accent" (click)="testStartActiveMission()">
+                  🚀 Iniciar Misión
+                </button>
+                <button class="test-btn success" (click)="mapService.simulateWalkCloser()">
+                  🚶 Entrar en Zona (&lt;35m)
+                </button>
+                <button class="test-btn warn" (click)="mapService.simulateWalkAway()">
+                  ↔️ Alejar Avatar (&gt;35m)
+                </button>
+                <button class="test-btn warn" (click)="testCompleteOutOfRange()">
+                  🔒 Intentar Sin Rango
+                </button>
+                <button class="test-btn success" (click)="testCompleteWithReward()">
+                  🎉 Completar y Recompensa
+                </button>
+                <button class="test-btn danger" (click)="mapService.toggleGpsLost()">
+                  {{ mapService.isGpsLost() ? '📡 Restaurar GPS' : '📡 Pérdida de GPS' }}
+                </button>
+                <button class="test-btn" (click)="mapService.recenterMap()">
+                  🎯 Recentrar
+                </button>
+              </div>
+            </div>
+
+            <!-- GRUPO MÓDULO 02: AUTENTICACIÓN -->
             <div class="action-group">
               <span class="group-label">Módulo 02: Autenticación</span>
               <div class="buttons-row">
                 <button class="test-btn primary" (click)="openAuth('login')">
                   🔑 Ingresar (Login)
                 </button>
-                <button class="test-btn accent" (click)="testRegisterEmail()">
+                <button class="test-btn" (click)="testRegisterEmail()">
                   ✉️ Registro Correo + OTP
                 </button>
                 <button class="test-btn" (click)="testRegisterGoogle()">
-                  🌐 Registro con Google
+                  🌐 Registro Google
                 </button>
                 <button class="test-btn warn" (click)="testAgeDenied()">
-                  🚫 Simular Edad < 14 (Denegado)
+                  🚫 Simular Edad &lt; 14
                 </button>
                 <button class="test-btn" (click)="testUsernameTaken()">
-                  👥 Probar Nombre Ocupado
+                  👥 Nombre Duplicado
                 </button>
                 <button class="test-btn danger" (click)="testFailedAttempt()">
-                  ⚠️ Forzar Error e Intentos
+                  ⚠️ Error e Intentos
                 </button>
                 <button class="test-btn" (click)="openAuth('recovery')">
-                  🛡️ Recuperar Contraseña
+                  🛡️ Recuperar Clave
                 </button>
                 @if (sessionService.isAuthenticated()) {
                   <button class="test-btn danger" (click)="authService.logout()">
@@ -74,6 +109,7 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             </div>
 
+            <!-- GRUPO MÓDULO 01: INICIO & PORTADA -->
             <div class="action-group">
               <span class="group-label">Módulo 01: Inicio & GPS</span>
               <div class="buttons-row">
@@ -139,8 +175,8 @@ import { AuthService } from '../../../core/services/auth.service';
     .active-step-badge {
       font-size: 0.68rem;
       font-weight: 800;
-      background: #10b981;
-      color: #022c22;
+      background: #06b6d4;
+      color: #082f49;
       padding: 1px 8px;
       border-radius: var(--radius-pill);
     }
@@ -216,7 +252,7 @@ import { AuthService } from '../../../core/services/auth.service';
       color: #818cf8;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      min-width: 175px;
+      min-width: 195px;
     }
 
     .buttons-row {
@@ -254,6 +290,13 @@ import { AuthService } from '../../../core/services/auth.service';
     .test-btn.accent:hover {
       background: #0f766e;
     }
+    .test-btn.success {
+      background: #059669;
+      border-color: #10b981;
+    }
+    .test-btn.success:hover {
+      background: #047857;
+    }
     .test-btn.warn {
       background: #b45309;
       border-color: #f59e0b;
@@ -278,8 +321,49 @@ import { AuthService } from '../../../core/services/auth.service';
 export class FlowTesterBarComponent {
   sessionService = inject(SessionService);
   authService = inject(AuthService);
+  mapService = inject(MapService);
   isCollapsed = signal<boolean>(false);
 
+  // Módulo 03 Actions
+  goToMap(): void {
+    if (!this.sessionService.isAuthenticated()) {
+      this.sessionService.simulateLogin();
+    }
+    this.sessionService.grantLocation();
+    this.sessionService.navigate('map');
+  }
+
+  testSelectPoiAndRoute(): void {
+    this.goToMap();
+    const poi = this.mapService.pointsOfInterest()[1]; // Fuente Ancestral
+    this.mapService.selectPoi(poi);
+  }
+
+  testStartActiveMission(): void {
+    this.goToMap();
+    const poi = this.mapService.pointsOfInterest()[1];
+    this.mapService.startMission(poi);
+  }
+
+  testCompleteOutOfRange(): void {
+    this.goToMap();
+    if (!this.mapService.activeMission()) {
+      this.testStartActiveMission();
+    }
+    this.mapService.simulateWalkAway();
+    this.mapService.completeActiveMission();
+  }
+
+  testCompleteWithReward(): void {
+    this.goToMap();
+    if (!this.mapService.activeMission()) {
+      this.testStartActiveMission();
+    }
+    this.mapService.simulateWalkCloser();
+    this.mapService.completeActiveMission();
+  }
+
+  // Módulo 02 Actions
   openAuth(mode: 'login' | 'register' | 'recovery'): void {
     this.authService.setAuthMode(mode);
     this.sessionService.openModal('auth');
