@@ -11,6 +11,7 @@ import { LocationModalComponent } from './shared/components/location-modal/locat
 import { SessionExpiredModalComponent } from './shared/components/session-expired-modal/session-expired-modal.component';
 import { AuthModalComponent } from './shared/components/auth-modal/auth-modal.component';
 import { AchievementsComponent } from './features/achievements/achievements.component';
+import { MissionsComponent } from './features/missions/missions.component';
 
 @Component({
   selector: 'app-root',
@@ -22,6 +23,7 @@ import { AchievementsComponent } from './features/achievements/achievements.comp
     LandingComponent,
     MapInteractiveComponent,
     AchievementsComponent,
+    MissionsComponent,
     InfoModalComponent,
     TutorialModalComponent,
     LocationModalComponent,
