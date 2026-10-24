@@ -31,7 +31,7 @@ import { SessionService } from '../../core/services/session.service';
           <div class="hero-text-col">
             <div class="release-tag">
               <span class="tag-dot"></span>
-              <span>Gamificación Urbana • Paso 5: Misiones Urbanas Activo</span>
+              <span>Gamificación Urbana • Todos los Módulos (01 a 07) Activos</span>
             </div>
 
             <h1 class="hero-title">
@@ -190,29 +190,33 @@ import { SessionService } from '../../core/services/session.service';
             </div>
           </div>
 
-          <!-- Módulo 6 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 6</span>
+          <!-- Módulo 6 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.navigate('routes')">
+            <div class="card-status status-active">
+              <span>● Paso 6: Recorridos Temáticos Activo</span>
             </div>
             <div class="card-icon">🚶</div>
             <h3>06. Recorridos Temáticos</h3>
-            <p>Rutas con paradas secuenciales sugeridas, check-in manual/GPS y suspensión por seguridad.</p>
+            <p>Circuitos con paradas secuenciales sugeridas, guardado persistente para pausar/retomar y suspensión por seguridad.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 13 a 18</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.navigate('routes')">
+                Ver Recorridos ➔
+              </button>
             </div>
           </div>
 
-          <!-- Módulo 7 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 7</span>
+          <!-- Módulo 7 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.navigate('profile')">
+            <div class="card-status status-active">
+              <span>● Paso 7: Perfil y Avatar Activo</span>
             </div>
             <div class="card-icon">👤</div>
             <h3>07. Perfil y Personalización</h3>
-            <p>Personalización de colores y accesorios para el avatar (/yo/avatar), estadísticas y privacidad.</p>
+            <p>Armario de accesorios y colores para el avatar (/yo/avatar), cambio de nombre atómico y privacidad limitada.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 18 a 23</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.navigate('profile')">
+                Mi Perfil y Avatar ➔
+              </button>
             </div>
           </div>
         </div>

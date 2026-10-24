@@ -5,6 +5,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { MapService } from '../../../core/services/map.service';
 import { AchievementsService } from '../../../core/services/achievements.service';
 import { MissionsService } from '../../../core/services/missions.service';
+import { RoutesService } from '../../../core/services/routes.service';
+import { ProfileService } from '../../../core/services/profile.service';
 
 @Component({
   selector: 'app-flow-tester-bar',
@@ -15,8 +17,8 @@ import { MissionsService } from '../../../core/services/missions.service';
       <!-- Toggle button -->
       <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())" title="Simulador de Casos del Diagrama">
         <div class="toggle-title">
-          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 05)</span>
-          <span class="active-step-badge">Paso 5: Misiones Urbanas Activo</span>
+          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 07 Completados)</span>
+          <span class="active-step-badge">Paso 7: Sistema Completo Activo</span>
         </div>
         <span class="chevron">{{ isCollapsed() ? '▲ Desplegar' : '▼ Ocultar' }}</span>
       </button>
@@ -28,11 +30,11 @@ import { MissionsService } from '../../../core/services/missions.service';
             <span class="badge" [class.badge-active]="sessionService.isAuthenticated()">
               Sesión: {{ sessionService.isAuthenticated() ? '🟢 ' + sessionService.session().username : '⚪ Visitante' }}
             </span>
-            <span class="badge" [class.badge-active]="missionsService.activeMission() !== null" [class.badge-warn]="missionsService.reconnectionSecondsLeft() !== null">
-              Misión: {{ missionsService.reconnectionSecondsLeft() !== null ? '⏳ Reconexión (' + missionsService.reconnectionSecondsLeft() + 's)' : (missionsService.activeMission() ? '🎯 ' + missionsService.activeMission()?.title : 'Ninguna') }}
+            <span class="badge" [class.badge-active]="routesService.activeRoute() !== null" [class.badge-warn]="routesService.activeRoute()?.status === 'paused'">
+              Recorrido: {{ routesService.activeRoute() ? (routesService.activeRoute()?.status === 'paused' ? '⏸️ Pausado' : '🚶 ' + routesService.activeRoute()?.title) : 'Ninguno' }}
             </span>
-            <span class="badge" [class.badge-active]="missionsService.isWithinArrivalZone()" [class.badge-warn]="missionsService.activeMission() && !missionsService.isWithinArrivalZone()">
-              Proximidad: {{ missionsService.activeMission() ? (missionsService.isWithinArrivalZone() ? '✓ En Zona (<35m)' : '🚶 A ' + missionsService.distanceToTarget() + 'm') : 'N/A' }}
+            <span class="badge" [class.badge-active]="missionsService.activeMission() !== null">
+              Misión: {{ missionsService.activeMission() ? '🎯 ' + missionsService.activeMission()?.title : 'Ninguna' }}
             </span>
             <span class="badge" [class.badge-active]="sessionService.session().rank === 'Flamenco'" [class.badge-view]="sessionService.session().rank === 'Pingüino'">
               Rango: {{ sessionService.session().rank === 'Flamenco' ? '🦩' : '🐧' }} {{ sessionService.session().rank }} ({{ sessionService.session().xp }} XP)
@@ -47,6 +49,55 @@ import { MissionsService } from '../../../core/services/missions.service';
 
           <!-- Botones de Acción de Prueba -->
           <div class="tester-actions-grid">
+            <!-- GRUPO MÓDULO 07: PERFIL & AVATAR -->
+            <div class="action-group">
+              <span class="group-label">Módulo 07: Perfil & Avatar</span>
+              <div class="buttons-row">
+                <button class="test-btn primary" (click)="goToProfile('summary')">
+                  👤 Mi Perfil
+                </button>
+                <button class="test-btn accent" (click)="goToProfile('avatar')">
+                  🎨 Armario Avatar
+                </button>
+                <button class="test-btn" (click)="testEquipAccessory()">
+                  🧢 Equipar Sombrero
+                </button>
+                <button class="test-btn success" (click)="testChangeUsername()">
+                  ✏️ Cambiar Usuario
+                </button>
+                <button class="test-btn" (click)="goToProfile('settings')">
+                  🛡️ Privacidad & Cuenta
+                </button>
+              </div>
+            </div>
+
+            <!-- GRUPO MÓDULO 06: RECORRIDOS TEMÁTICOS -->
+            <div class="action-group">
+              <span class="group-label">Módulo 06: Recorridos</span>
+              <div class="buttons-row">
+                <button class="test-btn primary" (click)="goToRoutes()">
+                  🚶 Ver Recorridos
+                </button>
+                <button class="test-btn accent" (click)="testStartRoute1()">
+                  🚀 Iniciar Ruta 1 (Patrimonio)
+                </button>
+                <button class="test-btn success" (click)="testValidateStop()">
+                  ✓ Validar Parada (&lt;35m)
+                </button>
+                <button class="test-btn warn" (click)="routesService.pauseActiveRoute()">
+                  ⏸️ Pausar Progreso
+                </button>
+                <button class="test-btn success" (click)="testResumeRoute()">
+                  ▶️ Retomar Recorrido
+                </button>
+                <button class="test-btn" (click)="testSuspendedRoute()">
+                  ⚠️ Simular Ruta Suspendida
+                </button>
+                <button class="test-btn danger" (click)="routesService.requestAbandonRoute()">
+                  🚫 Abandonar Ruta
+                </button>
+              </div>
+            </div>
             <!-- GRUPO MÓDULO 05: MISIONES URBANAS Y RETOS -->
             <div class="action-group">
               <span class="group-label">Módulo 05: Misiones Urbanas</span>
@@ -375,7 +426,72 @@ export class FlowTesterBarComponent {
   mapService = inject(MapService);
   achievementsService = inject(AchievementsService);
   missionsService = inject(MissionsService);
+  routesService = inject(RoutesService);
+  profileService = inject(ProfileService);
   isCollapsed = signal<boolean>(false);
+
+  // Módulo 07 Actions: Perfil & Avatar
+  goToProfile(tab: 'summary' | 'avatar' | 'stats' | 'settings' = 'summary'): void {
+    if (!this.sessionService.isAuthenticated()) {
+      this.sessionService.simulateLogin();
+    }
+    this.profileService.setSubTab(tab);
+    this.sessionService.navigate('profile');
+  }
+
+  testEquipAccessory(): void {
+    this.goToProfile('avatar');
+    const hat = this.profileService.avatarOptions().find(o => o.type === 'hat' && o.isUnlocked);
+    if (hat) {
+      this.profileService.equipOption(hat);
+    }
+  }
+
+  testChangeUsername(): void {
+    this.goToProfile('settings');
+    this.profileService.resetUsernameCooldownForTesting();
+    const randomSuffix = Math.floor(Math.random() * 900 + 100);
+    this.profileService.changeUsername(`Explorador_${randomSuffix}`);
+  }
+
+  // Módulo 06 Actions: Recorridos Temáticos
+  goToRoutes(): void {
+    if (!this.sessionService.isAuthenticated()) {
+      this.sessionService.simulateLogin();
+    }
+    this.sessionService.grantLocation();
+    this.sessionService.navigate('routes');
+  }
+
+  testStartRoute1(): void {
+    this.goToRoutes();
+    const r1 = this.routesService.routes()[0];
+    if (r1) {
+      this.routesService.startRoute(r1);
+    }
+  }
+
+  testValidateStop(): void {
+    this.goToRoutes();
+    this.mapService.simulateWalkCloser();
+    this.routesService.confirmCurrentStop();
+  }
+
+  testResumeRoute(): void {
+    this.goToRoutes();
+    const r1 = this.routesService.routes()[0];
+    if (r1) {
+      this.routesService.resumeRoute(r1);
+    }
+  }
+
+  testSuspendedRoute(): void {
+    this.goToRoutes();
+    const suspended = this.routesService.routes().find(r => r.status === 'suspended');
+    if (suspended) {
+      this.routesService.startRoute(suspended);
+    }
+  }
 
   // Módulo 05 Actions
   goToMissions(): void {

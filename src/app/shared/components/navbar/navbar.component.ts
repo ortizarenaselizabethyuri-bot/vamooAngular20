@@ -140,6 +140,15 @@ import { AuthService } from '../../../core/services/auth.service';
 
       <button
         class="bottom-nav-item"
+        [class.active]="sessionService.currentView() === 'routes'"
+        (click)="sessionService.navigate('routes')"
+      >
+        <span class="nav-icon">🚶</span>
+        <span class="nav-label">Rutas</span>
+      </button>
+
+      <button
+        class="bottom-nav-item"
         [class.active]="sessionService.currentView() === 'missions'"
         (click)="sessionService.navigate('missions')"
       >
@@ -149,11 +158,11 @@ import { AuthService } from '../../../core/services/auth.service';
 
       <button
         class="bottom-nav-item"
-        [class.active]="sessionService.currentView() === 'achievements'"
-        (click)="sessionService.navigate('achievements')"
+        [class.active]="sessionService.currentView() === 'profile'"
+        (click)="sessionService.navigate('profile')"
       >
-        <span class="nav-icon">🏆</span>
-        <span class="nav-label">Logros</span>
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Perfil</span>
       </button>
     </nav>
   `,
