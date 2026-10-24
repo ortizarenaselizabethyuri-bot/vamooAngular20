@@ -31,7 +31,7 @@ import { SessionService } from '../../core/services/session.service';
           <div class="hero-text-col">
             <div class="release-tag">
               <span class="tag-dot"></span>
-              <span>Gamificación Urbana • Paso 2: Autenticación y Cuentas Activo</span>
+              <span>Gamificación Urbana • Paso 3: Mapa y Proximidad Activo</span>
             </div>
 
             <h1 class="hero-title">
@@ -132,31 +132,31 @@ import { SessionService } from '../../core/services/session.service';
             </div>
           </div>
 
-          <!-- Módulo 2 (Implementado y Activo) -->
-          <div class="module-card active-step" (click)="sessionService.openModal('auth')">
+          <!-- Módulo 2 (Completado) -->
+          <div class="module-card completed-step" (click)="sessionService.openModal('auth')">
             <div class="card-status status-active">
-              <span>● Paso 2: Autenticación Activo</span>
+              <span>✓ Paso 2: Autenticación</span>
             </div>
             <div class="card-icon">🔑</div>
             <h3>02. Autenticación y Cuentas</h3>
             <p>Registro Google/Correo, validación de edad >= 14, nombre único con sugerencias, OTP por email, recuperación y control de intentos fallidos.</p>
             <div class="card-footer">
-              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.openModal('auth')">
-                Probar Autenticación ➔
-              </button>
+              <span class="step-label">✓ Implementado</span>
             </div>
           </div>
 
-          <!-- Módulo 3 -->
-          <div class="module-card">
-            <div class="card-status status-pending">
-              <span>○ Paso 3</span>
+          <!-- Módulo 3 (Implementado y Activo) -->
+          <div class="module-card active-step" (click)="sessionService.navigate('map')">
+            <div class="card-status status-active">
+              <span>● Paso 3: Mapa y Proximidad Activo</span>
             </div>
             <div class="card-icon">🗺️</div>
-            <h3>03. Exploración del Mapa</h3>
-            <p>Mapa 2D interactivo con avatar en vivo, puntos de interés, recentrado y radar de proximidad.</p>
+            <h3>03. Acceso y Exploración del Mapa</h3>
+            <p>Mapa 2D interactivo, radar en vivo, trazado peatonal SVG, radio de llegada (&lt;35m), eventos de pérdida/recuperación de GPS y celebración de recompensas.</p>
             <div class="card-footer">
-              <span class="step-label">Diagramas 4 y 5</span>
+              <button class="btn-module-action" (click)="$event.stopPropagation(); sessionService.navigate('map')">
+                Explorar Mapa ➔
+              </button>
             </div>
           </div>
 
