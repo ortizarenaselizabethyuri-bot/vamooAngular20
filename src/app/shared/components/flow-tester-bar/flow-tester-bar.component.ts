@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { SessionService } from '../../../core/services/session.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { MapService } from '../../../core/services/map.service';
+import { AchievementsService } from '../../../core/services/achievements.service';
 
 @Component({
   selector: 'app-flow-tester-bar',
@@ -13,8 +14,8 @@ import { MapService } from '../../../core/services/map.service';
       <!-- Toggle button -->
       <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())" title="Simulador de Casos del Diagrama">
         <div class="toggle-title">
-          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01, 02 y 03)</span>
-          <span class="active-step-badge">Paso 3: Mapa y Proximidad Activo</span>
+          <span>🧪 Panel de Pruebas de Flujos UML (Módulos 01 a 04)</span>
+          <span class="active-step-badge">Paso 4: Logros y Ligas Activo</span>
         </div>
         <span class="chevron">{{ isCollapsed() ? '▲ Desplegar' : '▼ Ocultar' }}</span>
       </button>
@@ -26,14 +27,17 @@ import { MapService } from '../../../core/services/map.service';
             <span class="badge" [class.badge-active]="sessionService.isAuthenticated()">
               Sesión: {{ sessionService.isAuthenticated() ? '🟢 ' + sessionService.session().username : '⚪ Visitante' }}
             </span>
+            <span class="badge" [class.badge-active]="sessionService.session().rank === 'Flamenco'" [class.badge-view]="sessionService.session().rank === 'Pingüino'">
+              Rango: {{ sessionService.session().rank === 'Flamenco' ? '🦩' : '🐧' }} {{ sessionService.session().rank }} ({{ sessionService.session().xp }} XP)
+            </span>
+            <span class="badge" [class.badge-active]="achievementsService.leagueState().isEnrolled">
+              Liga: {{ achievementsService.leagueState().isEnrolled ? 'Puesto #' + achievementsService.leagueState().userRank + ' (' + achievementsService.leagueState().userWeeklyXp + ' XP)' : 'No Inscrito' }}
+            </span>
             <span class="badge" [class.badge-active]="sessionService.session().locationPermission === 'granted'" [class.badge-warn]="sessionService.session().locationPermission === 'denied' || sessionService.session().locationPermission === 'blocked' || mapService.isGpsLost()">
               GPS: {{ mapService.isGpsLost() ? '⚠️ Pérdida Señal' : sessionService.session().locationPermission }}
             </span>
             <span class="badge" [class.badge-active]="mapService.activeMission() !== null">
               Misión: {{ mapService.activeMission() ? '🎯 ' + mapService.activeMission()?.poiName : 'Ninguna' }}
-            </span>
-            <span class="badge" [class.badge-active]="mapService.isWithinArrivalZone()" [class.badge-warn]="mapService.activeMission() && !mapService.isWithinArrivalZone()">
-              Proximidad: {{ mapService.activeMission() ? (mapService.isWithinArrivalZone() ? '✓ En Zona (<35m)' : '🚶 A ' + mapService.liveDistanceToTarget() + 'm') : 'N/A' }}
             </span>
             <span class="badge badge-view">
               Vista: {{ sessionService.currentView() }}
@@ -42,6 +46,37 @@ import { MapService } from '../../../core/services/map.service';
 
           <!-- Botones de Acción de Prueba -->
           <div class="tester-actions-grid">
+            <!-- GRUPO MÓDULO 04: LOGROS, RANGOS Y LIGAS -->
+            <div class="action-group">
+              <span class="group-label">Módulo 04: Logros & Ligas</span>
+              <div class="buttons-row">
+                <button class="test-btn primary" (click)="goToAchievements('ranks')">
+                  🎖️ Ver Rangos
+                </button>
+                <button class="test-btn" (click)="goToAchievements('badges')">
+                  🏅 Ver Insignias
+                </button>
+                <button class="test-btn accent" (click)="goToAchievements('rewards')">
+                  🎁 Ver Premios & Cupones
+                </button>
+                <button class="test-btn primary" (click)="goToAchievements('leagues')">
+                  🏆 Ver Liga Semanal
+                </button>
+                <button class="test-btn success" (click)="testAddXp50()">
+                  ⚡ Simular Actividad (+50 XP)
+                </button>
+                <button class="test-btn success" (click)="testPromoteToFlamenco()">
+                  🦩 Ascender a Flamenco (+200 XP)
+                </button>
+                <button class="test-btn accent" (click)="testClaimCoupon()">
+                  🎟️ Canjear Cupón Café
+                </button>
+                <button class="test-btn" (click)="testUnlockBadge()">
+                  🌟 Desbloquear Insignia
+                </button>
+              </div>
+            </div>
+
             <!-- GRUPO MÓDULO 03: MAPA Y PROXIMIDAD -->
             <div class="action-group">
               <span class="group-label">Módulo 03: Mapa & Proximidad</span>
@@ -61,17 +96,11 @@ import { MapService } from '../../../core/services/map.service';
                 <button class="test-btn warn" (click)="mapService.simulateWalkAway()">
                   ↔️ Alejar Avatar (&gt;35m)
                 </button>
-                <button class="test-btn warn" (click)="testCompleteOutOfRange()">
-                  🔒 Intentar Sin Rango
-                </button>
                 <button class="test-btn success" (click)="testCompleteWithReward()">
                   🎉 Completar y Recompensa
                 </button>
                 <button class="test-btn danger" (click)="mapService.toggleGpsLost()">
-                  {{ mapService.isGpsLost() ? '📡 Restaurar GPS' : '📡 Pérdida de GPS' }}
-                </button>
-                <button class="test-btn" (click)="mapService.recenterMap()">
-                  🎯 Recentrar
+                  {{ mapService.isGpsLost() ? '📡 Restaurar GPS' : '📡 Pérdida GPS' }}
                 </button>
               </div>
             </div>
@@ -90,16 +119,10 @@ import { MapService } from '../../../core/services/map.service';
                   🌐 Registro Google
                 </button>
                 <button class="test-btn warn" (click)="testAgeDenied()">
-                  🚫 Simular Edad &lt; 14
+                  🚫 Edad &lt; 14
                 </button>
                 <button class="test-btn" (click)="testUsernameTaken()">
                   👥 Nombre Duplicado
-                </button>
-                <button class="test-btn danger" (click)="testFailedAttempt()">
-                  ⚠️ Error e Intentos
-                </button>
-                <button class="test-btn" (click)="openAuth('recovery')">
-                  🛡️ Recuperar Clave
                 </button>
                 @if (sessionService.isAuthenticated()) {
                   <button class="test-btn danger" (click)="authService.logout()">
@@ -111,16 +134,13 @@ import { MapService } from '../../../core/services/map.service';
 
             <!-- GRUPO MÓDULO 01: INICIO & PORTADA -->
             <div class="action-group">
-              <span class="group-label">Módulo 01: Inicio & GPS</span>
+              <span class="group-label">Módulo 01: Inicio & Portada</span>
               <div class="buttons-row">
                 <button class="test-btn" (click)="sessionService.setAsVisitor()">
                   🔄 Reset Visitante
                 </button>
                 <button class="test-btn" (click)="sessionService.handlePlayClick()">
-                  ▶️ "¿Presiona Jugar?"
-                </button>
-                <button class="test-btn" (click)="triggerPendingTutorial()">
-                  👋 Forzar Tutorial
+                  ▶️ "Presiona Jugar"
                 </button>
                 <button class="test-btn" (click)="sessionService.openModal('location')">
                   📍 Permiso GPS
@@ -322,7 +342,38 @@ export class FlowTesterBarComponent {
   sessionService = inject(SessionService);
   authService = inject(AuthService);
   mapService = inject(MapService);
+  achievementsService = inject(AchievementsService);
   isCollapsed = signal<boolean>(false);
+
+  // Módulo 04 Actions
+  goToAchievements(tab: 'ranks' | 'badges' | 'rewards' | 'leagues' = 'ranks'): void {
+    this.achievementsService.setActiveTab(tab);
+    this.sessionService.navigate('achievements');
+  }
+
+  testAddXp50(): void {
+    this.achievementsService.simulateAddWeeklyXp(50);
+  }
+
+  testPromoteToFlamenco(): void {
+    this.achievementsService.simulateAddWeeklyXp(200);
+  }
+
+  testClaimCoupon(): void {
+    this.goToAchievements('rewards');
+    const available = this.achievementsService.couponRewards().find(c => !c.isClaimed);
+    if (available) {
+      this.achievementsService.claimCoupon(available);
+    }
+  }
+
+  testUnlockBadge(): void {
+    this.goToAchievements('badges');
+    const locked = this.achievementsService.badges().find(b => !b.isUnlocked);
+    if (locked) {
+      this.achievementsService.unlockBadge(locked.id);
+    }
+  }
 
   // Módulo 03 Actions
   goToMap(): void {

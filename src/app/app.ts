@@ -10,6 +10,7 @@ import { TutorialModalComponent } from './shared/components/tutorial-modal/tutor
 import { LocationModalComponent } from './shared/components/location-modal/location-modal.component';
 import { SessionExpiredModalComponent } from './shared/components/session-expired-modal/session-expired-modal.component';
 import { AuthModalComponent } from './shared/components/auth-modal/auth-modal.component';
+import { AchievementsComponent } from './features/achievements/achievements.component';
 
 @Component({
   selector: 'app-root',
@@ -20,6 +21,7 @@ import { AuthModalComponent } from './shared/components/auth-modal/auth-modal.co
     FlowTesterBarComponent,
     LandingComponent,
     MapInteractiveComponent,
+    AchievementsComponent,
     InfoModalComponent,
     TutorialModalComponent,
     LocationModalComponent,
