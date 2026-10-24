@@ -12,6 +12,8 @@ import { SessionExpiredModalComponent } from './shared/components/session-expire
 import { AuthModalComponent } from './shared/components/auth-modal/auth-modal.component';
 import { AchievementsComponent } from './features/achievements/achievements.component';
 import { MissionsComponent } from './features/missions/missions.component';
+import { RoutesComponent } from './features/routes/routes.component';
+import { ProfileComponent } from './features/profile/profile.component';
 
 @Component({
   selector: 'app-root',
@@ -24,6 +26,8 @@ import { MissionsComponent } from './features/missions/missions.component';
     MapInteractiveComponent,
     AchievementsComponent,
     MissionsComponent,
+    RoutesComponent,
+    ProfileComponent,
     InfoModalComponent,
     TutorialModalComponent,
     LocationModalComponent,
