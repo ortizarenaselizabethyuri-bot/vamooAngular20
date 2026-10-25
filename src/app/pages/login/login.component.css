@@ -1,0 +1,497 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.login-page-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+/* Partículas de ambiente pixeladas */
+.ambient-pixel-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #facc15;
+  box-shadow: 0 0 8px #fde047;
+  opacity: 0.6;
+  animation: floatPixel 4s infinite ease-in-out alternate;
+}
+
+.sp-1 { top: 15%; left: 18%; animation-delay: 0s; }
+.sp-2 { top: 75%; left: 12%; animation-delay: 1.2s; width: 4px; height: 4px; }
+.sp-3 { top: 25%; right: 15%; animation-delay: 2.1s; }
+.sp-4 { top: 80%; right: 20%; animation-delay: 0.8s; width: 8px; height: 8px; background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+
+@keyframes floatPixel {
+  0% { transform: translateY(0px) scale(1); opacity: 0.4; }
+  100% { transform: translateY(-14px) scale(1.3); opacity: 0.9; }
+}
+
+/* ========================================================
+   EL CUADRO PIXELADO (Ventana de Diálogo RPG)
+   ======================================================== */
+.pixel-dialog-box {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 480px;
+  background-color: #172033;
+  border: 5px solid #090e17;
+  border-radius: 4px;
+  box-shadow: 
+    inset 4px 4px 0 #3b4c68,
+    inset -4px -4px 0 #0d131f,
+    0 12px 0 rgba(0, 0, 0, 0.55),
+    0 16px 20px rgba(0, 0, 0, 0.4);
+  padding: 0;
+  overflow: visible;
+}
+
+/* Esquinas ornamentales pixeladas doradas */
+.pixel-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background-color: #eab308;
+  border: 3px solid #713f12;
+  box-shadow: inset 1px 1px 0 #fef08a, 0 2px 0 #000;
+  z-index: 25;
+}
+
+.corner-tl { top: -8px; left: -8px; }
+.corner-tr { top: -8px; right: -8px; }
+.corner-bl { bottom: -8px; left: -8px; }
+.corner-br { bottom: -8px; right: -8px; }
+
+/* --------------------------------------------------------
+   BARRA DE TÍTULO SUPERIOR (Estilo Cinta de Misión RPG)
+   -------------------------------------------------------- */
+.dialog-header-banner {
+  background: linear-gradient(180deg, #a21caf 0%, #831843 45%, #4c0519 100%);
+  border-bottom: 4px solid #2e0410;
+  padding: 12px 16px;
+  box-shadow: 
+    inset 0 3px 0 #d946ef,
+    inset 0 -2px 0 #3b0716;
+}
+
+.header-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.header-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 0 #000);
+}
+
+.svg-pixel-sm {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.dialog-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fef08a;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 
+    -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
+    0 3px 0 #450a0a;
+}
+
+/* --------------------------------------------------------
+   CUERPO DEL FORMULARIO
+   -------------------------------------------------------- */
+.dialog-body {
+  padding: 24px 22px 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialog-subtitle {
+  font-family: var(--font-pixel-sub), monospace;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 #000;
+  margin-bottom: 4px;
+}
+
+/* Alertas de Estado */
+.pixel-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 2px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+}
+
+.alert-error {
+  background-color: #450a0a;
+  border: 3px solid #dc2626;
+  color: #fecaca;
+  box-shadow: inset 1px 1px 0 #ef4444, 0 3px 0 #000;
+}
+
+.alert-success {
+  background-color: #064e3b;
+  border: 3px solid #10b981;
+  color: #a7f3d0;
+  box-shadow: inset 1px 1px 0 #34d399, 0 3px 0 #000;
+}
+
+.alert-icon {
+  font-size: 1rem;
+}
+
+/* Formulario */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pixel-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.label-badge {
+  font-size: 0.85rem;
+}
+
+/* Cuadro de Input Pixelado */
+.pixel-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #0c121e;
+  border: 3px solid #334155;
+  box-shadow: 
+    inset 3px 3px 0 #05080f,
+    inset -2px -2px 0 #1e293b,
+    0 3px 0 rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease;
+}
+
+.pixel-input-wrapper:focus-within {
+  border-color: #f59e0b;
+  box-shadow: 
+    inset 3px 3px 0 #05080f,
+    0 0 6px rgba(245, 158, 11, 0.5),
+    0 3px 0 #000;
+}
+
+.input-icon {
+  padding-left: 10px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.pixel-input {
+  width: 100%;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-pixel-sub), monospace;
+  font-size: 0.85rem;
+  color: #f8fafc;
+  letter-spacing: 1px;
+}
+
+.pixel-input::placeholder {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.btn-toggle-eye {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  filter: grayscale(0.2);
+  transition: transform 0.1s ease;
+}
+
+.btn-toggle-eye:hover {
+  transform: scale(1.15);
+}
+
+/* Opciones Secundarias (Checkbox y Olvido) */
+.form-row-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pixel-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.pixel-native-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pixel-checkbox-custom {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  background-color: #0c121e;
+  border: 2px solid #64748b;
+  box-shadow: inset 2px 2px 0 #000, 0 2px 0 rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pixel-checkbox-custom.checked {
+  background-color: #15803d;
+  border-color: #4ade80;
+}
+
+.pixel-checkbox-custom.checked::after {
+  content: '✓';
+  font-size: 0.75rem;
+  color: #ffffff;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.checkbox-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.pixel-link-muted {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #f59e0b;
+  text-decoration: underline;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 #000;
+  transition: color 0.15s ease;
+}
+
+.pixel-link-muted:hover {
+  color: #fef08a;
+}
+
+/* --------------------------------------------------------
+   BOTÓN PRINCIPAL DE LOGIN
+   -------------------------------------------------------- */
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.pixel-submit-btn {
+  position: relative;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s steps(2);
+}
+
+.submit-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 18px;
+  background: linear-gradient(180deg, #c026d3 0%, #831843 45%, #4c0519 100%);
+  border: 3px solid #000;
+  border-top: 3px solid #f472b6;
+  border-bottom: 5px solid #2e0410;
+  box-shadow: 
+    inset 3px 0 0 #db2777,
+    inset -3px 0 0 #4c0519,
+    0 6px 0 #000;
+}
+
+.pixel-submit-btn:hover .submit-btn-inner {
+  filter: brightness(1.15);
+  box-shadow: 
+    inset 3px 0 0 #f472b6,
+    inset -3px 0 0 #701a75,
+    0 7px 0 #000;
+}
+
+.pixel-submit-btn:active {
+  transform: translateY(3px);
+}
+
+.pixel-submit-btn:active .submit-btn-inner {
+  box-shadow: 
+    inset 3px 0 0 #831843,
+    inset -3px 0 0 #4c0519,
+    0 2px 0 #000;
+}
+
+.submit-btn-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 2px 0 #000);
+}
+
+.submit-btn-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 1.5px;
+  text-shadow: 
+    -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
+    0 2px 0 #450a0a;
+}
+
+/* --------------------------------------------------------
+   SEPARADOR PIXEL ART Y REGISTRO
+   -------------------------------------------------------- */
+.pixel-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 3px;
+  background-color: #27354a;
+  border-bottom: 2px solid #0d131f;
+}
+
+.divider-gem {
+  font-size: 0.85rem;
+  filter: drop-shadow(0 2px 0 #000);
+}
+
+.register-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.callout-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.pixel-btn-secondary {
+  width: 100%;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 45%, #78350f 100%);
+  border: 3px solid #000;
+  border-top: 3px solid #fde047;
+  border-bottom: 4px solid #451a03;
+  color: #ffffff;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #000;
+  text-shadow: 
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  transition: transform 0.1s steps(2), filter 0.1s steps(2);
+}
+
+.pixel-btn-secondary:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #000;
+}
+
+.pixel-btn-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #000;
+}
+
+/* ========================================================
+   RESPONSIVIDAD
+   ======================================================== */
+@media (max-width: 540px) {
+  .pixel-dialog-box {
+    max-width: 95%;
+  }
+
+  .dialog-body {
+    padding: 18px 14px 22px 14px;
+  }
+
+  .dialog-title {
+    font-size: 0.95rem;
+  }
+
+  .submit-btn-text {
+    font-size: 0.68rem;
+  }
+}

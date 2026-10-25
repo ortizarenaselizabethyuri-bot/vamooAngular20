@@ -1,0 +1,173 @@
+<section class="login-page-wrapper">
+  <!-- Partículas y destellos de fondo en pixel art -->
+  <div class="ambient-pixel-particles">
+    <div class="sparkle sp-1"></div>
+    <div class="sparkle sp-2"></div>
+    <div class="sparkle sp-3"></div>
+    <div class="sparkle sp-4"></div>
+  </div>
+
+  <!-- CUADRO PIXELADO PRINCIPAL (Ventana de Diálogo RPG) -->
+  <div class="pixel-dialog-box" role="dialog" aria-labelledby="login-title">
+    
+    <!-- Esquinas ornamentales pixeladas -->
+    <div class="pixel-corner corner-tl"></div>
+    <div class="pixel-corner corner-tr"></div>
+    <div class="pixel-corner corner-bl"></div>
+    <div class="pixel-corner corner-br"></div>
+
+    <!-- Barra de Título Superior de la Ventana -->
+    <div class="dialog-header-banner">
+      <div class="header-banner-inner">
+        <span class="header-icon">
+          <!-- Llave dorada pixelada -->
+          <svg viewBox="0 0 24 24" class="svg-pixel-sm">
+            <circle cx="8" cy="12" r="5" fill="#facc15" stroke="#18181b" stroke-width="1.5" />
+            <circle cx="8" cy="12" r="2" fill="#713f12" />
+            <rect x="12" y="10.5" width="9" height="3" fill="#facc15" stroke="#18181b" stroke-width="1.2" />
+            <rect x="16" y="13.5" width="2" height="3" fill="#ca8a04" stroke="#18181b" stroke-width="1.2" />
+            <rect x="19" y="13.5" width="2" height="4" fill="#ca8a04" stroke="#18181b" stroke-width="1.2" />
+          </svg>
+        </span>
+        <h2 id="login-title" class="dialog-title">INICIAR SESIÓN</h2>
+      </div>
+    </div>
+
+    <!-- Cuerpo del Formulario Pixelado -->
+    <div class="dialog-body">
+      <p class="dialog-subtitle">INGRESA TUS CREDENCIALES PARA CONTINUAR LA AVENTURA</p>
+
+      <!-- Alertas de estado en pixel art -->
+      @if (errorMessage()) {
+        <div class="pixel-alert alert-error" role="alert">
+          <span class="alert-icon">⚠️</span>
+          <span class="alert-text">{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div class="pixel-alert alert-success" role="status">
+          <span class="alert-icon">⭐</span>
+          <span class="alert-text">{{ successMessage() }}</span>
+        </div>
+      }
+
+      <form (ngSubmit)="onSubmit()" class="login-form" novalidate>
+        
+        <!-- Campo: Usuario / Email -->
+        <div class="form-group">
+          <label for="username" class="pixel-label">
+            <span class="label-badge">👤</span>
+            <span>AVENTURERO / EMAIL:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">📜</span>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="pixel-input"
+              placeholder="Ej. SirPixel_99"
+              [ngModel]="username()"
+              (ngModelChange)="username.set($event)"
+              autocomplete="username"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Campo: Contraseña -->
+        <div class="form-group">
+          <label for="password" class="pixel-label">
+            <span class="label-badge">🔑</span>
+            <span>CONTRASEÑA:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">🔒</span>
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              id="password"
+              name="password"
+              class="pixel-input"
+              placeholder="••••••••"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="btn-toggle-eye"
+              (click)="togglePasswordVisibility()"
+              [title]="showPassword() ? 'Ocultar contraseña' : 'Ver contraseña'"
+              aria-label="Alternar visibilidad de contraseña"
+            >
+              {{ showPassword() ? '👁️' : '🙈' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Opciones secundarias: Recordar y Olvido -->
+        <div class="form-row-options">
+          <label class="pixel-checkbox-label">
+            <input
+              type="checkbox"
+              class="pixel-native-checkbox"
+              [checked]="rememberMe()"
+              (change)="rememberMe.set(!rememberMe())"
+            />
+            <span class="pixel-checkbox-custom" [class.checked]="rememberMe()"></span>
+            <span class="checkbox-text">RECORDAR SESIÓN</span>
+          </label>
+
+          <a href="javascript:void(0)" class="pixel-link-muted">
+            ¿OLVIDASTE LA CLAVE?
+          </a>
+        </div>
+
+        <!-- Botón Principal de Envío (Estilo botón LOGIN del Header) -->
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="pixel-submit-btn"
+            [disabled]="isLoading()"
+          >
+            <span class="submit-btn-inner">
+              <span class="submit-btn-icon">
+                @if (isLoading()) {
+                  ⏳
+                } @else {
+                  ⚔️
+                }
+              </span>
+              <span class="submit-btn-text">
+                {{ isLoading() ? 'VERIFICANDO...' : 'ENTRAR AL JUEGO' }}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Separador Pixel Art -->
+        <div class="pixel-divider">
+          <span class="divider-line"></span>
+          <span class="divider-gem">💎</span>
+          <span class="divider-line"></span>
+        </div>
+
+        <!-- Enlace a Registro -->
+        <div class="register-callout">
+          <span class="callout-text">¿AÚN NO ERES MIEMBRO DEL GREMIO?</span>
+          <button
+            type="button"
+            class="pixel-btn-secondary"
+            (click)="goToRegister()"
+          >
+            CREAR NUEVA CUENTA
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</section>
