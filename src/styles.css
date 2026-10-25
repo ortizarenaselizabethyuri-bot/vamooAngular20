@@ -1,1 +1,48 @@
-/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+
+:root {
+  --font-pixel: 'Press Start 2P', cursive, monospace;
+  --font-pixel-sub: 'Silkscreen', cursive, monospace;
+
+  /* Colores de botones según el diseño de referencia */
+  --btn-inicio-top: #5d6778;
+  --btn-inicio-base: #475164;
+  --btn-inicio-bottom: #323b49;
+
+  --btn-jugar-top: #6ee76d;
+  --btn-jugar-base: #38b737;
+  --btn-jugar-bottom: #1f7a1e;
+
+  --btn-comunidad-top: #34d399;
+  --btn-comunidad-base: #10b981;
+  --btn-comunidad-bottom: #047857;
+
+  --btn-tienda-top: #5eead4;
+  --btn-tienda-base: #14b8a6;
+  --btn-tienda-bottom: #0f766e;
+
+  --btn-login-top: #a82a52;
+  --btn-login-base: #831843;
+  --btn-login-bottom: #550f2b;
+
+  --btn-register-top: #d97706;
+  --btn-register-base: #b45309;
+  --btn-register-bottom: #78350f;
+
+  --border-pixel-dark: #121820;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-pixel-sub), sans-serif;
+  background-color: #0b101b;
+  color: #f1f5f9;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
