@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 /**
  * Componente de la sección Registro (RegisterComponent).
@@ -99,6 +100,26 @@ export class RegisterComponent {
       this.isLoading.set(false);
       this.successMessage.set(`¡REGISTRO EXITOSO! BIENVENIDO, ${user.toUpperCase()}.`);
     }, 600);
+  }
+
+  /**
+   * Inicia el registro federado con cuenta de Google OAuth 2.0.
+   *
+   * Propósito: Redirigir al usuario al endpoint de Google OAuth del backend para registrarse.
+   *
+   * @returns void
+   */
+  registerWithGoogle(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('CONECTANDO CON GOOGLE OAUTH 2.0...');
+
+    const baseUrl = environment.apiUrl.replace(/\/api\/?$/, '');
+    const googleAuthUrl = `${baseUrl}/auth/google`;
+
+    if (typeof window !== 'undefined') {
+      window.location.href = googleAuthUrl;
+    }
   }
 
   /**

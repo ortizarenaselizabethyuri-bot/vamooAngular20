@@ -49,4 +49,11 @@ describe('RegisterComponent', () => {
     component.goToLogin();
     expect(navigateSpy).toHaveBeenCalledWith(['/login']);
   });
+
+  it('debe iniciar el flujo de registro con Google', () => {
+    component.registerWithGoogle();
+    expect(component.isLoading()).toBe(true);
+    expect(component.successMessage()).toContain('GOOGLE');
+  });
 });
+

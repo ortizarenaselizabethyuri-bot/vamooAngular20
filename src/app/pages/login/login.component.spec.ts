@@ -37,4 +37,11 @@ describe('LoginComponent', () => {
     component.togglePasswordVisibility();
     expect(component.showPassword()).toBe(true);
   });
+
+  it('should initiate google authentication flow', () => {
+    component.loginWithGoogle();
+    expect(component.isLoading()).toBe(true);
+    expect(component.successMessage()).toContain('GOOGLE');
+  });
 });
+
