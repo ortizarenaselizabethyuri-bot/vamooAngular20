@@ -4,8 +4,8 @@ import { CommonModule } from '@angular/common';
 export interface NavButton {
   id: string;
   label: string;
-  iconType: 'inicio' | 'jugar' | 'comunidad' | 'tienda' | 'login' | 'register';
-  colorTheme: 'inicio' | 'jugar' | 'comunidad' | 'tienda' | 'login' | 'register';
+  iconType: 'inicio' | 'jugar' | 'comunidad' | 'login' | 'register';
+  colorTheme: 'inicio' | 'jugar' | 'comunidad' | 'login' | 'register';
   shapeType: 'slant-right' | 'trap-inv' | 'trap-up' | 'trap-inv-2' | 'slant-right-2' | 'slant-right-3';
 }
 
@@ -42,18 +42,11 @@ export class HeaderComponent {
       shapeType: 'trap-up',
     },
     {
-      id: 'tienda',
-      label: 'TIENDA',
-      iconType: 'tienda',
-      colorTheme: 'tienda',
-      shapeType: 'trap-inv-2',
-    },
-    {
       id: 'login',
       label: 'LOGIN',
       iconType: 'login',
       colorTheme: 'login',
-      shapeType: 'slant-right-2',
+      shapeType: 'trap-inv-2',
     },
     {
       id: 'register',

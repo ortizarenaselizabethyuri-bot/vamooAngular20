@@ -25,10 +25,10 @@ describe('HeaderComponent', () => {
     expect(titleElement?.textContent).toContain('VAMOO');
   });
 
-  it('should render 6 pixel navigation buttons', () => {
+  it('should render 5 pixel navigation buttons', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const buttons = compiled.querySelectorAll('.pixel-nav-btn');
-    expect(buttons.length).toBe(6);
+    expect(buttons.length).toBe(5);
   });
 
   it('should allow selecting an active navigation item', () => {
