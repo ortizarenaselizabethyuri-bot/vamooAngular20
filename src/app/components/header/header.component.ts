@@ -1,5 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 export interface NavButton {
   id: string;
@@ -17,7 +18,8 @@ export interface NavButton {
   styleUrl: './header.component.css',
 })
 export class HeaderComponent {
-  readonly activeBtn = signal<string>('inicio');
+  private router = inject(Router, { optional: true });
+  readonly activeBtn = signal<string>('login');
 
   readonly navButtons: NavButton[] = [
     {
@@ -59,5 +61,8 @@ export class HeaderComponent {
 
   selectNav(id: string): void {
     this.activeBtn.set(id);
+    if (this.router) {
+      this.router.navigate(['/' + id]);
+    }
   }
 }
