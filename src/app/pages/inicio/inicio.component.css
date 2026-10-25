@@ -183,6 +183,38 @@
   color: #94a3b8;
 }
 
+/* Banner de consejo de aventura pixel art */
+.adventure-tip-banner {
+  background: #09101f;
+  border: 2px dashed #0284c7;
+  border-radius: 3px;
+  padding: 0.45rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.tip-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.68rem;
+  color: #7dd3fc;
+  margin: 0;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.tip-text strong {
+  color: #facc15;
+}
+
 /* Botones de acción */
 .action-buttons-group {
   display: flex;

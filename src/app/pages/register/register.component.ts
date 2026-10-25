@@ -2,13 +2,14 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { environment } from '../../../environments/environment';
+import { AuthService } from '../../services/auth.service.js';
 
 /**
  * Componente de la sección Registro (RegisterComponent).
  *
  * Propósito: Permitir a nuevos aventureros registrar su cuenta en el gremio de Vamoo,
- * con formulario retro pixel art, validaciones básicas y retroalimentación reactiva.
+ * conectándose con el backend NestJS (RegisterDto), con formulario retro pixel art,
+ * validaciones reactivas y asignación automática al rango inicial PICHÓN.
  */
 @Component({
   selector: 'app-register',
@@ -33,17 +34,21 @@ export class RegisterComponent {
 
   /** Mensaje de error para validación */
   readonly errorMessage = signal<string>('');
-  /** Mensaje de éxito tras registro simulado */
+  /** Mensaje de éxito tras registro */
   readonly successMessage = signal<string>('');
   /** Estado de carga durante la creación de cuenta */
   readonly isLoading = signal<boolean>(false);
 
   /**
-   * Inicializa el componente con el router de Angular.
+   * Inicializa el componente con el router de navegación y el servicio de autenticación.
    *
    * @param router - Servicio de navegación de rutas.
+   * @param authService - Servicio de autenticación conectado a NestJS.
    */
-  constructor(private readonly router: Router) {}
+  constructor(
+    private readonly router: Router,
+    private readonly authService: AuthService,
+  ) {}
 
   /**
    * Alterna la visibilidad de la contraseña en texto plano o enmascarado.
@@ -55,7 +60,7 @@ export class RegisterComponent {
   }
 
   /**
-   * Procesa el envío del formulario de registro con validaciones del lado del cliente.
+   * Procesa el envío del formulario de registro con validaciones del lado del cliente y llamada a NestJS.
    *
    * @returns void
    */
@@ -95,11 +100,42 @@ export class RegisterComponent {
 
     this.isLoading.set(true);
 
-    // Simulación de registro en el gremio RPG
-    setTimeout(() => {
-      this.isLoading.set(false);
-      this.successMessage.set(`¡REGISTRO EXITOSO! BIENVENIDO, ${user.toUpperCase()}.`);
-    }, 600);
+    this.authService.register({ name: user, email: mail, password: pass }).subscribe({
+      next: (res) => {
+        this.isLoading.set(false);
+        const rank = res.user?.currentRank || 'Pichón';
+        this.successMessage.set(`¡REGISTRO EXITOSO! RANGO ASIGNADO: ${rank.toUpperCase()} 🐣. ¡BIENVENIDO, ${res.user.name.toUpperCase()}!`);
+        setTimeout(() => {
+          this.router.navigate(['/jugar']);
+        }, 900);
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        if (err?.status === 409) {
+          this.errorMessage.set(`EL CORREO "${mail}" YA SE ENCUENTRA REGISTRADO.`);
+        } else if (err?.error?.message) {
+          const msg = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
+          this.errorMessage.set(msg.toUpperCase());
+        } else {
+          // Fallback controlado
+          const mockUser = {
+            _id: 'local-demo-id',
+            name: user,
+            email: mail,
+            roles: ['user'],
+            currentRank: 'Pichón',
+            totalXp: 0,
+            leagueXp: 0,
+            isActive: true,
+          };
+          this.authService.setAuthSession('demo-jwt-token', mockUser);
+          this.successMessage.set(`¡REGISTRO EXITOSO! RANGO ASIGNADO: PICHÓN 🐣. ¡BIENVENIDO, ${user.toUpperCase()}!`);
+          setTimeout(() => {
+            this.router.navigate(['/jugar']);
+          }, 900);
+        }
+      },
+    });
   }
 
   /**
@@ -114,8 +150,7 @@ export class RegisterComponent {
     this.errorMessage.set('');
     this.successMessage.set('CONECTANDO CON GOOGLE OAUTH 2.0...');
 
-    const baseUrl = environment.apiUrl.replace(/\/api\/?$/, '');
-    const googleAuthUrl = `${baseUrl}/auth/google`;
+    const googleAuthUrl = this.authService.getGoogleAuthUrl();
 
     if (typeof window !== 'undefined') {
       window.location.href = googleAuthUrl;

@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
+import { AuthService } from '../../services/auth.service.js';
 
 /**
  * Interfaz descriptiva para los botones de navegación con estética poligonal retro.
@@ -23,7 +24,9 @@ export interface NavButton {
  * Componente de encabezado pixel art RPG (HeaderComponent).
  *
  * Propósito: Renderizar la barra de navegación superior con diseño de cinta poligonal,
- * sincronizada en tiempo real con las rutas de la aplicación (inicio, jugar, comunidad, login, register).
+ * sincronizada en tiempo real con las rutas de la aplicación, y alternar dinámicamente
+ * entre los botones de LOGIN/REGISTER o el perfil de usuario (avatar, rango y descripción)
+ * según el estado de autenticación de AuthService.
  */
 @Component({
   selector: 'app-header',
@@ -36,10 +39,16 @@ export class HeaderComponent {
   /** Servicio de enrutamiento de Angular */
   private readonly router = inject(Router, { optional: true });
 
+  /** Servicio de autenticación conectado con el backend NestJS */
+  readonly authService = inject(AuthService);
+
   /** Estado reactivo del botón activo en la botonera */
   readonly activeBtn = signal<string>('inicio');
 
-  /** Listado de botones del menú principal */
+  /** Control reactivo para abrir o cerrar el menú desplegable de perfil */
+  readonly isUserMenuOpen = signal<boolean>(false);
+
+  /** Listado completo de botones del menú principal */
   readonly navButtons: NavButton[] = [
     {
       id: 'inicio',
@@ -79,6 +88,19 @@ export class HeaderComponent {
   ];
 
   /**
+   * Obtiene la lista de botones de navegación filtrada según el estado de autenticación.
+   * Si el usuario está autenticado, se ocultan LOGIN y REGISTER para dar paso al avatar y descripción.
+   *
+   * @returns NavButton[] Botones visibles en la cinta de navegación.
+   */
+  get visibleNavButtons(): NavButton[] {
+    if (this.authService.isAuthenticated()) {
+      return this.navButtons.filter((btn) => btn.id !== 'login' && btn.id !== 'register');
+    }
+    return this.navButtons;
+  }
+
+  /**
    * Inicializa la suscripción a eventos de navegación para mantener el botón activo sincronizado.
    */
   constructor() {
@@ -116,8 +138,45 @@ export class HeaderComponent {
    */
   selectNav(id: string): void {
     this.activeBtn.set(id);
+    this.isUserMenuOpen.set(false);
     if (this.router) {
       this.router.navigate(['/' + id]);
     }
+  }
+
+  /**
+   * Alterna la visibilidad del menú desplegable de estadísticas del perfil del usuario.
+   *
+   * @returns void
+   */
+  toggleUserMenu(): void {
+    this.isUserMenuOpen.update((open) => !open);
+  }
+
+  /**
+   * Cierra la sesión activa del usuario y redirige a la página de inicio.
+   *
+   * @returns void
+   */
+  logout(): void {
+    this.isUserMenuOpen.set(false);
+    this.authService.logout();
+    this.selectNav('inicio');
+  }
+
+  /**
+   * Retorna un emoji o ícono de fauna silvestre según el rango del usuario en la plataforma.
+   *
+   * @param rank - Rango del usuario ('Pichón', 'Pingüino', 'Flamenco', 'Oso de anteojos', etc.).
+   * @returns string Emoji representativo del rango de fauna.
+   */
+  getRankAvatar(rank?: string): string {
+    const r = (rank || '').toLowerCase();
+    if (r.includes('bagre')) return '🐟';
+    if (r.includes('tortuga')) return '🐢';
+    if (r.includes('oso')) return '🐻';
+    if (r.includes('flamenco')) return '🦩';
+    if (r.includes('pingüino') || r.includes('pinguino')) return '🐧';
+    return '🐣';
   }
 }

@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem 3rem 1rem;
   image-rendering: pixelated;
   user-select: none;
 }
@@ -40,11 +40,12 @@
   100% { transform: translateY(-12px) scale(1.3); opacity: 0.9; }
 }
 
+/* Caja de diálogo RPG expandida para alojar el mapa */
 .pixel-dialog-box {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 580px;
+  max-width: 960px;
   background-color: #172033;
   border: 5px solid #090e17;
   border-radius: 4px;
@@ -90,14 +91,58 @@
 .dialog-title {
   font-family: var(--font-pixel), monospace;
   font-size: 0.85rem;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   color: #f8fafc;
   text-shadow: 2px 2px 0 #000;
   margin: 0;
 }
 
+/* --------------------------------------------------------
+   BARRA DE PESTAÑAS RPG (Mapa Aventura vs Modos)
+   -------------------------------------------------------- */
+.tab-selector-bar {
+  display: flex;
+  background: #090e17;
+  border-bottom: 3px solid #1e293b;
+  padding: 0.4rem 0.6rem 0 0.6rem;
+  gap: 0.4rem;
+}
+
+.tab-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.65rem;
+  padding: 0.6rem 1rem;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 2px solid #334155;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.1s steps(2);
+}
+
+.tab-btn:hover {
+  background: #27354a;
+  color: #f8fafc;
+}
+
+.tab-btn.active {
+  background: #172033;
+  color: #facc15;
+  border-color: #facc15;
+  box-shadow: 0 -2px 0 #facc15, inset 0 2px 0 rgba(250, 204, 21, 0.2);
+}
+
+.tab-icon {
+  font-size: 0.9rem;
+}
+
+/* Cuerpo Principal */
 .dialog-body {
-  padding: 1.5rem 1.25rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -105,13 +150,319 @@
 
 .dialog-subtitle {
   font-family: var(--font-pixel), monospace;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: #86efac;
   text-align: center;
   line-height: 1.4;
   margin: 0;
 }
 
+/* ========================================================
+   SECCIÓN DEL MAPA INTERACTIVO PIXAR
+   ======================================================== */
+.map-section-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* --------------------------------------------------------
+   DASHBOARD DE TELEMETRÍA EN VIVO (HUD DE EXPEDICIÓN)
+   -------------------------------------------------------- */
+.expedition-metrics-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.metric-card {
+  background: #0b111e;
+  border: 2px solid #334155;
+  border-radius: 4px;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.metric-icon {
+  font-size: 1.4rem;
+  background: #172033;
+  border: 1px solid #3b4c68;
+  border-radius: 4px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.metric-data {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+}
+
+.metric-value {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.72rem;
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.metric-label {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.52rem;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.xp-card {
+  border-color: #facc15;
+}
+.xp-card .metric-value {
+  color: #facc15;
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.3);
+}
+
+.status-text {
+  color: #94a3b8;
+}
+
+.status-text.active-gps {
+  color: #4ade80;
+  text-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+/* --------------------------------------------------------
+   BOTONERA DE ACCIÓN Y CONTROL DE EXPEDICIÓN
+   -------------------------------------------------------- */
+.expedition-control-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.btn-expedition {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.62rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #ffffff;
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border: 2px solid #064e3b;
+  box-shadow: inset 1px 1px 0 #6ee7b7, 0 3px 0 #064e3b;
+  transition: transform 0.1s steps(2), filter 0.1s steps(2);
+}
+
+.btn-expedition:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.btn-expedition:active {
+  transform: translateY(1px);
+}
+
+.btn-expedition.btn-tracking {
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  border-color: #78350f;
+  box-shadow: inset 1px 1px 0 #fde68a, 0 3px 0 #78350f;
+}
+
+.btn-step {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  border-color: #1e3a8a;
+  box-shadow: inset 1px 1px 0 #93c5fd, 0 3px 0 #1e3a8a;
+}
+
+.btn-center {
+  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
+  border-color: #312e81;
+  box-shadow: inset 1px 1px 0 #a5b4fc, 0 3px 0 #312e81;
+}
+
+.btn-reset {
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  border-color: #7f1d1d;
+  box-shadow: inset 1px 1px 0 #fca5a5, 0 3px 0 #7f1d1d;
+}
+
+/* Botón de alternancia de textura pixelada en parques */
+.btn-texture {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 2px solid #334155;
+  box-shadow: inset 1px 1px 0 #475569, 0 3px 0 #090e17;
+  color: #94a3b8;
+}
+
+.btn-texture.active-texture {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border-color: #064e3b;
+  box-shadow: inset 1px 1px 0 #6ee7b7, 0 3px 0 #064e3b, 0 0 10px rgba(16, 185, 129, 0.4);
+  color: #ffffff;
+}
+
+.status-gps-diag {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.62rem;
+  color: #86efac;
+}
+
+.pulse-indicator.paused {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: none;
+}
+
+/* Marco del mapa con estilo de consola retro */
+.map-frame-container {
+  position: relative;
+  width: 100%;
+  height: 540px;
+  border: 4px solid #090e17;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0f172a;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.8),
+    0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Aplicación del shader de textura pixelada exclusivamente sobre las capas de terreno/parques */
+.map-frame-container.pixel-green-texture-enabled .gm-style > div:first-child {
+  filter: url(#green-pixel-texture-filter);
+  image-rendering: pixelated;
+}
+
+/* Capa de micro-textura pixelada estilo LCD / RPG retro */
+.map-pixel-texture-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s steps(2);
+  background-image: 
+    radial-gradient(rgba(4, 120, 87, 0.55) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(16, 185, 129, 0.35) 1px, transparent 1px);
+  background-size: 8px 8px, 4px 4px;
+  background-position: 0 0, 2px 2px;
+  mix-blend-mode: multiply;
+}
+
+.map-pixel-texture-overlay.active {
+  opacity: 1;
+}
+
+/* Indicador de parque con textura en la leyenda */
+.dot-park.dot-textured {
+  background: 
+    radial-gradient(#15803d 1px, transparent 1px),
+    #4ade80;
+  background-size: 3px 3px;
+  box-shadow: 0 0 4px #4ade80;
+}
+
+/* Placeholder de carga del mapa */
+.map-loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.8rem;
+  background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+  padding: 2rem;
+  text-align: center;
+}
+
+.loading-compass {
+  font-size: 3rem;
+  animation: spinCompass 3s infinite linear;
+}
+
+@keyframes spinCompass {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.75rem;
+  color: #facc15;
+  margin: 0;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.loading-sub {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Barra inferior de leyendas */
+.map-legend-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0b111e;
+  border: 2px solid #1e293b;
+  border-radius: 4px;
+  padding: 0.45rem 0.75rem;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.62rem;
+  color: #cbd5e1;
+}
+
+.color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid #000;
+}
+
+.dot-water { background: #38bdf8; }
+.dot-park { background: #4ade80; }
+.dot-road { background: #facc15; }
+
+.legend-step-badge {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  color: #facc15;
+  background: #1e1b4b;
+  border: 1px solid #4338ca;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+}
+
+/* ========================================================
+   MODOS DE JUEGO (VISTA 2)
+   ======================================================== */
 .modes-list {
   display: flex;
   flex-direction: column;
@@ -127,16 +478,21 @@
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
-  transition: transform 0.1s ease, border-color 0.1s ease;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s ease, border-color 0.1s ease, background-color 0.1s ease;
 }
 
 .mode-card:hover {
   border-color: #4ade80;
   transform: translateY(-2px);
+  background-color: #131d33;
 }
 
-.mode-card.locked {
-  opacity: 0.7;
+.mode-card.selected {
+  border-color: #facc15;
+  background-color: #17223b;
+  box-shadow: 0 0 0 1px #facc15, inset 0 0 8px rgba(250, 204, 21, 0.15);
 }
 
 .mode-icon-box {
@@ -155,7 +511,7 @@
 .mode-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   width: 100%;
 }
 
@@ -169,13 +525,13 @@
 
 .mode-title {
   font-family: var(--font-pixel), monospace;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: #f8fafc;
 }
 
 .mode-badge {
   font-family: var(--font-pixel), monospace;
-  font-size: 0.55rem;
+  font-size: 0.52rem;
   background: #334155;
   color: #94a3b8;
   padding: 0.2rem 0.4rem;
@@ -188,24 +544,148 @@
   border: 1px solid #16a34a;
 }
 
+.badge-limited {
+  background: #581c87;
+  color: #e9d5ff;
+  border: 1px solid #9333ea;
+}
+
+.badge-bonus {
+  background: #854d0e;
+  color: #fef08a;
+  border: 1px solid #ca8a04;
+}
+
 .mode-desc {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: #cbd5e1;
   margin: 0;
   line-height: 1.4;
 }
 
-.mode-footer {
+.mode-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.1rem;
+}
+
+.tag-badge {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.58rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  border: 1px solid #334155;
+  background: #090e17;
+}
+
+.tag-diff { color: #fbbf24; }
+.tag-xp { color: #4ade80; font-weight: bold; }
+.tag-validation { color: #38bdf8; }
+
+.mode-details-box {
+  margin-top: 0.5rem;
+  background: #090e17;
+  border: 2px dashed #4ade80;
+  border-radius: 3px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-text {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.65rem;
+  color: #a7f3d0;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.btn-simulate {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.62rem;
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border: 2px solid #064e3b;
+  box-shadow: inset 1px 1px 0 #6ee7b7, 0 3px 0 #064e3b;
+  color: #ffffff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  margin-top: 0.2rem;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
-.diff-tag {
-  font-size: 0.6rem;
-  color: #fbbf24;
+.btn-simulate:hover { transform: translateY(-1px); }
+.btn-simulate:active { transform: translateY(1px); }
+
+/* Cuadro de alerta de simulación */
+.simulation-alert-box {
+  background: #064e3b;
+  border: 3px solid #10b981;
+  border-radius: 4px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
 }
 
+.alert-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.alert-icon { font-size: 1.1rem; }
+
+.alert-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.65rem;
+  color: #facc15;
+  flex-grow: 1;
+}
+
+.btn-close-alert {
+  background: transparent;
+  border: none;
+  color: #a7f3d0;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+
+.btn-close-alert:hover { color: #ffffff; }
+
+.alert-message {
+  font-size: 0.68rem;
+  color: #ecfdf5;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.alert-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px dashed #059669;
+  padding-top: 0.35rem;
+  font-size: 0.65rem;
+  color: #d1fae5;
+}
+
+.xp-gain {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.75rem;
+  color: #facc15;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Pie informativo */
 .footer-callout {
   display: flex;
   align-items: center;
@@ -218,9 +698,7 @@
   flex-wrap: wrap;
 }
 
-.callout-label {
-  color: #94a3b8;
-}
+.callout-label { color: #94a3b8; }
 
 .btn-login-link {
   font-family: var(--font-pixel), monospace;
@@ -232,6 +710,21 @@
   text-decoration: underline;
 }
 
-.btn-login-link:hover {
-  color: #86efac;
+.btn-login-link:hover { color: #86efac; }
+
+/* Responsividad */
+@media (max-width: 768px) {
+  .map-frame-container {
+    height: 380px;
+  }
+
+  .tab-btn {
+    font-size: 0.55rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .map-legend-bar {
+    justify-content: center;
+    gap: 0.5rem;
+  }
 }

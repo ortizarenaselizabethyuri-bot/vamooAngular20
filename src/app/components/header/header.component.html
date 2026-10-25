@@ -96,7 +96,7 @@
 
     <!-- BOTONERA DE NAVEGACIÓN (Estilo cinta poligonal retro interconectada) -->
     <nav class="nav-ribbon-bar" aria-label="Navegación principal">
-      @for (btn of navButtons; track btn.id) {
+      @for (btn of visibleNavButtons; track btn.id) {
         <button
           type="button"
           class="pixel-nav-btn shape-{{ btn.shapeType }} theme-{{ btn.colorTheme }}"
@@ -197,6 +197,73 @@
             <span class="btn-label">{{ btn.label }}</span>
           </span>
         </button>
+      }
+
+      <!-- Badge de Perfil del Aventurero Autenticado (Sustituye LOGIN y REGISTER) -->
+      @if (authService.isAuthenticated() && authService.currentUser(); as user) {
+        <div 
+          class="user-profile-badge" 
+          [class.menu-open]="isUserMenuOpen()"
+          (click)="toggleUserMenu()"
+          role="button"
+          tabindex="0"
+          (keydown.enter)="toggleUserMenu()"
+          aria-label="Perfil del aventurero">
+          
+          <!-- Cuadro de Avatar Pixel Art (Cuadrado con bisel) -->
+          <div class="user-avatar-frame">
+            @if (user.picture) {
+              <img [src]="user.picture" [alt]="user.name" class="avatar-img" />
+            } @else {
+              <span class="avatar-fallback">{{ getRankAvatar(user.currentRank) }}</span>
+            }
+            <span class="pixel-status-dot" title="Aventurero activo"></span>
+          </div>
+
+          <!-- Pequeña descripción del usuario autenticado -->
+          <div class="user-badge-info">
+            <span class="user-name-text">{{ user.name }}</span>
+            <div class="user-meta-tags">
+              <span class="badge-rank">{{ user.currentRank || 'Pichón' }}</span>
+              <span class="badge-xp">⭐ {{ user.leagueXp ?? user.totalXp ?? 0 }} XP</span>
+            </div>
+          </div>
+
+          <span class="user-menu-arrow">{{ isUserMenuOpen() ? '▲' : '▼' }}</span>
+
+          <!-- Menú flotante desplegable retro pixel art -->
+          @if (isUserMenuOpen()) {
+            <div class="pixel-dropdown-menu" (click)="$event.stopPropagation()">
+              <div class="dropdown-banner">
+                <span class="banner-icon">👑</span>
+                <span class="banner-title">HOJA DE AVENTURERO</span>
+              </div>
+              <div class="dropdown-content">
+                <div class="stat-row">
+                  <span class="stat-name">División:</span>
+                  <span class="stat-data text-rank">{{ user.currentRank || 'Pichón' }}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-name">XP Liga:</span>
+                  <span class="stat-data text-xp">{{ user.leagueXp ?? 0 }} pts</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-name">XP Total:</span>
+                  <span class="stat-data text-xp">{{ user.totalXp ?? 0 }} pts</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-name">Email:</span>
+                  <span class="stat-data text-email" [title]="user.email">{{ user.email }}</span>
+                </div>
+                <div class="dropdown-separator"></div>
+                <button type="button" class="pixel-btn-logout" (click)="logout()">
+                  <span class="logout-icon">🚪</span>
+                  <span>CERRAR SESIÓN</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
       }
     </nav>
 

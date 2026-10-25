@@ -18,38 +18,127 @@
     <div class="dialog-header-banner theme-comunidad">
       <div class="header-banner-inner">
         <span class="header-icon">👥</span>
-        <h2 id="comunidad-title" class="dialog-title">TABERNA DE LA COMUNIDAD</h2>
+        <h2 id="comunidad-title" class="dialog-title">TABERNA DE LA COMUNIDAD & LIGAS</h2>
       </div>
     </div>
 
     <!-- Cuerpo Principal -->
     <div class="dialog-body">
-      <p class="dialog-subtitle">TABLÓN DE ANUNCIOS, GREMIOS Y CHARLAS DE AVENTUREROS</p>
-
-      <!-- Listado de Anuncios -->
-      <div class="posts-list">
-        @for (post of posts; track post.id) {
-          <article class="post-card">
-            <div class="post-header">
-              <div class="author-badge">
-                <span class="author-avatar">{{ post.avatar }}</span>
-                <span class="author-name">{{ post.author }}</span>
-              </div>
-              <span class="category-tag">{{ post.category }}</span>
-            </div>
-            <h4 class="post-title">{{ post.title }}</h4>
-            <p class="post-snippet">{{ post.snippet }}</p>
-            <div class="post-footer">
-              <span class="likes-count">❤️ {{ post.likesCount }} honores</span>
-              <span class="read-more">LEER MÁS →</span>
-            </div>
-          </article>
-        }
+      <!-- Selector de Pestañas Pixel Art -->
+      <div class="pixel-tabs-nav" role="tablist">
+        <button 
+          type="button" 
+          class="pixel-tab-btn" 
+          [class.active]="activeTab === 'liga'" 
+          (click)="setTab('liga')"
+          role="tab"
+          [attr.aria-selected]="activeTab === 'liga'">
+          🏆 LIGA SEMANAL
+        </button>
+        <button 
+          type="button" 
+          class="pixel-tab-btn" 
+          [class.active]="activeTab === 'tablon'" 
+          (click)="setTab('tablon')"
+          role="tab"
+          [attr.aria-selected]="activeTab === 'tablon'">
+          📜 TABLÓN DE EXPEDICIÓN
+        </button>
       </div>
+
+      <!-- VISTA 1: LIGA SEMANAL -->
+      @if (activeTab === 'liga') {
+        <div class="league-container">
+          <!-- Cabecera de Liga -->
+          <div class="league-meta-card">
+            <div class="league-meta-left">
+              <span class="division-badge">DIVISIÓN: 🦩 {{ divisionActiva }}</span>
+              <span class="cycle-text">Ciclo: {{ cicloSemanal }} | Grupo #14 (30 miembros)</span>
+            </div>
+            <button type="button" class="btn-freeze-streak" (click)="freezeStreak()" title="Proteger constancia semanal">
+              🛡️ CONGELAR RACHA
+            </button>
+          </div>
+
+          @if (streakFreezeNotice) {
+            <div class="freeze-notice-box" role="status">
+              {{ streakFreezeNotice }}
+            </div>
+          }
+
+          <!-- Regla de Ascenso / Descenso -->
+          <p class="league-rule-banner">
+            ⭐ Top 3 ascienden a <strong>Oso de Anteojos 🐻</strong>. Mantén 3 salidas semanales.
+          </p>
+
+          <!-- Tabla de Clasificación de la Liga -->
+          <div class="leaderboard-table">
+            <div class="table-header">
+              <span class="th-pos">#</span>
+              <span class="th-user">AVENTURERO</span>
+              <span class="th-streak">RACHA</span>
+              <span class="th-xp">XP SEMANAL</span>
+              <span class="th-zone">ESTADO</span>
+            </div>
+
+            <div class="table-body">
+              @for (user of rankingLiga; track user.posicion) {
+                <div 
+                  class="table-row" 
+                  [class.current-user-row]="user.esUsuarioActual"
+                  [class.zone-promo]="user.zona === 'Ascenso'"
+                  [class.zone-demote]="user.zona === 'Descenso'">
+                  <span class="td-pos">
+                    @if (user.posicion === 1) { 🥇 }
+                    @else if (user.posicion === 2) { 🥈 }
+                    @else if (user.posicion === 3) { 🥉 }
+                    @else { {{ user.posicion }}° }
+                  </span>
+                  <div class="td-user">
+                    <span class="user-avatar">{{ user.avatar }}</span>
+                    <span class="user-name">{{ user.nombre }}</span>
+                  </div>
+                  <span class="td-streak">🔥 {{ user.rachaSemanas }} sem</span>
+                  <span class="td-xp">{{ user.leagueXp }} XP</span>
+                  <span class="td-zone" [class.badge-promo]="user.zona === 'Ascenso'" [class.badge-demote]="user.zona === 'Descenso'">
+                    {{ user.zona }}
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- VISTA 2: TABLÓN DE ANUNCIOS Y EXPEDICIONES -->
+      @if (activeTab === 'tablon') {
+        <div class="posts-list">
+          <p class="dialog-subtitle">AVISOS DE EXPEDICIÓN, LOCALES ALIADOS Y QUEDADAS GRUPALES</p>
+          @for (post of posts; track post.id) {
+            <article class="post-card">
+              <div class="post-header">
+                <div class="author-badge">
+                  <span class="author-avatar">{{ post.avatar }}</span>
+                  <span class="author-name">{{ post.author }}</span>
+                </div>
+                <span class="category-tag">{{ post.category }}</span>
+              </div>
+              <h4 class="post-title">{{ post.title }}</h4>
+              <p class="post-snippet">{{ post.snippet }}</p>
+              <div class="post-footer">
+                <button type="button" class="btn-like-post" (click)="likePost(post)">
+                  ❤️ {{ post.likesCount }} honores
+                </button>
+                <span class="read-more">LEER DETALLES →</span>
+              </div>
+            </article>
+          }
+        </div>
+      }
 
       <!-- Pie informativo -->
       <div class="footer-callout">
-        <span class="callout-label">¿QUIERES PUBLICAR EN EL TABLÓN?</span>
+        <span class="callout-label">¿QUIERES COMPETIR Y PUBLICAR?</span>
         <button type="button" class="btn-register-link" (click)="goToRegister()">
           ÚNETE AL GREMIO
         </button>

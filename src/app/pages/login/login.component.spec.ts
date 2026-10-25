@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LoginComponent } from './login.component';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { AuthService, UserProfile } from '../../services/auth.service.js';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;
@@ -9,7 +12,11 @@ describe('LoginComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
@@ -43,5 +50,22 @@ describe('LoginComponent', () => {
     expect(component.isLoading()).toBe(true);
     expect(component.successMessage()).toContain('GOOGLE');
   });
-});
 
+  it('should process OAuth query parameters and save session', () => {
+    const authService = TestBed.inject(AuthService);
+    const mockUser: UserProfile = {
+      _id: '6ade36cbb943fa2aaa739c3f',
+      name: 'Nickláus OA',
+      email: 'nick047tu@gmail.com',
+      roles: ['user'],
+      isActive: true,
+      currentRank: 'Pichón',
+      totalXp: 0,
+      leagueXp: 0,
+    };
+
+    authService.setAuthSession('test-jwt-token', mockUser);
+    expect(authService.isAuthenticated()).toBe(true);
+    expect(authService.currentUser()?.name).toBe('Nickláus OA');
+  });
+});

@@ -8,10 +8,11 @@
   width: 100%;
   background: linear-gradient(180deg, #57b3ff 0%, #7eccff 55%, #aee3ff 100%);
   border-bottom: 5px solid #101924;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 8px 0 rgba(0, 0, 0, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.6);
   user-select: none;
   image-rendering: pixelated;
+  z-index: 1000;
 }
 
 /* ========================================================
@@ -22,6 +23,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  overflow: hidden;
 }
 
 .sky-background {
@@ -257,7 +259,7 @@
   width: 100%;
   max-width: 920px;
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.5));
-  overflow-x: auto;
+  overflow: visible;
   padding: 6px 12px;
 }
 
@@ -458,3 +460,238 @@
     font-size: 0.5rem;
   }
 }
+
+/* ==========================================================================
+   BADGE DE PERFIL DE AVENTURERO AUTENTICADO (PIXEL ART)
+   ========================================================================== */
+.user-profile-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #172033;
+  border: 4px solid #090e17;
+  border-radius: 4px;
+  padding: 0.35rem 0.65rem;
+  height: 64px;
+  box-shadow: 
+    inset 2px 2px 0 #3b4c68,
+    inset -2px -2px 0 #0d131f,
+    0 4px 0 #090e17;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+  z-index: 50;
+}
+
+.user-profile-badge:hover {
+  transform: translateY(-2px);
+  border-color: #facc15;
+}
+
+.user-profile-badge.menu-open {
+  border-color: #facc15;
+  box-shadow: inset 0 0 8px rgba(250, 204, 21, 0.25), 0 4px 0 #090e17;
+}
+
+/* Marco del Avatar Pixelado */
+.user-avatar-frame {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background: #0f172a;
+  border: 2px solid #facc15;
+  border-radius: 3px;
+  box-shadow: inset 1px 1px 0 #713f12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 2px;
+}
+
+.avatar-fallback {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.pixel-status-dot {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background-color: #4ade80;
+  border: 2px solid #090e17;
+  box-shadow: 0 0 4px #4ade80;
+}
+
+/* Descripción informativa del usuario */
+.user-badge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  text-align: left;
+}
+
+.user-name-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.62rem;
+  color: #facc15;
+  text-shadow: 1px 1px 0 #000;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-meta-tags {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.badge-rank {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.58rem;
+  color: #38bdf8;
+  background: #082f49;
+  border: 1px solid #0284c7;
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+}
+
+.badge-xp {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #4ade80;
+}
+
+.user-menu-arrow {
+  font-size: 0.52rem;
+  color: #94a3b8;
+  margin-left: 0.2rem;
+}
+
+/* Menú Desplegable Flotante Pixel Art */
+.pixel-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 230px;
+  background: #172033;
+  border: 4px solid #090e17;
+  border-radius: 4px;
+  box-shadow: 
+    inset 2px 2px 0 #3b4c68,
+    inset -2px -2px 0 #0d131f,
+    0 10px 20px rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  animation: dropDownPop 0.15s ease-out;
+}
+
+@keyframes dropDownPop {
+  0% { transform: translateY(-6px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.dropdown-banner {
+  background: linear-gradient(180deg, #4338ca 0%, #312e81 100%);
+  border-bottom: 2px solid #090e17;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.banner-icon {
+  font-size: 0.85rem;
+}
+
+.banner-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.56rem;
+  color: #facc15;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.dropdown-content {
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.65rem;
+}
+
+.stat-name {
+  color: #94a3b8;
+}
+
+.stat-data {
+  font-weight: bold;
+}
+
+.text-rank {
+  color: #38bdf8;
+  font-family: var(--font-pixel-sub), sans-serif;
+}
+
+.text-xp {
+  color: #4ade80;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+}
+
+.text-email {
+  color: #cbd5e1;
+  font-size: 0.58rem;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-separator {
+  border-bottom: 1px dashed #334155;
+  margin: 0.2rem 0;
+}
+
+.pixel-btn-logout {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  padding: 0.45rem 0.6rem;
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  border: 2px solid #450a0a;
+  box-shadow: inset 1px 1px 0 #f87171, 0 3px 0 #450a0a;
+  color: #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: transform 0.1s ease;
+}
+
+.pixel-btn-logout:hover {
+  transform: translateY(-1px);
+}
+
+.pixel-btn-logout:active {
+  transform: translateY(1px);
+}
+
