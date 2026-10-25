@@ -1,0 +1,77 @@
+<section class="page-wrapper">
+  <!-- Partículas de fondo -->
+  <div class="ambient-pixel-particles">
+    <div class="sparkle sp-1"></div>
+    <div class="sparkle sp-2"></div>
+    <div class="sparkle sp-3"></div>
+  </div>
+
+  <!-- Cuadro Pixelado de Inicio -->
+  <div class="pixel-dialog-box" role="region" aria-labelledby="inicio-title">
+    
+    <!-- Esquinas ornamentales pixeladas -->
+    <div class="pixel-corner corner-tl"></div>
+    <div class="pixel-corner corner-tr"></div>
+    <div class="pixel-corner corner-bl"></div>
+    <div class="pixel-corner corner-br"></div>
+
+    <!-- Barra de Título Superior -->
+    <div class="dialog-header-banner theme-inicio">
+      <div class="header-banner-inner">
+        <span class="header-icon">🏰</span>
+        <h2 id="inicio-title" class="dialog-title">REINO DE VAMOO</h2>
+      </div>
+    </div>
+
+    <!-- Cuerpo Principal -->
+    <div class="dialog-body">
+      <div class="hero-badge">⭐ AVENTURA RETRO PIXEL ART</div>
+      <h3 class="welcome-heading">¡BIENVENIDO, AVENTURERO!</h3>
+      <p class="dialog-text">
+        Explora rutas temáticas, interactúa con el mapa del reino, supera desafíos y conéctate con otros exploradores en Vamoo.
+      </p>
+
+      <!-- Resumen rápido de características -->
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">🗺️</span>
+          <span class="feature-title">MAPA VIVO</span>
+          <span class="feature-desc">Descubre puntos de interés</span>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">⚔️</span>
+          <span class="feature-title">MISIONES</span>
+          <span class="feature-desc">Desafíos y experiencia</span>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">👥</span>
+          <span class="feature-title">GREMIOS</span>
+          <span class="feature-desc">Comunidad activa</span>
+        </div>
+      </div>
+
+      <!-- Botones de Acción Rápida -->
+      <div class="action-buttons-group">
+        <button type="button" class="pixel-btn-action btn-play" (click)="goToPlay()">
+          <span class="btn-icon">⚔️</span>
+          <span>JUGAR AHORA</span>
+        </button>
+
+        <button type="button" class="pixel-btn-action btn-community" (click)="goToCommunity()">
+          <span class="btn-icon">👥</span>
+          <span>VER COMUNIDAD</span>
+        </button>
+      </div>
+
+      <!-- Pie informativo -->
+      <div class="footer-callout">
+        <span class="callout-label">¿YA TIENES CUENTA?</span>
+        <button type="button" class="btn-login-link" (click)="goToLogin()">
+          ACCEDER AL GREMIO
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</section>

@@ -1,0 +1,61 @@
+<section class="page-wrapper">
+  <!-- Partículas de fondo -->
+  <div class="ambient-pixel-particles">
+    <div class="sparkle sp-1"></div>
+    <div class="sparkle sp-2"></div>
+  </div>
+
+  <!-- Cuadro Pixelado de Jugar -->
+  <div class="pixel-dialog-box" role="region" aria-labelledby="jugar-title">
+    
+    <!-- Esquinas ornamentales -->
+    <div class="pixel-corner corner-tl"></div>
+    <div class="pixel-corner corner-tr"></div>
+    <div class="pixel-corner corner-bl"></div>
+    <div class="pixel-corner corner-br"></div>
+
+    <!-- Barra de Título Superior -->
+    <div class="dialog-header-banner theme-jugar">
+      <div class="header-banner-inner">
+        <span class="header-icon">⚔️</span>
+        <h2 id="jugar-title" class="dialog-title">ZONA DE JUEGO</h2>
+      </div>
+    </div>
+
+    <!-- Cuerpo Principal -->
+    <div class="dialog-body">
+      <p class="dialog-subtitle">ELIGE TU MODO DE AVENTURA Y COMIENZA A EXPLORAR</p>
+
+      <!-- Lista de Modos de Juego -->
+      <div class="modes-list">
+        @for (mode of gameModes; track mode.id) {
+          <div class="mode-card" [class.locked]="mode.status === 'Próximamente'">
+            <div class="mode-icon-box">{{ mode.icon }}</div>
+            <div class="mode-info">
+              <div class="mode-header">
+                <span class="mode-title">{{ mode.title }}</span>
+                <span class="mode-badge" [class.badge-available]="mode.status === 'Disponible'">
+                  {{ mode.status }}
+                </span>
+              </div>
+              <p class="mode-desc">{{ mode.description }}</p>
+              <div class="mode-footer">
+                <span class="diff-tag">Dificultad: {{ mode.difficulty }}</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Pie informativo -->
+      <div class="footer-callout">
+        <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
+        <button type="button" class="btn-login-link" (click)="goToLogin()">
+          INICIAR SESIÓN
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</section>

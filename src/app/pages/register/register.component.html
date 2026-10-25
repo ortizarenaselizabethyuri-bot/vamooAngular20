@@ -1,0 +1,203 @@
+<section class="register-page-wrapper">
+  <!-- Partículas de fondo -->
+  <div class="ambient-pixel-particles">
+    <div class="sparkle sp-1"></div>
+    <div class="sparkle sp-2"></div>
+    <div class="sparkle sp-3"></div>
+  </div>
+
+  <!-- Cuadro Pixelado de Registro -->
+  <div class="pixel-dialog-box" role="dialog" aria-labelledby="register-title">
+    
+    <!-- Esquinas ornamentales pixeladas -->
+    <div class="pixel-corner corner-tl"></div>
+    <div class="pixel-corner corner-tr"></div>
+    <div class="pixel-corner corner-bl"></div>
+    <div class="pixel-corner corner-br"></div>
+
+    <!-- Barra de Título Superior -->
+    <div class="dialog-header-banner theme-register">
+      <div class="header-banner-inner">
+        <span class="header-icon">📜</span>
+        <h2 id="register-title" class="dialog-title">CREAR CUENTA DE AVENTURERO</h2>
+      </div>
+    </div>
+
+    <!-- Cuerpo del Formulario -->
+    <div class="dialog-body">
+      <p class="dialog-subtitle">ÚNETE AL GREMIO Y FORJA TU HISTORIA EN VAMOO</p>
+
+      <!-- Alertas de estado -->
+      @if (errorMessage()) {
+        <div class="pixel-alert alert-error" role="alert">
+          <span class="alert-icon">⚠️</span>
+          <span class="alert-text">{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div class="pixel-alert alert-success" role="status">
+          <span class="alert-icon">⭐</span>
+          <span class="alert-text">{{ successMessage() }}</span>
+        </div>
+      }
+
+      <form (ngSubmit)="onSubmit()" class="register-form" novalidate>
+        
+        <!-- Campo: Nombre de Aventurero -->
+        <div class="form-group">
+          <label for="reg-username" class="pixel-label">
+            <span class="label-badge">👤</span>
+            <span>NOMBRE DE AVENTURERO:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">⚔️</span>
+            <input
+              type="text"
+              id="reg-username"
+              name="username"
+              class="pixel-input"
+              placeholder="Ej. GuerreroPixel"
+              [ngModel]="username()"
+              (ngModelChange)="username.set($event)"
+              autocomplete="username"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Campo: Correo Electrónico -->
+        <div class="form-group">
+          <label for="reg-email" class="pixel-label">
+            <span class="label-badge">📧</span>
+            <span>CORREO ELECTRÓNICO:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">📜</span>
+            <input
+              type="email"
+              id="reg-email"
+              name="email"
+              class="pixel-input"
+              placeholder="aventurero@vamoo.com"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Campo: Contraseña -->
+        <div class="form-group">
+          <label for="reg-password" class="pixel-label">
+            <span class="label-badge">🔑</span>
+            <span>CONTRASEÑA:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">🔒</span>
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              id="reg-password"
+              name="password"
+              class="pixel-input"
+              placeholder="••••••••"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              autocomplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              class="btn-toggle-eye"
+              (click)="togglePasswordVisibility()"
+              [title]="showPassword() ? 'Ocultar contraseña' : 'Ver contraseña'"
+              aria-label="Alternar visibilidad de contraseña"
+            >
+              {{ showPassword() ? '👁️' : '🙈' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Campo: Confirmar Contraseña -->
+        <div class="form-group">
+          <label for="reg-confirm" class="pixel-label">
+            <span class="label-badge">🛡️</span>
+            <span>CONFIRMAR CONTRASEÑA:</span>
+          </label>
+          <div class="pixel-input-wrapper">
+            <span class="input-icon">🔒</span>
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              id="reg-confirm"
+              name="confirmPassword"
+              class="pixel-input"
+              placeholder="••••••••"
+              [ngModel]="confirmPassword()"
+              (ngModelChange)="confirmPassword.set($event)"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Aceptación del código -->
+        <div class="form-row-options">
+          <label class="pixel-checkbox-label">
+            <input
+              type="checkbox"
+              class="pixel-native-checkbox"
+              [checked]="acceptTerms()"
+              (change)="acceptTerms.set(!acceptTerms())"
+            />
+            <span class="pixel-checkbox-custom" [class.checked]="acceptTerms()"></span>
+            <span class="checkbox-text">ACEPTO EL CÓDIGO DEL GREMIO</span>
+          </label>
+        </div>
+
+        <!-- Botón de Envío -->
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="pixel-submit-btn"
+            [disabled]="isLoading()"
+          >
+            <span class="submit-btn-inner">
+              <span class="submit-btn-icon">
+                @if (isLoading()) {
+                  ⏳
+                } @else {
+                  📜
+                }
+              </span>
+              <span class="submit-btn-text">
+                {{ isLoading() ? 'FORJANDO...' : 'REGISTRARME EN EL GREMIO' }}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Separador Pixel Art -->
+        <div class="pixel-divider">
+          <span class="divider-line"></span>
+          <span class="divider-gem">💎</span>
+          <span class="divider-line"></span>
+        </div>
+
+        <!-- Enlace a Login -->
+        <div class="login-callout">
+          <span class="callout-text">¿YA TIENES CUENTA DE AVENTURERO?</span>
+          <button
+            type="button"
+            class="pixel-btn-secondary"
+            (click)="goToLogin()"
+          >
+            INICIAR SESIÓN
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</section>

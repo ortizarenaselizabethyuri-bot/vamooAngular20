@@ -1,0 +1,61 @@
+<section class="page-wrapper">
+  <!-- Partículas de fondo -->
+  <div class="ambient-pixel-particles">
+    <div class="sparkle sp-1"></div>
+    <div class="sparkle sp-2"></div>
+  </div>
+
+  <!-- Cuadro Pixelado de Comunidad -->
+  <div class="pixel-dialog-box" role="region" aria-labelledby="comunidad-title">
+    
+    <!-- Esquinas ornamentales -->
+    <div class="pixel-corner corner-tl"></div>
+    <div class="pixel-corner corner-tr"></div>
+    <div class="pixel-corner corner-bl"></div>
+    <div class="pixel-corner corner-br"></div>
+
+    <!-- Barra de Título Superior -->
+    <div class="dialog-header-banner theme-comunidad">
+      <div class="header-banner-inner">
+        <span class="header-icon">👥</span>
+        <h2 id="comunidad-title" class="dialog-title">TABERNA DE LA COMUNIDAD</h2>
+      </div>
+    </div>
+
+    <!-- Cuerpo Principal -->
+    <div class="dialog-body">
+      <p class="dialog-subtitle">TABLÓN DE ANUNCIOS, GREMIOS Y CHARLAS DE AVENTUREROS</p>
+
+      <!-- Listado de Anuncios -->
+      <div class="posts-list">
+        @for (post of posts; track post.id) {
+          <article class="post-card">
+            <div class="post-header">
+              <div class="author-badge">
+                <span class="author-avatar">{{ post.avatar }}</span>
+                <span class="author-name">{{ post.author }}</span>
+              </div>
+              <span class="category-tag">{{ post.category }}</span>
+            </div>
+            <h4 class="post-title">{{ post.title }}</h4>
+            <p class="post-snippet">{{ post.snippet }}</p>
+            <div class="post-footer">
+              <span class="likes-count">❤️ {{ post.likesCount }} honores</span>
+              <span class="read-more">LEER MÁS →</span>
+            </div>
+          </article>
+        }
+      </div>
+
+      <!-- Pie informativo -->
+      <div class="footer-callout">
+        <span class="callout-label">¿QUIERES PUBLICAR EN EL TABLÓN?</span>
+        <button type="button" class="btn-register-link" (click)="goToRegister()">
+          ÚNETE AL GREMIO
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</section>
