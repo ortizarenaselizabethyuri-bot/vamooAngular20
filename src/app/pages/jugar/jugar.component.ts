@@ -87,9 +87,6 @@ export class JugarComponent implements OnInit {
   /** Control para seguimiento automático de cámara al caminar */
   readonly autoFollow = signal<boolean>(true);
 
-  /** Control para alternar la textura pixelada en áreas verdes (parques y reservas) */
-  readonly isGreenTextureActive = signal<boolean>(true);
-
   /** Opciones de personalización de Google Maps con el tema Pixar Aventura */
   readonly mapOptions: google.maps.MapOptions = {
     styles: PIXAR_MAP_THEME,
@@ -184,50 +181,7 @@ export class JugarComponent implements OnInit {
     };
   });
 
-  /**
-   * Catálogo de hitos ecológicos y reservas de fauna/flora urbana
-   * para enriquecer visualmente las áreas verdes en modo textura pixel-art.
-   */
-  readonly parkFloraMarkers = [
-    { name: 'Parque Central de Miraflores', lat: -12.1215, lng: -77.0298, icon: '🌳' },
-    { name: 'Parque 7 de Junio (Kennedy)', lat: -12.1223, lng: -77.0308, icon: '🌿' },
-    { name: 'Parque del Amor (Malecón)', lat: -12.1250, lng: -77.0365, icon: '🌺' },
-    { name: 'Santuario Patriótico Reducto N°2', lat: -12.1265, lng: -77.0225, icon: '🌲' },
-    { name: 'Parque Salazar (Larcomar)', lat: -12.1315, lng: -77.0305, icon: '🌴' },
-  ];
 
-  /**
-   * Colección de opciones de marcadores de flora ecológica para renderizado condicional en el mapa.
-   *
-   * Propósito: Mostrar iconos pixel-art de árboles y flores sobre los parques cuando la textura pixelada
-   * está activa, ofreciendo una experiencia retro inmersiva inspirada en RPGs clásicos.
-   */
-  readonly parkFloraMarkerOptions = computed(() => {
-    if (!this.isGreenTextureActive() || typeof window === 'undefined' || !(window as any).google?.maps) {
-      return [];
-    }
-    const googleMaps = (window as any).google.maps;
-    return this.parkFloraMarkers.map((park) => {
-      const svgIcon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r="14" fill="#064e3b" stroke="#4ade80" stroke-width="2"/>
-          <text x="18" y="23" font-size="16" text-anchor="middle">${park.icon}</text>
-        </svg>
-      `;
-      return {
-        position: { lat: park.lat, lng: park.lng },
-        title: `Hito Verde: ${park.name}`,
-        options: {
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgIcon.trim()),
-            scaledSize: new googleMaps.Size(32, 32),
-            anchor: new googleMaps.Point(16, 16),
-          },
-          zIndex: 60,
-        },
-      };
-    });
-  });
 
   /** Catálogo de modos de expedición configurados a partir del backend de Vamoo */
   readonly gameModes: GameMode[] = [
@@ -351,17 +305,7 @@ export class JugarComponent implements OnInit {
     this.geoService.resetPath();
   }
 
-  /**
-   * Alterna la aplicación de la textura pixelada retro sobre las áreas verdes del mapa.
-   *
-   * Propósito: Permitir al aventurero encender o apagar el shader / filtro pixel-art
-   * que texturiza parques y áreas ecológicas con estética 8-bit / 16-bit.
-   *
-   * @returns void
-   */
-  toggleGreenTexture(): void {
-    this.isGreenTextureActive.update((active) => !active);
-  }
+
 
   /**
    * Centra la cámara del mapa en la ubicación satelital del aventurero.
