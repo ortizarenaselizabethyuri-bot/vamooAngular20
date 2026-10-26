@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+@import 'mapbox-gl/dist/mapbox-gl.css';
 
 :root {
   --font-pixel: 'Press Start 2P', cursive, monospace;

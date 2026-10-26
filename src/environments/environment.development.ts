@@ -10,5 +10,7 @@ export const environment = {
   apiUrl: 'http://localhost:3000/api',
   /** Clave de API de Google Maps Platform (Maps JavaScript API y Places API) */
   googleMapsApiKey: 'AIzaSyCRF33WCU3vhX2T72FT8V8HQchek2QX9jQ',
+  /** Token de acceso para Mapbox GL JS (puede configurarse con pk.eyJ...) */
+  mapboxToken: '',
 };
 
