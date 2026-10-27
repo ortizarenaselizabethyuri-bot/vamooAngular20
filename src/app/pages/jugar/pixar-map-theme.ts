@@ -1,3 +1,5 @@
+/// <reference types="@types/google.maps" />
+
 /**
  * Tema de diseño vectorial "Pixar Aventura" para Google Maps Platform en Vamoo.
  *

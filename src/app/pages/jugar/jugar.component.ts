@@ -1,10 +1,13 @@
+/// <reference types="@types/google.maps" />
+
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { GoogleMap, MapMarker, MapPolyline, MapCircle } from '@angular/google-maps';
+
 import { GeolocationService, GeoCoordinates } from '../../services/geolocation.service.js';
 import { AuthService } from '../../services/auth.service.js';
 import { PIXAR_MAP_THEME } from './pixar-map-theme.js';
+import { PixelMapViewerComponent } from '../../components/pixel-map-viewer/pixel-map-viewer.component';
 
 /**
  * Interfaz que define un modo de expedición o juego en Vamoo,
@@ -55,7 +58,7 @@ export interface RouteSimulationState {
 @Component({
   selector: 'app-jugar',
   standalone: true,
-  imports: [CommonModule, GoogleMap, MapMarker, MapPolyline, MapCircle],
+  imports: [CommonModule, PixelMapViewerComponent],
   templateUrl: './jugar.component.html',
   styleUrl: './jugar.component.css',
 })
@@ -69,7 +72,7 @@ export class JugarComponent implements OnInit {
   /** Servicio de autenticación para consultar perfil y rango del aventurero */
   readonly authService = inject(AuthService);
 
-  /** Pestaña activa en la interfaz ('mapa' interactivo o 'modos' de expedición) */
+  /** Pestaña activa en la interfaz ('mapa' interactivo Pixel-Art 5px o 'modos' de expedición) */
   readonly activeTab = signal<'mapa' | 'modos'>('mapa');
 
   /** Coordenadas centrales del mapa (por defecto Parque Kennedy, Miraflores - Lima) */

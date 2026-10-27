@@ -1,0 +1,238 @@
+<div class="pixel-viewer-container">
+  <!-- Imagen de referencia oculta para alimentar el rasterizador de Canvas 2D -->
+  <img 
+    #refImg 
+    [src]="currentImageUrl()" 
+    alt="Google Maps estándar limpio sin etiquetas" 
+    class="hidden-source-img"
+    (load)="onImageLoaded()" />
+
+  <!-- 1. TELEMETRÍA EN VIVO DE LA EXPEDICIÓN (HUD SUPERIOR) -->
+  <div class="expedition-metrics-dashboard">
+    <!-- Métrica 1: Distancia Recorrida -->
+    <div class="metric-card">
+      <span class="metric-icon">🚶</span>
+      <div class="metric-data">
+        <span class="metric-value">{{ expeditionDistance() }} m</span>
+        <span class="metric-label">DISTANCIA RECORRIDA</span>
+      </div>
+    </div>
+
+    <!-- Métrica 2: Experiencia de Expedición (XP) -->
+    <div class="metric-card xp-card">
+      <span class="metric-icon">⭐</span>
+      <div class="metric-data">
+        <span class="metric-value">+{{ expeditionXp() }} XP</span>
+        <span class="metric-label">LIGA EN VIVO</span>
+      </div>
+    </div>
+
+    <!-- Métrica 3: Estado GPS -->
+    <div class="metric-card gps-card">
+      <span class="metric-icon">🛰️</span>
+      <div class="metric-data">
+        <span class="metric-value status-text" [class.active-gps]="geoService.isTracking()">
+          {{ geoService.isTracking() ? 'GPS ACTIVO' : 'MODO EXPLORADOR' }}
+        </span>
+        <span class="metric-label">{{ avatarTrail().length }} WAYPOINTS</span>
+      </div>
+    </div>
+
+    <!-- Métrica 4: Rango y Avatar del Aventurero -->
+    <div class="metric-card avatar-card">
+      <span class="metric-icon">{{ userRankEmoji() }}</span>
+      <div class="metric-data">
+        <span class="metric-value">{{ userRank() | uppercase }}</span>
+        <span class="metric-label">{{ userName() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. BOTONERA DE ACCIÓN Y CONTROLES DE EXPEDICIÓN -->
+  <div class="expedition-control-bar">
+    <!-- Botón 1: Avanzar paso (+35m) -->
+    <button 
+      type="button" 
+      class="btn-expedition btn-step" 
+      (click)="advanceStep()" 
+      title="Avanzar un paso de 35m con el avatar por la avenida">
+      <span class="btn-icon">⚡</span>
+      <span>AVANZAR PASO (+35m)</span>
+    </button>
+
+    <!-- Botón 2: Centrar en el Aventurero -->
+    <button 
+      type="button" 
+      class="btn-expedition btn-center" 
+      (click)="centerOnAvatar()" 
+      title="Re-centrar la vista en tu avatar">
+      <span class="btn-icon">🎯</span>
+      <span>CENTRAR EN MÍ</span>
+    </button>
+
+    <!-- Botón 3: Reiniciar Rastro -->
+    @if (avatarTrail().length > 1) {
+      <button 
+        type="button" 
+        class="btn-expedition btn-reset" 
+        (click)="resetExpedition()" 
+        title="Reiniciar distancia y trazado de ruta">
+        <span class="btn-icon">🔄</span>
+        <span>REINICIAR</span>
+      </button>
+    }
+
+    <!-- Separador flexible -->
+    <div class="toolbar-spacer"></div>
+
+    <!-- Capa de Direcciones Sobrepuestas (Texto Nítido sin pixelar) -->
+    <button 
+      type="button" 
+      class="chip-toggle" 
+      [class.active]="showStreetLabels()" 
+      (click)="toggleStreetLabels()" 
+      title="Superponer nombres de calles con tipografía vectorial nítida">
+      <span class="chip-icon">🏷️</span>
+      <span>DIRECCIONES SOBREPUESTAS</span>
+    </button>
+
+    <!-- Cuadrícula Voxel de 5px -->
+    <button 
+      type="button" 
+      class="chip-toggle" 
+      [class.active]="showGrid()" 
+      (click)="toggleGrid()" 
+      title="Mostrar u ocultar cuadrícula discreta de bloques de 5px">
+      <span class="chip-icon">▦</span>
+      <span>GRILLA 5PX</span>
+    </button>
+
+    <!-- Paleta Viva de 16-bits -->
+    <button 
+      type="button" 
+      class="chip-toggle" 
+      [class.active]="quantizePalette()" 
+      (click)="toggleQuantize()" 
+      title="Cuantizar a la paleta viva de 16-bits">
+      <span class="chip-icon">🎨</span>
+      <span>PALETA 16-BIT</span>
+    </button>
+
+    <!-- Scanlines CRT -->
+    <button 
+      type="button" 
+      class="chip-toggle" 
+      [class.active]="scanlines()" 
+      (click)="toggleScanlines()" 
+      title="Líneas de escaneo retro CRT">
+      <span class="chip-icon">📺</span>
+      <span>SCANLINES</span>
+    </button>
+
+    <!-- Descargar imagen del mapa -->
+    <button 
+      type="button" 
+      class="action-btn btn-export" 
+      (click)="downloadCanvas()" 
+      title="Descargar mapa pixel-art como PNG">
+      <span>💾 EXPORTAR PNG</span>
+    </button>
+  </div>
+
+  <!-- 3. ESCENARIO DEL MAPA COMPLETO INTERACTIVO PIXEL-ART (CANVAS 2D 5PX + OVERLAYS) -->
+  <div 
+    #mapStage 
+    class="full-map-stage" 
+    (click)="onMapClick($event)"
+    title="Haz clic en cualquier vía o parque para trasladar a tu avatar aventurero">
+
+    <!-- Capa A: Canvas 2D Nativo con bloques discretos de 5px -->
+    <canvas #pixelCanvas class="full-pixel-canvas"></canvas>
+
+    <!-- Capa B: Trazado SVG del sendero de expedición recorrido -->
+    <svg class="trail-svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path 
+        [attr.d]="getTrailSvgPath()" 
+        class="trail-svg-path" />
+      @for (point of avatarTrail(); track $index) {
+        <circle 
+          [attr.cx]="point.x" 
+          [attr.cy]="point.y" 
+          r="1.2" 
+          class="trail-waypoint-dot" />
+      }
+    </svg>
+
+    <!-- Capa C: Rótulos de Direcciones Sobrepuestas (Tipografía Vectorial Nítida sin pixelación) -->
+    @if (showStreetLabels()) {
+      <div class="street-labels-overlay">
+        @for (label of relativeStreetLabels; track label.text) {
+          <div 
+            class="street-label-badge" 
+            [class.badge-avenue]="label.type === 'avenue'"
+            [class.badge-park]="label.type === 'park'"
+            [class.badge-street]="label.type === 'street'"
+            [style.left.%]="label.relX * 100"
+            [style.top.%]="label.relY * 100"
+            [style.transform]="'translate(-50%, -50%) rotate(' + (label.angleDegrees || 0) + 'deg)'">
+            <span class="badge-icon">{{ label.icon || '📍' }}</span>
+            <span class="badge-text">{{ label.text }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Capa D: AVATAR DEL AVENTURERO PIXELADO Y FLOTANTE / SALTANDO -->
+    <div 
+      class="floating-adventurer-marker" 
+      [style.left.%]="avatarPosition().x" 
+      [style.top.%]="avatarPosition().y">
+
+      <!-- Cuerpo del avatar con animación de flotación y salto -->
+      <div class="avatar-float-body">
+        <div class="avatar-frame">
+          @if (userAvatarUrl()) {
+            <img 
+              [src]="userAvatarUrl()" 
+              [alt]="userName()" 
+              class="pixel-avatar-img" />
+          } @else {
+            <span class="pixel-avatar-fallback">{{ userRankEmoji() }}</span>
+          }
+          <!-- Insignia de rango en la esquina del marco -->
+          <span class="avatar-rank-pill">{{ userRank() }}</span>
+        </div>
+
+        <!-- Etiqueta de Aventurero con nombre del usuario -->
+        <div class="avatar-nametag">
+          <span class="nametag-icon">⭐</span>
+          <span class="nametag-name">{{ userName() }}</span>
+        </div>
+      </div>
+
+      <!-- Sombra elíptica reactiva al salto en el piso pixelado -->
+      <div class="avatar-ground-shadow"></div>
+    </div>
+
+    <!-- Indicador de modo clic interactivo -->
+    <div class="stage-click-hint">
+      <span>💡 Haz clic en el mapa o pulsa "Avanzar Paso" para desplazar al aventurero</span>
+    </div>
+  </div>
+
+  <!-- 4. LEYENDA Y MÉTRICAS DE RENDERIZADO -->
+  <div class="map-legend-bar">
+    <div class="legend-item">
+      <span class="pulse-indicator" [class.paused]="!geoService.isTracking()"></span>
+      <span class="status-legend-text">
+        MAPA COMPLETO PIXEL-ART • BLOQUES DE 5PX • PALETA VIVA 16-BITS
+      </span>
+    </div>
+
+    <div class="legend-stats-strip">
+      <span class="stat-pill highlight">🧱 {{ renderStats().totalBlocks | number }} BLOQUES</span>
+      <span class="stat-pill">⚡ {{ renderStats().renderTimeMs }} ms</span>
+      <span class="stat-pill success">🚀 60 FPS GPU</span>
+    </div>
+  </div>
+</div>

@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <!-- Pestañas de Navegación RPG (Mapa Pixar vs Modos) -->
+    <!-- Pestañas de Navegación RPG (Mapa Pixel-Art 5px vs Modos) -->
     <div class="tab-selector-bar">
       <button 
         type="button" 
@@ -30,7 +30,7 @@
         [class.active]="activeTab() === 'mapa'" 
         (click)="setActiveTab('mapa')">
         <span class="tab-icon">🗺️</span>
-        <span>MAPA DE AVENTURA</span>
+        <span>MAPA DE AVENTURA (PIXEL-ART 5PX)</span>
       </button>
       <button 
         type="button" 
@@ -46,157 +46,10 @@
     <div class="dialog-body">
 
       <!-- ========================================================
-           VISTA 1: MAPA INTERACTIVO CON ESTILO PIXAR AVENTURA (ETAPA 2)
+           VISTA 1: MAPA DE AVENTURA COMPLETO (CANVAS 2D PIXEL-ART 5PX)
            ======================================================== -->
       @if (activeTab() === 'mapa') {
-        <div class="map-section-wrapper">
-          
-          <!-- TELEMETRÍA EN VIVO DE LA EXPEDICIÓN (HUD) -->
-          <div class="expedition-metrics-dashboard">
-            <!-- Métrica 1: Distancia -->
-            <div class="metric-card">
-              <span class="metric-icon">🚶</span>
-              <div class="metric-data">
-                <span class="metric-value">{{ formattedDistance() }}</span>
-                <span class="metric-label">RECORRIDO</span>
-              </div>
-            </div>
-
-            <!-- Métrica 2: XP en Vivo -->
-            <div class="metric-card xp-card">
-              <span class="metric-icon">⭐</span>
-              <div class="metric-data">
-                <span class="metric-value">+{{ currentExpeditionXp() }} XP</span>
-                <span class="metric-label">GANANCIA LIGA</span>
-              </div>
-            </div>
-
-            <!-- Métrica 3: Estado GPS -->
-            <div class="metric-card gps-card">
-              <span class="metric-icon">🛰️</span>
-              <div class="metric-data">
-                <span class="metric-value status-text" [class.active-gps]="geoService.isTracking()">
-                  {{ geoService.isTracking() ? 'GPS ACTIVO' : 'PAUSADO' }}
-                </span>
-                <span class="metric-label">{{ polylinePath().length }} PUNTOS</span>
-              </div>
-            </div>
-
-            <!-- Métrica 4: Rango Aventurero -->
-            <div class="metric-card avatar-card">
-              <span class="metric-icon">{{ rankEmoji() }}</span>
-              <div class="metric-data">
-                <span class="metric-value">{{ (authService.currentUser()?.currentRank || 'Pichón') | uppercase }}</span>
-                <span class="metric-label">AVENTURERO</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- BOTONERA DE CONTROL DE CAMINATA -->
-          <div class="expedition-control-bar">
-            <!-- Botón 1: Iniciar / Pausar GPS -->
-            <button 
-              type="button" 
-              class="btn-expedition" 
-              [class.btn-tracking]="geoService.isTracking()"
-              (click)="toggleTracking()">
-              <span class="btn-icon">{{ geoService.isTracking() ? '⏸️' : '🚀' }}</span>
-              <span>{{ geoService.isTracking() ? 'PAUSAR EXPEDICIÓN' : 'INICIAR EXPEDICIÓN' }}</span>
-            </button>
-
-            <!-- Botón 2: Simular Paso (+35m) -->
-            <button 
-              type="button" 
-              class="btn-expedition btn-step" 
-              (click)="simulateStep()" 
-              title="Simula un paso de 35 metros para probar el rastro polyline">
-              <span class="btn-icon">⚡</span>
-              <span>AVANZAR PASO (+35m)</span>
-            </button>
-
-            <!-- Botón 3: Centrar en el Aventurero -->
-            <button 
-              type="button" 
-              class="btn-expedition btn-center" 
-              (click)="centerOnUser()" 
-              title="Centrar la cámara en tu ubicación actual">
-              <span class="btn-icon">🎯</span>
-              <span>CENTRAR EN MÍ</span>
-            </button>
-
-            <!-- Botón 4: Reiniciar Rastro -->
-            @if (polylinePath().length > 1) {
-              <button 
-                type="button" 
-                class="btn-expedition btn-reset" 
-                (click)="resetExpedition()" 
-                title="Reiniciar distancia y trazado">
-                <span class="btn-icon">🔄</span>
-                <span>REINICIAR</span>
-              </button>
-            }
-          </div>
-
-          <!-- Marco del Mapa Interactivo -->
-          <div class="map-frame-container">
-            @if (isMapReady()) {
-              <google-map 
-                [center]="mapCenter()" 
-                [zoom]="mapZoom()" 
-                [options]="mapOptions" 
-                width="100%" 
-                height="540px">
-
-                <!-- 1. Halo satelital de precisión alrededor del usuario -->
-                @if (userCoords()) {
-                  <map-circle 
-                    [center]="userCoords()!" 
-                    [options]="accuracyCircleOptions">
-                  </map-circle>
-                }
-
-                <!-- 2. Marcador del Aventurero con avatar de fauna silvestre -->
-                @if (adventurerMarkerOptions()) {
-                  <map-marker 
-                    [options]="adventurerMarkerOptions()!">
-                  </map-marker>
-                }
-
-                <!-- 3. Trazado del Sendero de Expedición (Polyline Pixar Aventura) -->
-                @if (polylinePath().length > 1) {
-                  <map-polyline 
-                    [path]="polylinePath()" 
-                    [options]="polylineOptions">
-                  </map-polyline>
-                }
-
-              </google-map>
-            } @else {
-              <!-- Pantalla de carga animada -->
-              <div class="map-loading-placeholder">
-                <div class="loading-compass">🧭</div>
-                <p class="loading-title">CALIBRANDO SATÉLITE GPS & MAPA PIXAR...</p>
-                <p class="loading-sub">Conectando con Google Maps Platform...</p>
-              </div>
-            }
-          </div>
-
-          <!-- Barra de diagnóstico y estado satelital -->
-          <div class="map-legend-bar">
-            <div class="legend-item">
-              <span class="pulse-indicator" [class.paused]="!geoService.isTracking()"></span>
-              <span class="status-gps-diag">{{ geoService.statusMessage() }}</span>
-            </div>
-            <div class="legend-item">
-              <span class="color-dot dot-park"></span>
-              <span>PARQUES Y RESERVAS ECOLÓGICAS</span>
-            </div>
-            <div class="legend-item legend-step-badge">
-              <span>🛰️ ETAPA 2: GPS EN VIVO & MAPA PIXAR</span>
-            </div>
-          </div>
-
-        </div>
+        <app-pixel-map-viewer></app-pixel-map-viewer>
       }
 
       <!-- ========================================================

@@ -46,13 +46,13 @@ describe('JugarComponent', () => {
     expect(component.gameModes.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('debe inicializarse en la pestaña de mapa interactivo y con estilos Pixar', () => {
+  it('debe inicializarse en la pestaña de mapa de aventura pixel-art 5px', () => {
     expect(component.activeTab()).toBe('mapa');
     expect(component.mapOptions.styles).toBeDefined();
     expect(component.mapCenter().lat).toBeCloseTo(-12.1217, 2);
   });
 
-  it('debe alternar entre pestañas de mapa y modalidades', () => {
+  it('debe alternar entre pestañas de mapa de aventura y modalidades', () => {
     component.setActiveTab('modos');
     expect(component.activeTab()).toBe('modos');
 
