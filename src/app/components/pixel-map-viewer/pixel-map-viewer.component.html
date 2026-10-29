@@ -315,8 +315,8 @@
         <!-- Marcador estrella en el destino -->
         @if (getActiveMissionPoi(); as poi) {
           <circle
-            [attr.cx]="poi.relX * 100"
-            [attr.cy]="poi.relY * 100"
+            [attr.cx]="getZoomedX(poi.relX)"
+            [attr.cy]="getZoomedY(poi.relY)"
             r="2.5"
             class="mission-target-pulse" />
         }
@@ -341,15 +341,17 @@
     @if (showStreetLabels()) {
       <div class="street-text-overlay">
         @for (label of streetTextLabels; track label.text) {
-          <span
-            class="street-plain-text"
-            [class.street-avenue-text]="label.type === 'avenue'"
-            [class.street-local-text]="label.type === 'street'"
-            [style.left.%]="label.relX * 100"
-            [style.top.%]="label.relY * 100"
-            [style.transform]="'translate(-50%, -50%) rotate(' + (label.angleDegrees || 0) + 'deg)'">
-            {{ label.text }}
-          </span>
+          @if (isPointVisible(label.relX, label.relY)) {
+            <span
+              class="street-plain-text"
+              [class.street-avenue-text]="label.type === 'avenue'"
+              [class.street-local-text]="label.type === 'street'"
+              [style.left.%]="getZoomedX(label.relX)"
+              [style.top.%]="getZoomedY(label.relY)"
+              [style.transform]="'translate(-50%, -50%) rotate(' + (label.angleDegrees || 0) + 'deg)'">
+              {{ label.text }}
+            </span>
+          }
         }
       </div>
     }
@@ -358,24 +360,26 @@
     @if (showPois()) {
       <div class="poi-overlay">
         @for (poi of poiMarkers; track poi.id) {
-          <div 
-            class="poi-marker"
-            [class.poi-target]="activeMission()?.targetPoiId === poi.id"
-            [style.left.%]="poi.relX * 100"
-            [style.top.%]="poi.relY * 100"
-            [attr.title]="poi.name">
-
-            <!-- Círculo flotante con icono -->
+          @if (isPointVisible(poi.relX, poi.relY)) {
             <div 
-              class="poi-circle"
-              [style.background]="poi.color"
-              [style.box-shadow]="'0 0 12px ' + poi.color + '80, 0 4px 12px rgba(0,0,0,0.5)'">
-              <span class="poi-icon">{{ poi.icon }}</span>
-            </div>
+              class="poi-marker"
+              [class.poi-target]="activeMission()?.targetPoiId === poi.id"
+              [style.left.%]="getZoomedX(poi.relX)"
+              [style.top.%]="getZoomedY(poi.relY)"
+              [attr.title]="poi.name">
 
-            <!-- Nombre del lugar debajo del círculo -->
-            <span class="poi-label">{{ poi.name }}</span>
-          </div>
+              <!-- Círculo flotante con icono -->
+              <div 
+                class="poi-circle"
+                [style.background]="poi.color"
+                [style.box-shadow]="'0 0 12px ' + poi.color + '80, 0 4px 12px rgba(0,0,0,0.5)'">
+                <span class="poi-icon">{{ poi.icon }}</span>
+              </div>
+
+              <!-- Nombre del lugar debajo del círculo -->
+              <span class="poi-label">{{ poi.name }}</span>
+            </div>
+          }
         }
       </div>
     }

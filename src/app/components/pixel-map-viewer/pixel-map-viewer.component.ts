@@ -788,20 +788,9 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     };
 
     const city = this.currentCity();
-    let sourceImage: CanvasImageSource;
-
-    try {
-      // Descargar y ensamblar el mapa real con teselas limpias de la ubicación exacta
-      const stitchedCanvas = await fetchStitchedMapCanvas(
-        this.mapCenter.lat,
-        this.mapCenter.lng,
-        { zoom: 16, width: 1400, height: 900 }
-      );
-      sourceImage = stitchedCanvas;
-    } catch (err) {
-      console.warn('[PixelMap] Error al descargar teselas reales en vivo, aplicando respaldo procedural:', err);
-      sourceImage = generateCityBaseCanvas(city, 1200, 800);
-    }
+    // Generar plano urbano de alta fidelidad con texturas de casitas (techos terracota),
+    // áreas verdes en verde esmeralda (#10b981) y calzadas de asfalto de alto contraste
+    const sourceImage: CanvasImageSource = generateCityBaseCanvas(city, 1200, 800);
 
     const imgW = (sourceImage as any).naturalWidth || (sourceImage as any).width || 1200;
     const imgH = (sourceImage as any).naturalHeight || (sourceImage as any).height || 800;
@@ -926,6 +915,67 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
    */
   public isUserZoomActive(userZoomStep: 0 | 1 | 2): boolean {
     return this.currentZoomIndex() === this.USER_ZOOM_INDICES[userZoomStep];
+  }
+
+  // ── Proyección Dinámica de Iconos Flotantes según Nivel de Zoom ───────────
+
+  /**
+   * Retorna el factor de escala o magnificación geométrica del nivel de zoom activo.
+   * Corresponde exactamente a la transformación aplicada a los 6 canvases pre-renderizados:
+   *   zoomFactor(i) = 0.2 ^ (i / 5), por lo que el factor de magnificación es 1 / zoomFactor.
+   *   - Nivel 0 (CIUDAD): Escala 1.0x (vista amplia completa)
+   *   - Nivel 2 (BARRIO): Escala ~1.90x (vista media del vecindario)
+   *   - Nivel 5 (CALLE):  Escala 5.0x (vista cercana a nivel peatonal)
+   *
+   * @returns Factor multiplicador de distancia respecto al centro (1.0x a 5.0x)
+   */
+  public currentZoomScale(): number {
+    const idx = Math.max(0, Math.min(5, this.currentZoomIndex()));
+    const cropFactor = Math.pow(0.2, idx / 5);
+    return 1 / cropFactor;
+  }
+
+  /**
+   * Calcula la coordenada X en porcentaje (0-100%) sobre el canvas visible
+   * para un elemento flotante (POI, rótulo o marcador) ubicado en relX (0.0 - 1.0).
+   * Al hacer zoom in, la distancia horizontal desde el centro (0.5) se multiplica proporcionalmente.
+   * Al alejar el zoom, la distancia se reduce hacia el centro.
+   *
+   * @param relX - Coordenada X relativa original dentro del plano de la ciudad (0.0 a 1.0).
+   * @returns Porcentaje horizontal (0-100%) en el viewport actual del canvas.
+   */
+  public getZoomedX(relX: number): number {
+    const scale = this.currentZoomScale();
+    return ((relX - 0.5) * scale + 0.5) * 100;
+  }
+
+  /**
+   * Calcula la coordenada Y en porcentaje (0-100%) sobre el canvas visible
+   * para un elemento flotante (POI, rótulo o marcador) ubicado en relY (0.0 - 1.0).
+   * Al hacer zoom in, la distancia vertical desde el centro (0.5) se multiplica proporcionalmente.
+   * Al alejar el zoom, la distancia se reduce hacia el centro.
+   *
+   * @param relY - Coordenada Y relativa original dentro del plano de la ciudad (0.0 a 1.0).
+   * @returns Porcentaje vertical (0-100%) en el viewport actual del canvas.
+   */
+  public getZoomedY(relY: number): number {
+    const scale = this.currentZoomScale();
+    return ((relY - 0.5) * scale + 0.5) * 100;
+  }
+
+  /**
+   * Determina si un elemento proyectado con el zoom activo se encuentra dentro
+   * del viewport visible del mapa (con un pequeño margen perimetral del 10%
+   * para suavizar transiciones y evitar desbordes).
+   *
+   * @param relX - Coordenada X relativa original (0.0 a 1.0).
+   * @param relY - Coordenada Y relativa original (0.0 a 1.0).
+   * @returns True si el elemento cae dentro de la pantalla visible (-10% a 110%).
+   */
+  public isPointVisible(relX: number, relY: number): boolean {
+    const x = this.getZoomedX(relX);
+    const y = this.getZoomedY(relY);
+    return x >= -10 && x <= 110 && y >= -10 && y <= 110;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1080,6 +1130,7 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Genera el path SVG de la línea punteada hacia el POI destino de la misión activa.
+   * Proyecta dinámicamente las coordenadas del destino con la escala de zoom activa.
    *
    * @returns Path SVG o cadena vacía si no hay misión activa
    */
@@ -1087,7 +1138,9 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     const poi = this.getActiveMissionPoi();
     const pos = this.avatarPosition();
     if (!poi) return '';
-    return `M ${pos.x} ${pos.y} L ${poi.relX * 100} ${poi.relY * 100}`;
+    const targetX = this.getZoomedX(poi.relX);
+    const targetY = this.getZoomedY(poi.relY);
+    return `M ${pos.x} ${pos.y} L ${targetX} ${targetY}`;
   }
 
   // ──────────────────────────────────────────────────────────────────────────

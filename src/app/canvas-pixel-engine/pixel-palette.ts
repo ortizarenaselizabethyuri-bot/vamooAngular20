@@ -44,19 +44,31 @@ export const VIBRANT_16BIT_PALETTE: PaletteEntry[] = [
   { name: 'plaza_adoquin',          hex: '#b8bcc4', rgb: [184, 188, 196] }, // Plazas adoquinadas — gris frío
   { name: 'vereda_beige',           hex: '#d4c9b8', rgb: [212, 201, 184] }, // Veredas beige cálido
 
-  // 3. PARQUES, ÁREAS VERDES — Verde esmeralda vivo y saturado
-  { name: 'pasto_esmeralda_vivo',   hex: '#10b981', rgb: [16, 185, 129] },  // Césped principal — esmeralda puro
-  { name: 'pasto_verde_brillante',  hex: '#059669', rgb: [5, 150, 105] },   // Pasto más oscuro/sombras
-  { name: 'parque_verde_claro',     hex: '#34d399', rgb: [52, 211, 153] },  // Zonas claras del parque
-  { name: 'arboles_verde_profundo', hex: '#065f46', rgb: [6, 95, 70] },     // Masas arbóreas densas
+  // 3. PARQUES, ÁREAS VERDES — Verde esmeralda vivo y saturado con texturas
+  { name: 'pasto_esmeralda_vivo',   hex: '#10b981', rgb: [16, 185, 129] },  // Césped principal — esmeralda puro vibrante
+  { name: 'pasto_verde_brillante',  hex: '#059669', rgb: [5, 150, 105] },   // Pasto más oscuro/sombras de césped
+  { name: 'parque_verde_claro',     hex: '#34d399', rgb: [52, 211, 153] },  // Zonas claras del parque y copas de árboles
+  { name: 'arboles_verde_profundo', hex: '#065f46', rgb: [6, 95, 70] },     // Masas arbóreas densas y sombras de follaje
+  { name: 'arbol_resalte_verde',    hex: '#6ee7b7', rgb: [110, 231, 183] }, // Resalte luminoso de hojas y arbustos
 
-  // 4. EDIFICIOS, LOTES Y URBANISMO — Crema y beige urbano cálido
-  { name: 'edificio_crema',         hex: '#f5f0e8', rgb: [245, 240, 232] }, // Edificios claros — crema puro
-  { name: 'edificio_beige',         hex: '#e8dcc8', rgb: [232, 220, 200] }, // Edificios beige medio
-  { name: 'edificio_gris_claro',    hex: '#dde1e7', rgb: [221, 225, 231] }, // Edificios modernos grises
-  { name: 'lote_arena',             hex: '#d4c4a0', rgb: [212, 196, 160] }, // Lotes sin construir/tierra
+  // 4. TECHOS Y CASITAS CON TEXTURA — Terracota, arcilla y ladrillo tradicional
+  { name: 'techo_teja_terracota',    hex: '#c2410c', rgb: [194, 65, 12] },  // Techo de tejas terracota tradicional
+  { name: 'techo_teja_rojo_arcilla', hex: '#b91c1c', rgb: [185, 28, 28] },  // Techo rojo arcilla / sombra de tejado
+  { name: 'techo_teja_naranja_vivo', hex: '#ea580c', rgb: [234, 88, 12] },  // Caballete de tejado y teja soleada
+  { name: 'techo_ladrillo_marron',   hex: '#9a3412', rgb: [154, 52, 18] },  // Alero y sombra profunda bajo tejado
+  { name: 'techo_plano_cemento',     hex: '#94a3b8', rgb: [148, 163, 184] }, // Azotea plana moderna / parapeto
 
-  // 5. HIDROGRAFÍA — Azul cristalino distinguible
+  // 5. FACHADAS, PAREDES Y VENTANAS — Estuco cálido y reflejos
+  { name: 'edificio_crema',          hex: '#f5f0e8', rgb: [245, 240, 232] }, // Fachadas claras — crema puro
+  { name: 'edificio_beige',          hex: '#e8dcc8', rgb: [232, 220, 200] }, // Fachadas beige medio
+  { name: 'edificio_gris_claro',     hex: '#dde1e7', rgb: [221, 225, 231] }, // Fachadas modernas grises
+  { name: 'pared_fachada_amarilla',  hex: '#fef08a', rgb: [254, 240, 138] }, // Fachada colonial amarilla cálida
+  { name: 'pared_fachada_estuco',    hex: '#fde68a', rgb: [253, 230, 138] }, // Fachada estuco ocre suave
+  { name: 'lote_arena',              hex: '#d4c4a0', rgb: [212, 196, 160] }, // Patios interiores / tierra
+  { name: 'ventana_reflejo_celeste', hex: '#38bdf8', rgb: [56, 189, 248] },  // Reflejo diurno en cristales de ventana
+  { name: 'ventana_sombra_oscura',   hex: '#0f172a', rgb: [15, 23, 42] },    // Interior oscuro de ventana o puerta
+
+  // 6. HIDROGRAFÍA — Azul cristalino distinguible
   { name: 'agua_profunda',          hex: '#1e6091', rgb: [30, 96, 145] },   // Agua profunda — azul marino
   { name: 'agua_media',             hex: '#2980b9', rgb: [41, 128, 185] },  // Agua media — azul real
   { name: 'agua_cristalina',        hex: '#5dade2', rgb: [93, 173, 226] },  // Agua poco profunda — celeste
