@@ -409,6 +409,43 @@
     <div class="gps-status-badge" [class.gps-on]="gpsActive()">
       <span>{{ gpsActive() ? '🛰️ GPS EN VIVO' : '📡 Sin señal GPS' }}</span>
     </div>
+
+    <!-- ─── PANEL DE COORDENADAS GPS EN TIEMPO REAL ──────────────── -->
+    @if (gpsActive() && gpsCoordinates()) {
+      <div class="gps-coords-panel">
+        <div class="gps-coords-header">
+          <span class="gps-coords-icon">📍</span>
+          <span class="gps-coords-title">MI UBICACIÓN REAL</span>
+          <button
+            type="button"
+            class="gps-coords-copy-btn"
+            (click)="copyCoordinates()"
+            [title]="coordsCopied() ? 'Copiado!' : 'Copiar coordenadas'">
+            {{ coordsCopied() ? '✅' : '📋' }}
+          </button>
+        </div>
+        <div class="gps-coords-row">
+          <span class="gps-coords-label">LAT</span>
+          <span class="gps-coords-value">{{ gpsCoordinates()!.lat.toFixed(7) }}</span>
+        </div>
+        <div class="gps-coords-row">
+          <span class="gps-coords-label">LNG</span>
+          <span class="gps-coords-value">{{ gpsCoordinates()!.lng.toFixed(7) }}</span>
+        </div>
+        <div class="gps-coords-accuracy">
+          <span class="gps-coords-label">PRECISIÓN</span>
+          <span class="gps-coords-acc-value">±{{ gpsAccuracyMeters() }} m</span>
+        </div>
+        <a
+          class="gps-open-maps-btn"
+          [href]="googleMapsUrl()"
+          target="_blank"
+          rel="noopener noreferrer">
+          <span>🗺️</span>
+          <span>Abrir en Google Maps</span>
+        </a>
+      </div>
+    }
   </div>
 
   <!-- ============================================================

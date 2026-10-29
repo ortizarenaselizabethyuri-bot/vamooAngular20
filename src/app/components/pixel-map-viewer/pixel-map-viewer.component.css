@@ -1210,3 +1210,149 @@
   }
   .zoom-btn-icon { font-size: 0.75rem; }
 }
+
+/* ========================================================
+   10. PANEL DE COORDENADAS GPS EN TIEMPO REAL
+   Muestra lat/lng exactas del usuario para verificación.
+   ======================================================== */
+
+/**
+ * Panel flotante en la esquina inferior izquierda del stage del mapa.
+ * Visible únicamente cuando GPS está activo y se recibieron coordenadas reales.
+ */
+.gps-coords-panel {
+  position: absolute;
+  bottom: 42px;       /* Encima del badge "GPS EN VIVO" */
+  left: 10px;
+  background: rgba(6, 10, 20, 0.95);
+  border: 1.5px solid #10b981;
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  z-index: 42;
+  pointer-events: all;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2), inset 0 0 8px rgba(0,0,0,0.5);
+  min-width: 190px;
+  animation: coords-slide-in 0.3s ease-out;
+}
+
+@keyframes coords-slide-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/** Encabezado del panel con título y botón copiar */
+.gps-coords-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+  padding-bottom: 0.25rem;
+}
+
+.gps-coords-icon { font-size: 0.8rem; }
+
+.gps-coords-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #34d399;
+  letter-spacing: 0.8px;
+  flex: 1;
+}
+
+/** Botón de copiar coordenadas al portapapeles */
+.gps-coords-copy-btn {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s ease, transform 0.1s steps(2);
+}
+
+.gps-coords-copy-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+  transform: scale(1.1);
+}
+
+/** Fila de coordenada (LAT o LNG) */
+.gps-coords-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gps-coords-label {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.45rem;
+  color: #475569;
+  letter-spacing: 0.5px;
+  min-width: 38px;
+  text-align: right;
+}
+
+/** Valor numérico de la coordenada — monospace para alineación */
+.gps-coords-value {
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-size: 0.72rem;
+  color: #86efac;
+  letter-spacing: 0.3px;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(134, 239, 172, 0.4);
+}
+
+/** Fila de precisión GPS */
+.gps-coords-accuracy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.05rem;
+}
+
+.gps-coords-acc-value {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  color: #fbbf24;
+}
+
+/** Botón para abrir en Google Maps */
+.gps-open-maps-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  border: 1.5px solid #1e3a8a;
+  border-radius: 4px;
+  color: #bfdbfe;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+  margin-top: 0.2rem;
+  transition: filter 0.12s ease, transform 0.1s steps(2);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.15), 0 2px 0 #1e3a8a;
+}
+
+.gps-open-maps-btn:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.gps-open-maps-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 480px) {
+  .gps-coords-panel {
+    min-width: 160px;
+    font-size: 0.9em;
+  }
+}

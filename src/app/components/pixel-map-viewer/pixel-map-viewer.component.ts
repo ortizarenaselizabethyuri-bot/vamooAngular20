@@ -296,6 +296,34 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
    */
   public readonly gpsPermissionDenied = signal<boolean>(false);
 
+  /**
+   * Coordenadas GPS reales del usuario en tiempo real { lat, lng }.
+   * Null mientras no hay fix satelital.
+   */
+  public readonly gpsCoordinates = signal<{ lat: number; lng: number } | null>(null);
+
+  /**
+   * Precisión del fix GPS en metros.
+   * Null mientras no hay fix o el navegador no la reporta.
+   */
+  public readonly gpsAccuracyMeters = signal<number | null>(null);
+
+  /**
+   * Indica si las coordenadas fueron copiadas al portapapeles recientemente.
+   * Se usa para mostrar el icono ✅ en el botón de copia durante 2 segundos.
+   */
+  public readonly coordsCopied = signal<boolean>(false);
+
+  /**
+   * URL de Google Maps apuntando a las coordenadas GPS actuales del usuario.
+   * Se actualiza automáticamente cada vez que cambia gpsCoordinates.
+   */
+  public readonly googleMapsUrl = computed<string>(() => {
+    const coords = this.gpsCoordinates();
+    if (!coords) return 'https://maps.google.com';
+    return `https://www.google.com/maps?q=${coords.lat},${coords.lng}&z=17&t=m`;
+  });
+
   // ── Signals de estado del aventurero ──────────────────────────────────────
 
   /** Posición actual del avatar en % sobre el canvas (centro del mapa al iniciar) */
@@ -575,6 +603,10 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
           lng: pos.coords.longitude,
         };
 
+        // Guardar coordenadas reales y precisión para mostrarlas al usuario
+        this.gpsCoordinates.set({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        this.gpsAccuracyMeters.set(Math.round(pos.coords.accuracy));
+
         // Proyectar el avatar al centro del mapa (50%, 50%) ya que el mapa está centrado en él
         const centerPos: MapPositionPercent = { x: 50, y: 50 };
         this.avatarPosition.set(centerPos);
@@ -674,6 +706,45 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Copia las coordenadas GPS actuales al portapapeles del sistema en formato
+   * "lat, lng" compatible con Google Maps.
+   * Muestra el icono ✅ en el botón durante 2 segundos tras copiar.
+   *
+   * @returns void
+   */
+  public copyCoordinates(): void {
+    const coords = this.gpsCoordinates();
+    if (!coords) return;
+
+    const text = `${coords.lat.toFixed(7)}, ${coords.lng.toFixed(7)}`;
+    navigator.clipboard.writeText(text).then(() => {
+      this.coordsCopied.set(true);
+      this.cdr.markForCheck();
+      // Restaurar icono de copia después de 2 segundos
+      setTimeout(() => {
+        this.coordsCopied.set(false);
+        this.cdr.markForCheck();
+      }, 2000);
+    }).catch(() => {
+      // Fallback para navegadores que bloquean clipboard API
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      this.coordsCopied.set(true);
+      this.cdr.markForCheck();
+      setTimeout(() => {
+        this.coordsCopied.set(false);
+        this.cdr.markForCheck();
+      }, 2000);
+    });
+  }
+
+  /**
    * Procesa una actualización de posición GPS recibida de watchPosition o polling:
    * - Convierte lat/lng a porcentaje sobre el canvas del zoom activo
    * - Actualiza el sendero amarillo (trail)
@@ -685,6 +756,10 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private handleGpsUpdate(pos: GeolocationPosition): void {
     const { latitude: lat, longitude: lng } = pos.coords;
+
+    // Actualizar coordenadas reales y precisión visibles al usuario
+    this.gpsCoordinates.set({ lat, lng });
+    this.gpsAccuracyMeters.set(Math.round(pos.coords.accuracy));
 
     // Proyección lat/lng → posición % en el canvas usando el zoom activo
     const xPercent = this.lngToCanvasX(lng);
