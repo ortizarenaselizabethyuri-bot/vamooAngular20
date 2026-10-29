@@ -1,15 +1,18 @@
 <div class="pixel-viewer-container">
-  <!-- Imagen de referencia oculta para alimentar el rasterizador de Canvas 2D -->
+  <!-- Imagen de referencia oculta para el rasterizador Canvas 2D -->
   <img 
     #refImg 
     [src]="currentImageUrl()" 
-    alt="Google Maps estándar limpio sin etiquetas" 
+    alt="Google Maps referencia limpia" 
     class="hidden-source-img"
     (load)="onImageLoaded()" />
 
-  <!-- 1. TELEMETRÍA EN VIVO DE LA EXPEDICIÓN (HUD SUPERIOR) -->
+  <!-- ============================================================
+       1. HUD DE TELEMETRÍA EN VIVO DE LA EXPEDICIÓN
+       ============================================================ -->
   <div class="expedition-metrics-dashboard">
-    <!-- Métrica 1: Distancia Recorrida -->
+
+    <!-- Distancia recorrida real -->
     <div class="metric-card">
       <span class="metric-icon">🚶</span>
       <div class="metric-data">
@@ -18,7 +21,7 @@
       </div>
     </div>
 
-    <!-- Métrica 2: Experiencia de Expedición (XP) -->
+    <!-- XP acumulado -->
     <div class="metric-card xp-card">
       <span class="metric-icon">⭐</span>
       <div class="metric-data">
@@ -27,18 +30,18 @@
       </div>
     </div>
 
-    <!-- Métrica 3: Estado GPS -->
+    <!-- Estado GPS -->
     <div class="metric-card gps-card">
       <span class="metric-icon">🛰️</span>
       <div class="metric-data">
-        <span class="metric-value status-text" [class.active-gps]="geoService.isTracking()">
-          {{ geoService.isTracking() ? 'GPS ACTIVO' : 'MODO EXPLORADOR' }}
+        <span class="metric-value status-text" [class.active-gps]="gpsActive()">
+          {{ gpsActive() ? 'GPS ACTIVO' : 'ESPERANDO GPS' }}
         </span>
         <span class="metric-label">{{ avatarTrail().length }} WAYPOINTS</span>
       </div>
     </div>
 
-    <!-- Métrica 4: Rango y Avatar del Aventurero -->
+    <!-- Rango del aventurero -->
     <div class="metric-card avatar-card">
       <span class="metric-icon">{{ userRankEmoji() }}</span>
       <div class="metric-data">
@@ -48,191 +51,299 @@
     </div>
   </div>
 
-  <!-- 2. BOTONERA DE ACCIÓN Y CONTROLES DE EXPEDICIÓN -->
+  <!-- ============================================================
+       2. MISIONES DE EXPEDICIÓN
+       ============================================================ -->
+  <div class="missions-panel">
+    <div class="missions-header">
+      <span class="missions-header-icon">🗡️</span>
+      <span class="missions-header-title">MISIONES ACTIVAS</span>
+      <span class="missions-header-sub">Camina hasta el destino para completarlas</span>
+    </div>
+
+    <div class="missions-list">
+      @for (mission of missions; track mission.id) {
+        <div 
+          class="mission-card"
+          [class.mission-active]="mission.active"
+          [class.mission-completed]="mission.completed"
+          (click)="!mission.completed && selectMission(mission)">
+
+          <!-- Icono y estado -->
+          <div class="mission-icon-wrap">
+            <span class="mission-icon">{{ mission.icon }}</span>
+            @if (mission.completed) {
+              <span class="mission-check">✓</span>
+            }
+          </div>
+
+          <!-- Info de la misión -->
+          <div class="mission-info">
+            <span class="mission-title">{{ mission.title }}</span>
+            <span class="mission-desc">{{ mission.description }}</span>
+            <div class="mission-meta">
+              <span class="mission-xp">+{{ mission.xpReward }} XP</span>
+              <span class="mission-dist">~{{ mission.estimatedDistanceM }} m</span>
+              @if (mission.completed) {
+                <span class="mission-status-done">✓ COMPLETADA</span>
+              } @else if (mission.active) {
+                <span class="mission-status-active">⚡ EN CURSO</span>
+              } @else {
+                <span class="mission-status-idle">Toca para activar</span>
+              }
+            </div>
+          </div>
+
+          <!-- Cancelar si está activa -->
+          @if (mission.active) {
+            <button 
+              type="button" 
+              class="mission-cancel-btn"
+              (click)="cancelMission(); $event.stopPropagation()"
+              title="Cancelar misión">✕</button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ============================================================
+       3. BOTONERA DE CONTROLES DEL MAPA
+       ============================================================ -->
   <div class="expedition-control-bar">
-    <!-- Botón 1: Avanzar paso (+35m) -->
-    <button 
-      type="button" 
-      class="btn-expedition btn-step" 
-      (click)="advanceStep()" 
-      title="Avanzar un paso de 35m con el avatar por la avenida">
-      <span class="btn-icon">⚡</span>
-      <span>AVANZAR PASO (+35m)</span>
-    </button>
 
-    <!-- Botón 2: Centrar en el Aventurero -->
-    <button 
-      type="button" 
-      class="btn-expedition btn-center" 
-      (click)="centerOnAvatar()" 
-      title="Re-centrar la vista en tu avatar">
-      <span class="btn-icon">🎯</span>
-      <span>CENTRAR EN MÍ</span>
-    </button>
-
-    <!-- Botón 3: Reiniciar Rastro -->
+    <!-- Reiniciar rastro -->
     @if (avatarTrail().length > 1) {
       <button 
         type="button" 
         class="btn-expedition btn-reset" 
         (click)="resetExpedition()" 
-        title="Reiniciar distancia y trazado de ruta">
+        title="Reiniciar distancia y sendero">
         <span class="btn-icon">🔄</span>
         <span>REINICIAR</span>
       </button>
     }
 
-    <!-- Separador flexible -->
     <div class="toolbar-spacer"></div>
 
-    <!-- Capa de Direcciones Sobrepuestas (Texto Nítido sin pixelar) -->
+    <!-- Toggle: nombres de calles -->
     <button 
       type="button" 
       class="chip-toggle" 
       [class.active]="showStreetLabels()" 
       (click)="toggleStreetLabels()" 
-      title="Superponer nombres de calles con tipografía vectorial nítida">
+      title="Mostrar/ocultar nombres de calles">
       <span class="chip-icon">🏷️</span>
-      <span>DIRECCIONES SOBREPUESTAS</span>
+      <span>CALLES</span>
     </button>
 
-    <!-- Cuadrícula Voxel de 5px -->
+    <!-- Toggle: círculos POI -->
+    <button 
+      type="button" 
+      class="chip-toggle" 
+      [class.active]="showPois()" 
+      (click)="togglePois()" 
+      title="Mostrar/ocultar lugares de interés">
+      <span class="chip-icon">📍</span>
+      <span>LUGARES</span>
+    </button>
+
+    <!-- Toggle: cuadrícula -->
     <button 
       type="button" 
       class="chip-toggle" 
       [class.active]="showGrid()" 
       (click)="toggleGrid()" 
-      title="Mostrar u ocultar cuadrícula discreta de bloques de 5px">
+      title="Cuadrícula de bloques 5px">
       <span class="chip-icon">▦</span>
-      <span>GRILLA 5PX</span>
+      <span>GRILLA</span>
     </button>
 
-    <!-- Paleta Viva de 16-bits -->
+    <!-- Toggle: paleta 16-bit -->
     <button 
       type="button" 
       class="chip-toggle" 
       [class.active]="quantizePalette()" 
       (click)="toggleQuantize()" 
-      title="Cuantizar a la paleta viva de 16-bits">
+      title="Cuantización a paleta ciudad 16-bits">
       <span class="chip-icon">🎨</span>
-      <span>PALETA 16-BIT</span>
+      <span>16-BIT</span>
     </button>
 
-    <!-- Scanlines CRT -->
-    <button 
-      type="button" 
-      class="chip-toggle" 
-      [class.active]="scanlines()" 
-      (click)="toggleScanlines()" 
-      title="Líneas de escaneo retro CRT">
-      <span class="chip-icon">📺</span>
-      <span>SCANLINES</span>
-    </button>
-
-    <!-- Descargar imagen del mapa -->
+    <!-- Exportar PNG -->
     <button 
       type="button" 
       class="action-btn btn-export" 
       (click)="downloadCanvas()" 
-      title="Descargar mapa pixel-art como PNG">
-      <span>💾 EXPORTAR PNG</span>
+      title="Descargar mapa como PNG">
+      <span>💾 EXPORTAR</span>
     </button>
   </div>
 
-  <!-- 3. ESCENARIO DEL MAPA COMPLETO INTERACTIVO PIXEL-ART (CANVAS 2D 5PX + OVERLAYS) -->
+  <!-- ============================================================
+       4. ESCENARIO DEL MAPA PIXEL-ART (CANVAS + OVERLAYS)
+       ============================================================ -->
   <div 
     #mapStage 
-    class="full-map-stage" 
-    (click)="onMapClick($event)"
-    title="Haz clic en cualquier vía o parque para trasladar a tu avatar aventurero">
+    class="full-map-stage"
+    title="El personaje se mueve mediante GPS real">
 
-    <!-- Capa A: Canvas 2D Nativo con bloques discretos de 5px -->
+    <!-- Capa A: Canvas 2D rasterizado a 5px -->
     <canvas #pixelCanvas class="full-pixel-canvas"></canvas>
 
-    <!-- Capa B: Trazado SVG del sendero de expedición recorrido -->
+    <!-- Capa B: SVG del sendero recorrido (líneas amarillas) + línea al destino -->
     <svg class="trail-svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+
+      <!-- Línea punteada azul al POI destino de misión activa -->
+      @if (activeMission()) {
+        <path 
+          [attr.d]="getMissionTargetPath()" 
+          class="mission-target-path" />
+        <!-- Marcador estrella en el destino -->
+        @if (getActiveMissionPoi(); as poi) {
+          <circle
+            [attr.cx]="poi.relX * 100"
+            [attr.cy]="poi.relY * 100"
+            r="2.5"
+            class="mission-target-pulse" />
+        }
+      }
+
+      <!-- Sendero amarillo recorrido -->
       <path 
         [attr.d]="getTrailSvgPath()" 
         class="trail-svg-path" />
+
+      <!-- Puntos de waypoint en el sendero -->
       @for (point of avatarTrail(); track $index) {
         <circle 
           [attr.cx]="point.x" 
           [attr.cy]="point.y" 
-          r="1.2" 
+          r="1.0" 
           class="trail-waypoint-dot" />
       }
     </svg>
 
-    <!-- Capa C: Rótulos de Direcciones Sobrepuestas (Tipografía Vectorial Nítida sin pixelación) -->
+    <!-- Capa C: Nombres de calles — texto plano rotado (SIN bordes, SIN badge) -->
     @if (showStreetLabels()) {
-      <div class="street-labels-overlay">
-        @for (label of relativeStreetLabels; track label.text) {
-          <div 
-            class="street-label-badge" 
-            [class.badge-avenue]="label.type === 'avenue'"
-            [class.badge-park]="label.type === 'park'"
-            [class.badge-street]="label.type === 'street'"
+      <div class="street-text-overlay">
+        @for (label of streetTextLabels; track label.text) {
+          <span
+            class="street-plain-text"
+            [class.street-avenue-text]="label.type === 'avenue'"
+            [class.street-local-text]="label.type === 'street'"
             [style.left.%]="label.relX * 100"
             [style.top.%]="label.relY * 100"
             [style.transform]="'translate(-50%, -50%) rotate(' + (label.angleDegrees || 0) + 'deg)'">
-            <span class="badge-icon">{{ label.icon || '📍' }}</span>
-            <span class="badge-text">{{ label.text }}</span>
+            {{ label.text }}
+          </span>
+        }
+      </div>
+    }
+
+    <!-- Capa D: POI Circulares Flotantes (parques, colegios, tiendas, etc.) -->
+    @if (showPois()) {
+      <div class="poi-overlay">
+        @for (poi of poiMarkers; track poi.id) {
+          <div 
+            class="poi-marker"
+            [class.poi-target]="activeMission()?.targetPoiId === poi.id"
+            [style.left.%]="poi.relX * 100"
+            [style.top.%]="poi.relY * 100"
+            [attr.title]="poi.name">
+
+            <!-- Círculo flotante con icono -->
+            <div 
+              class="poi-circle"
+              [style.background]="poi.color"
+              [style.box-shadow]="'0 0 12px ' + poi.color + '80, 0 4px 12px rgba(0,0,0,0.5)'">
+              <span class="poi-icon">{{ poi.icon }}</span>
+            </div>
+
+            <!-- Nombre del lugar debajo del círculo -->
+            <span class="poi-label">{{ poi.name }}</span>
           </div>
         }
       </div>
     }
 
-    <!-- Capa D: AVATAR DEL AVENTURERO PIXELADO Y FLOTANTE / SALTANDO -->
+    <!-- Capa E: PERSONAJE PIXEL-ART ANIMADO DEL AVENTURERO -->
     <div 
       class="floating-adventurer-marker" 
       [style.left.%]="avatarPosition().x" 
       [style.top.%]="avatarPosition().y">
 
-      <!-- Cuerpo del avatar con animación de flotación y salto -->
-      <div class="avatar-float-body">
-        <div class="avatar-frame">
-          @if (userAvatarUrl()) {
-            <img 
-              [src]="userAvatarUrl()" 
-              [alt]="userName()" 
-              class="pixel-avatar-img" />
-          } @else {
-            <span class="pixel-avatar-fallback">{{ userRankEmoji() }}</span>
-          }
-          <!-- Insignia de rango en la esquina del marco -->
-          <span class="avatar-rank-pill">{{ userRank() }}</span>
+      <!-- Cuerpo del personaje -->
+      <div class="pixel-character-body">
+
+        <!-- Cabeza con foto de perfil o emoji -->
+        <div class="char-head">
+          <div class="char-face">
+            @if (userAvatarUrl()) {
+              <img [src]="userAvatarUrl()" [alt]="userName()" class="char-face-img" />
+            } @else {
+              <span class="char-face-emoji">{{ userRankEmoji() }}</span>
+            }
+          </div>
+          <div class="char-eyes">
+            <span class="char-eye"></span>
+            <span class="char-eye"></span>
+          </div>
+          <div class="char-hat"></div>
         </div>
 
-        <!-- Etiqueta de Aventurero con nombre del usuario -->
-        <div class="avatar-nametag">
-          <span class="nametag-icon">⭐</span>
-          <span class="nametag-name">{{ userName() }}</span>
+        <!-- Torso con mochila y brazos -->
+        <div class="char-torso">
+          <div class="char-backpack"></div>
+          <div class="char-arms">
+            <div class="char-arm char-arm-left"></div>
+            <div class="char-arm char-arm-right"></div>
+          </div>
+        </div>
+
+        <!-- Piernas caminando -->
+        <div class="char-legs">
+          <div class="char-leg char-leg-left">
+            <div class="char-shoe char-shoe-left"></div>
+          </div>
+          <div class="char-leg char-leg-right">
+            <div class="char-shoe char-shoe-right"></div>
+          </div>
+        </div>
+
+        <!-- Nametag sobre el personaje -->
+        <div class="char-nametag">
+          <span class="char-nametag-star">⭐</span>
+          <span class="char-nametag-text">{{ userName() }}</span>
+          <span class="char-rank-badge">{{ userRank() }}</span>
         </div>
       </div>
 
-      <!-- Sombra elíptica reactiva al salto en el piso pixelado -->
+      <!-- Sombra en el suelo -->
       <div class="avatar-ground-shadow"></div>
     </div>
 
-    <!-- Indicador de modo clic interactivo -->
-    <div class="stage-click-hint">
-      <span>💡 Haz clic en el mapa o pulsa "Avanzar Paso" para desplazar al aventurero</span>
+    <!-- Indicador GPS en la esquina inferior -->
+    <div class="gps-status-badge" [class.gps-on]="gpsActive()">
+      <span>{{ gpsActive() ? '🛰️ GPS EN VIVO' : '📡 Sin señal GPS' }}</span>
     </div>
   </div>
 
-  <!-- 4. LEYENDA Y MÉTRICAS DE RENDERIZADO -->
+  <!-- ============================================================
+       5. BARRA INFERIOR DE ESTADÍSTICAS DE RENDERIZADO
+       ============================================================ -->
   <div class="map-legend-bar">
     <div class="legend-item">
-      <span class="pulse-indicator" [class.paused]="!geoService.isTracking()"></span>
+      <span class="pulse-indicator" [class.paused]="!gpsActive()"></span>
       <span class="status-legend-text">
-        MAPA COMPLETO PIXEL-ART • BLOQUES DE 5PX • PALETA VIVA 16-BITS
+        MAPA PIXEL-ART • BLOQUES 5PX • PALETA CIUDAD 16-BITS
       </span>
     </div>
-
     <div class="legend-stats-strip">
       <span class="stat-pill highlight">🧱 {{ renderStats().totalBlocks | number }} BLOQUES</span>
       <span class="stat-pill">⚡ {{ renderStats().renderTimeMs }} ms</span>
       <span class="stat-pill success">🚀 60 FPS GPU</span>
     </div>
   </div>
+
 </div>

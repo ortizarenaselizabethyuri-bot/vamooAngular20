@@ -1,7 +1,13 @@
 /**
- * @fileoverview Componente PixelMapViewerComponent para visualización completa del Mapa de Aventura
- * en estética Pixel-Art nativa sobre HTML5 Canvas 2D con bloques de 5px, paleta viva de 16-bits,
- * capa vectorial de texto sobrepuesto (direcciones legibles sin pixelar) y avatar animado flotante.
+ * @fileoverview Componente PixelMapViewerComponent — Mapa de Aventura Pixel-Art 5px.
+ *
+ * Gestiona:
+ *  - Canvas 2D rasterizado con paleta ciudad de 16-bits
+ *  - Movimiento del personaje exclusivamente por GPS real (watchPosition + polling 30s)
+ *  - Etiquetas de calles como texto simple rotado (sin badges)
+ *  - Marcadores POI circulares flotantes (parques, colegios, tiendas, farmacias, hoteles)
+ *  - Sistema de misiones activas con recompensa XP al llegar al destino
+ *  - Sendero SVG amarillo del recorrido real
  */
 
 import {
@@ -12,7 +18,10 @@ import {
   computed,
   inject,
   AfterViewInit,
+  OnInit,
+  OnDestroy,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service.js';
@@ -23,29 +32,87 @@ import {
   StreetLabel,
 } from '../../canvas-pixel-engine/pixel-rasterizer.js';
 
-/**
- * Modo de renderizado activo del mapa.
- */
+/** Modo de renderizado activo del mapa. */
 export type RenderMode = 'google-maps-raster' | 'geometric-primitives';
 
-/**
- * Variante de imagen satelital/urbana para rasterizar en 5px.
- */
+/** Variante de imagen satelital/urbana para rasterizar. */
 export type MapImageVariant = 'clean_standard' | 'clean_contrast';
 
 /**
- * Interfaz que modela un punto de coordenada porcentual (0 a 100) en el mapa.
+ * Punto de coordenada porcentual (0–100) sobre el canvas del mapa.
  */
 export interface MapPositionPercent {
-  /** Posición horizontal en porcentaje del ancho del mapa (0% a 100%) */
+  /** Posición horizontal en porcentaje del ancho (0%–100%) */
   x: number;
-  /** Posición vertical en porcentaje del alto del mapa (0% a 100%) */
+  /** Posición vertical en porcentaje del alto (0%–100%) */
   y: number;
 }
 
 /**
- * Componente interactivo que reproduce el mapa de la ciudad en bloques discretos de 5px (Pixel-Art 16-bits),
- * superpone las direcciones como texto vectorial nítido y muestra el avatar del usuario flotando/saltando.
+ * Tipo de Punto de Interés (POI) con icono y color propios.
+ */
+export type PoiType = 'park' | 'school' | 'store' | 'pharmacy' | 'hotel' | 'restaurant' | 'landmark';
+
+/**
+ * Definición completa de un Punto de Interés visible en el mapa.
+ */
+export interface PoiMarker {
+  /** Identificador único del POI */
+  id: string;
+  /** Nombre visible del lugar */
+  name: string;
+  /** Tipo de POI para determinar icono y color */
+  type: PoiType;
+  /** Posición relativa sobre el canvas (0–1) */
+  relX: number;
+  relY: number;
+  /** Emoji representativo del POI */
+  icon: string;
+  /** Color del círculo flotante */
+  color: string;
+  /** Radio de proximidad en % del mapa para detectar llegada */
+  proximityRadius: number;
+}
+
+/**
+ * Misión de expedición que el aventurero debe completar caminando al POI destino.
+ */
+export interface Mission {
+  /** Identificador único de la misión */
+  id: string;
+  /** Título corto de la misión */
+  title: string;
+  /** Descripción detallada */
+  description: string;
+  /** ID del POI destino */
+  targetPoiId: string;
+  /** XP que se gana al completarla */
+  xpReward: number;
+  /** Si la misión está completada */
+  completed: boolean;
+  /** Si la misión está activa/seleccionada */
+  active: boolean;
+  /** Icono de la misión */
+  icon: string;
+  /** Distancia estimada al objetivo en metros */
+  estimatedDistanceM: number;
+}
+
+/**
+ * Etiqueta de calle sin encuadre — solo texto rotado sobre el mapa.
+ */
+export interface StreetTextLabel {
+  text: string;
+  relX: number;
+  relY: number;
+  angleDegrees?: number;
+  type?: 'avenue' | 'street';
+}
+
+/**
+ * Componente principal del Mapa de Aventura Pixel-Art.
+ * El avatar se mueve únicamente mediante GPS real. Las misiones se completan
+ * acercándose al POI destino. El sendero amarillo muestra la ruta recorrida.
  */
 @Component({
   selector: 'app-pixel-map-viewer',
@@ -55,87 +122,78 @@ export interface MapPositionPercent {
   styleUrls: ['./pixel-map-viewer.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PixelMapViewerComponent implements AfterViewInit {
-  /** Servicio de autenticación para obtener perfil y foto del usuario */
+export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy {
+
+  /** Servicio de autenticación */
   readonly authService = inject(AuthService);
 
-  /** Servicio de geolocalización satelital */
+  /** Servicio de geolocalización */
   readonly geoService = inject(GeolocationService);
 
-  /** Referencia al elemento canvas nativo de destino */
+  /** Detector de cambios para actualizar la vista tras callbacks de GPS */
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  /** Referencia al canvas 2D */
   @ViewChild('pixelCanvas') pixelCanvasRef!: ElementRef<HTMLCanvasElement>;
 
-  /** Referencia al elemento contenedor interactivo del mapa */
+  /** Referencia al contenedor del mapa */
   @ViewChild('mapStage') mapStageRef!: ElementRef<HTMLDivElement>;
 
-  /** Referencia al elemento de imagen limpia de Google Maps */
+  /** Imagen de referencia limpia para el rasterizador */
   @ViewChild('refImg') refImgRef!: ElementRef<HTMLImageElement>;
 
-  /** Variante de mapa activo (por defecto estándar limpio diurno) */
+  // ── Signals de configuración del canvas ────────────────────────────────────
+
   public readonly mapVariant = signal<MapImageVariant>('clean_standard');
-
-  /** URL de la imagen de referencia limpia sin textos incrustados */
   public readonly currentImageUrl = signal<string>('/google_maps_clean_standard.png');
-
-  /** Tamaño de píxel/bloque atómico oficial fijado en 5px según requerimiento del proyecto */
   public readonly blockSize = signal<number>(5);
-
-  /** Cuantización a la paleta viva de 16-bits */
   public readonly quantizePalette = signal<boolean>(true);
-
-  /** Mostrar/ocultar cuadrícula sutil tipo voxel de 5px */
   public readonly showGrid = signal<boolean>(true);
-
-  /** Activar/desactivar capa de texto sobrepuesto para las direcciones de calles */
   public readonly showStreetLabels = signal<boolean>(true);
-
-  /** Activar/desactivar efecto de scanlines CRT */
+  public readonly showPois = signal<boolean>(true);
   public readonly scanlines = signal<boolean>(false);
-
-  /** Modo actual: rasterizado de mapa real o primitivas geométricas */
   public readonly renderMode = signal<RenderMode>('google-maps-raster');
-
-  /** Estado de procesamiento del renderizado */
   public readonly isProcessing = signal<boolean>(false);
 
-  /** Posición porcentual del avatar del aventurero sobre el mapa (0% - 100%) */
+  // ── Signals de estado del aventurero ───────────────────────────────────────
+
+  /** Posición actual del avatar en % sobre el canvas */
   public readonly avatarPosition = signal<MapPositionPercent>({ x: 38, y: 56 });
 
-  /** Historial de puntos recorridos para trazar el sendero de expedición */
+  /** Historial de posiciones para trazar el sendero amarillo */
   public readonly avatarTrail = signal<MapPositionPercent[]>([{ x: 38, y: 56 }]);
 
-  /** Distancia simulada o recorrida en metros */
+  /** Distancia total recorrida en metros (acumulado GPS real) */
   public readonly expeditionDistance = signal<number>(0);
 
-  /** Puntos de experiencia (XP) ganados durante la expedición activa */
+  /** XP acumulado en esta sesión */
   public readonly expeditionXp = signal<number>(0);
 
-  /** Estadísticas de rendimiento de renderizado */
+  /** Misión actualmente seleccionada/activa */
+  public readonly activeMission = signal<Mission | null>(null);
+
+  /** Indica si el GPS está actualizando la posición */
+  public readonly gpsActive = signal<boolean>(false);
+
+  /** Estadísticas de renderizado del canvas */
   public readonly renderStats = signal<{
     width: number;
     height: number;
     totalBlocks: number;
     renderTimeMs: number;
-  }>({
-    width: 600,
-    height: 400,
-    totalBlocks: 9600,
-    renderTimeMs: 0,
-  });
+  }>({ width: 600, height: 400, totalBlocks: 9600, renderTimeMs: 0 });
 
-  /** Perfil del usuario actualmente autenticado */
+  // ── Computed del perfil del usuario ────────────────────────────────────────
+
   public readonly userProfile = computed(() => this.authService.currentUser());
-
-  /** Foto de perfil del usuario o null si no tiene */
   public readonly userAvatarUrl = computed(() => this.userProfile()?.picture || null);
-
-  /** Nombre del usuario o fallback de aventurero */
   public readonly userName = computed(() => this.userProfile()?.name || 'Aventurero Vamoo');
-
-  /** Rango competitivo del usuario en la liga de fauna silvestre */
   public readonly userRank = computed(() => this.userProfile()?.currentRank || 'Pichón');
 
-  /** Emoji representativo de la fauna silvestre según el rango del usuario */
+  /**
+   * Mapea el rango del usuario a su emoji de fauna silvestre.
+   * @returns Emoji representativo del rango.
+   */
   public readonly userRankEmoji = computed<string>(() => {
     const rank = (this.userRank() || '').toLowerCase();
     if (rank.includes('pichon') || rank.includes('pichón')) return '🐣';
@@ -146,37 +204,172 @@ export class PixelMapViewerComponent implements AfterViewInit {
     return '🧭';
   });
 
-  /**
-   * Catálogo de direcciones y puntos viales reales correspondientes a San Isidro y Miraflores
-   * (Av. Felipe Pardo y Aliaga, Av. Santa Cruz, C. Los Libertadores, Bosque El Olivar, etc.)
-   * configurados con proporciones relativas para el texto sobrepuesto vectorial.
-   */
-  public readonly relativeStreetLabels: Array<{
-    text: string;
-    relX: number;
-    relY: number;
-    angleDegrees?: number;
-    type?: 'avenue' | 'street' | 'roundabout' | 'park';
-    icon?: string;
-  }> = [
-    { text: 'Av. Felipe Pardo y Aliaga', relX: 0.28, relY: 0.60, angleDegrees: -10, type: 'avenue', icon: '🛣️' },
-    { text: 'Av. Sta. Cruz', relX: 0.76, relY: 0.48, angleDegrees: -48, type: 'avenue', icon: '🛣️' },
-    { text: 'C. Los Libertadores', relX: 0.13, relY: 0.38, angleDegrees: 80, type: 'street', icon: '📍' },
-    { text: 'C. La República', relX: 0.39, relY: 0.45, angleDegrees: 80, type: 'street', icon: '📍' },
-    { text: 'C. Agustín de la Torre Gonzales', relX: 0.58, relY: 0.36, angleDegrees: -52, type: 'street', icon: '📍' },
-    { text: 'Ca. Alberto Lynch', relX: 0.15, relY: 0.82, angleDegrees: -40, type: 'street', icon: '📍' },
-    { text: 'Bosque El Olivar', relX: 0.60, relY: 0.08, type: 'park', icon: '🌳' },
-    { text: 'Colegio María Reina', relX: 0.48, relY: 0.91, type: 'street', icon: '🏫' },
-    { text: 'Sta. María', relX: 0.66, relY: 0.83, angleDegrees: -22, type: 'street', icon: '📍' },
-    { text: 'Teruel', relX: 0.86, relY: 0.82, type: 'street', icon: '📍' },
-    { text: 'C. Independencia', relX: 0.93, relY: 0.42, angleDegrees: 84, type: 'street', icon: '📍' },
-  ];
+  // ── Datos del mapa: solo nombres de calles (texto plano sin badge) ──────────
 
   /**
-   * Hook del ciclo de vida ejecutado tras inicializar la vista del componente.
-   * Dispara el renderizado inicial una vez que la imagen limpia esté en memoria.
-   *
-   * @returns void
+   * Etiquetas de calles y avenidas — texto rotado simple, sin encuadre ni hover.
+   * Solo se usan para orientación vial básica.
+   */
+  public readonly streetTextLabels: StreetTextLabel[] = [
+    { text: 'Av. Felipe Pardo y Aliaga', relX: 0.28, relY: 0.60, angleDegrees: -10,  type: 'avenue' },
+    { text: 'Av. Sta. Cruz',             relX: 0.76, relY: 0.48, angleDegrees: -48,  type: 'avenue' },
+    { text: 'C. Los Libertadores',       relX: 0.13, relY: 0.38, angleDegrees: 80,   type: 'street' },
+    { text: 'C. La República',           relX: 0.39, relY: 0.45, angleDegrees: 80,   type: 'street' },
+    { text: 'C. Agustín de la Torre',   relX: 0.58, relY: 0.36, angleDegrees: -52,  type: 'street' },
+    { text: 'Ca. Alberto Lynch',         relX: 0.15, relY: 0.82, angleDegrees: -40,  type: 'street' },
+    { text: 'Sta. María',               relX: 0.66, relY: 0.83, angleDegrees: -22,  type: 'street' },
+    { text: 'C. Independencia',         relX: 0.93, relY: 0.42, angleDegrees: 84,   type: 'street' },
+    { text: 'Teruel',                   relX: 0.86, relY: 0.82, angleDegrees: 0,    type: 'street' },
+  ];
+
+  // ── Puntos de Interés (POI) — círculos flotantes ───────────────────────────
+
+  /**
+   * Catálogo de POIs visibles como marcadores circulares flotantes sobre el mapa.
+   * Cada POI tiene su color e icono según su tipo.
+   */
+  public readonly poiMarkers: PoiMarker[] = [
+    {
+      id: 'bosque-olivar',
+      name: 'Bosque El Olivar',
+      type: 'park',
+      relX: 0.60, relY: 0.08,
+      icon: '🌳',
+      color: '#10b981',
+      proximityRadius: 8,
+    },
+    {
+      id: 'colegio-maria-reina',
+      name: 'Colegio María Reina',
+      type: 'school',
+      relX: 0.48, relY: 0.91,
+      icon: '🏫',
+      color: '#3b82f6',
+      proximityRadius: 6,
+    },
+    {
+      id: 'farmacia-central',
+      name: 'Farmacia Central',
+      type: 'pharmacy',
+      relX: 0.22, relY: 0.52,
+      icon: '💊',
+      color: '#ef4444',
+      proximityRadius: 5,
+    },
+    {
+      id: 'tienda-deportes',
+      name: 'Tienda Deportes',
+      type: 'store',
+      relX: 0.70, relY: 0.65,
+      icon: '🏪',
+      color: '#f59e0b',
+      proximityRadius: 5,
+    },
+    {
+      id: 'hotel-santa-cruz',
+      name: 'Hotel Santa Cruz',
+      type: 'hotel',
+      relX: 0.85, relY: 0.32,
+      icon: '🏨',
+      color: '#8b5cf6',
+      proximityRadius: 5,
+    },
+    {
+      id: 'restaurante-mirador',
+      name: 'Restaurante El Mirador',
+      type: 'restaurant',
+      relX: 0.32, relY: 0.28,
+      icon: '🍽️',
+      color: '#f97316',
+      proximityRadius: 5,
+    },
+  ];
+
+  // ── Misiones de expedición ─────────────────────────────────────────────────
+
+  /**
+   * Lista de misiones disponibles. Cada misión apunta a un POI destino
+   * y se completa al acercarse a él vía GPS.
+   */
+  public missions: Mission[] = [
+    {
+      id: 'mision-bosque',
+      title: 'Explorar el Bosque',
+      description: 'Dirígete al Bosque El Olivar y realiza 10 minutos de caminata en su interior.',
+      targetPoiId: 'bosque-olivar',
+      xpReward: 30,
+      completed: false,
+      active: false,
+      icon: '🌳',
+      estimatedDistanceM: 420,
+    },
+    {
+      id: 'mision-colegio',
+      title: 'Visita al Colegio',
+      description: 'Llega hasta el Colegio María Reina para registrar tu checkpoint educativo.',
+      targetPoiId: 'colegio-maria-reina',
+      xpReward: 20,
+      completed: false,
+      active: false,
+      icon: '🏫',
+      estimatedDistanceM: 280,
+    },
+    {
+      id: 'mision-farmacia',
+      title: 'Check-in Farmacia',
+      description: 'Pasa por la Farmacia Central y registra tu visita de bienestar.',
+      targetPoiId: 'farmacia-central',
+      xpReward: 15,
+      completed: false,
+      active: false,
+      icon: '💊',
+      estimatedDistanceM: 190,
+    },
+    {
+      id: 'mision-hotel',
+      title: 'Ruta Turística',
+      description: 'Llega al Hotel Santa Cruz completando la ruta por Av. Santa Cruz.',
+      targetPoiId: 'hotel-santa-cruz',
+      xpReward: 25,
+      completed: false,
+      active: false,
+      icon: '🏨',
+      estimatedDistanceM: 560,
+    },
+  ];
+
+  // ── GPS: IDs para control de ciclo de vida ─────────────────────────────────
+
+  /** ID del watchPosition del navegador para detenerlo al destruir */
+  private watchId: number | null = null;
+
+  /** ID del setInterval de polling periódico (30 s) */
+  private pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+  /** Última coordenada GPS registrada (lat/lng) */
+  private lastGeoCoords: { lat: number; lng: number } | null = null;
+
+  /**
+   * Coordenadas geográficas del centro del mapa (referencia de la imagen rasterizada).
+   * Se usa para proyectar lat/lng → posición % en el canvas.
+   * San Isidro / Miraflores — Lima, Perú
+   */
+  private readonly MAP_CENTER = { lat: -12.1012, lng: -77.0319 };
+  private readonly MAP_SPAN   = { latDeg: 0.012, lngDeg: 0.018 };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Ciclo de Vida Angular
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Inicia el rastreo GPS al montar el componente.
+   */
+  public ngOnInit(): void {
+    this.startGpsTracking();
+  }
+
+  /**
+   * Renderiza el canvas al estar disponible en la vista.
    */
   public ngAfterViewInit(): void {
     if (this.refImgRef?.nativeElement?.complete) {
@@ -185,159 +378,232 @@ export class PixelMapViewerComponent implements AfterViewInit {
   }
 
   /**
-   * Manejador ejecutado al completarse la carga de la imagen de referencia limpia.
-   *
-   * @returns void
+   * Limpia watchers y timers al destruir el componente.
    */
-  public onImageLoaded(): void {
-    this.renderCurrentMode();
+  public ngOnDestroy(): void {
+    this.stopGpsTracking();
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // GPS Real
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * Modifica la variante de mapa activo entre estándar limpio y contraste limpio.
-   *
-   * @param variant - Variante elegida ('clean_standard' o 'clean_contrast').
-   * @returns void
+   * Inicia el rastreo GPS continuo usando watchPosition del browser.
+   * Complementado con un polling de 30 segundos como fallback de precisión.
    */
-  public setMapVariant(variant: MapImageVariant): void {
-    this.mapVariant.set(variant);
-    this.currentImageUrl.set(
-      variant === 'clean_standard'
-        ? '/google_maps_clean_standard.png'
-        : '/google_maps_clean_contrast.png'
+  private startGpsTracking(): void {
+    if (!('geolocation' in navigator)) return;
+
+    this.gpsActive.set(true);
+
+    // watchPosition: callback continuo ante cambios de posición
+    this.watchId = navigator.geolocation.watchPosition(
+      (pos) => this.handleGpsUpdate(pos),
+      (err) => console.warn('[PixelMap] GPS error:', err.message),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
     );
-    this.renderMode.set('google-maps-raster');
+
+    // Polling de respaldo cada 30 segundos para asegurar actualización
+    this.pollingInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => this.handleGpsUpdate(pos),
+        () => { /* silencioso en el polling */ },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+      );
+    }, 30_000);
   }
 
   /**
-   * Modifica el tamaño de bloque atómico y recalcula el canvas.
-   *
-   * @param size - Tamaño de píxel atómico en pantalla (por defecto 5px).
-   * @returns void
+   * Detiene el watchPosition y el intervalo de polling.
    */
-  public setBlockSize(size: number): void {
-    this.blockSize.set(size);
-    this.renderCurrentMode();
+  private stopGpsTracking(): void {
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    if (this.pollingInterval !== null) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+    this.gpsActive.set(false);
   }
 
   /**
-   * Alterna la cuantización cromática a la paleta viva de 16-bits.
+   * Procesa una actualización de posición GPS:
+   * - Convierte lat/lng a porcentaje sobre el canvas
+   * - Actualiza el sendero amarillo
+   * - Acumula distancia real (fórmula Haversine simplificada)
+   * - Comprueba si el usuario llegó al POI destino de la misión activa
    *
-   * @returns void
+   * @param pos - GeolocationPosition del browser
    */
-  public toggleQuantize(): void {
-    this.quantizePalette.update((val) => !val);
-    this.renderCurrentMode();
+  private handleGpsUpdate(pos: GeolocationPosition): void {
+    const { latitude: lat, longitude: lng } = pos.coords;
+
+    // Proyección lat/lng → posición % en el canvas (0–100)
+    const xPercent = this.lngToCanvasX(lng);
+    const yPercent = this.latToCanvasY(lat);
+
+    const newPos: MapPositionPercent = {
+      x: Math.max(2, Math.min(98, xPercent)),
+      y: Math.max(2, Math.min(98, yPercent)),
+    };
+
+    // Calcular distancia incremental desde la última posición GPS
+    if (this.lastGeoCoords) {
+      const distMeters = this.haversineMeters(
+        this.lastGeoCoords.lat, this.lastGeoCoords.lng, lat, lng
+      );
+      // Solo sumar si el movimiento es realista (> 1m, < 500m salto)
+      if (distMeters > 1 && distMeters < 500) {
+        this.expeditionDistance.update((d) => Math.round(d + distMeters));
+      }
+    }
+    this.lastGeoCoords = { lat, lng };
+
+    // Actualizar posición del avatar y sendero
+    this.avatarPosition.set(newPos);
+    this.avatarTrail.update((trail) => {
+      const last = trail[trail.length - 1];
+      // Añadir punto solo si se movió mínimo 1% en algún eje
+      if (!last || Math.abs(last.x - newPos.x) > 1 || Math.abs(last.y - newPos.y) > 1) {
+        return [...trail, newPos];
+      }
+      return trail;
+    });
+
+    // Verificar llegada a POI de misión activa
+    this.checkMissionArrival(newPos);
+
+    // Forzar detección de cambio (ChangeDetection.OnPush + callback externo)
+    this.cdr.markForCheck();
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Proyección Geográfica → Canvas
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * Alterna la visibilidad de la cuadrícula voxel de bloques de 5px.
-   *
-   * @returns void
+   * Convierte longitud geográfica a porcentaje horizontal del canvas.
+   * @param lng - Longitud en grados decimales
+   * @returns Porcentaje (0–100) sobre el eje X del canvas
    */
-  public toggleGrid(): void {
-    this.showGrid.update((val) => !val);
-    this.renderCurrentMode();
+  private lngToCanvasX(lng: number): number {
+    const minLng = this.MAP_CENTER.lng - this.MAP_SPAN.lngDeg / 2;
+    const maxLng = this.MAP_CENTER.lng + this.MAP_SPAN.lngDeg / 2;
+    return ((lng - minLng) / (maxLng - minLng)) * 100;
   }
 
   /**
-   * Alterna la visibilidad de la capa superior de direcciones sobrepuestas.
-   *
-   * @returns void
+   * Convierte latitud geográfica a porcentaje vertical del canvas.
+   * El eje Y está invertido (mayor lat = más arriba).
+   * @param lat - Latitud en grados decimales
+   * @returns Porcentaje (0–100) sobre el eje Y del canvas
    */
-  public toggleStreetLabels(): void {
-    this.showStreetLabels.update((val) => !val);
+  private latToCanvasY(lat: number): number {
+    const minLat = this.MAP_CENTER.lat - this.MAP_SPAN.latDeg / 2;
+    const maxLat = this.MAP_CENTER.lat + this.MAP_SPAN.latDeg / 2;
+    return (1 - (lat - minLat) / (maxLat - minLat)) * 100;
   }
 
   /**
-   * Alterna el efecto visual de líneas de escaneo CRT retro.
+   * Calcula la distancia entre dos coordenadas usando la fórmula Haversine simplificada.
+   * Suficientemente precisa para distancias menores de 1 km.
    *
-   * @returns void
+   * @param lat1 - Latitud punto A
+   * @param lng1 - Longitud punto A
+   * @param lat2 - Latitud punto B
+   * @param lng2 - Longitud punto B
+   * @returns Distancia aproximada en metros
    */
-  public toggleScanlines(): void {
-    this.scanlines.update((val) => !val);
-    this.renderCurrentMode();
+  private haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000; // Radio de la Tierra en metros
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLng = (lng2 - lng1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Sistema de Misiones
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * Cambia el modo de demostración entre rasterizado de mapa y primitivas matemáticas.
-   *
-   * @param mode - Modo deseado ('google-maps-raster' o 'geometric-primitives').
-   * @returns void
+   * Activa una misión y la marca como seleccionada. Solo una misión activa a la vez.
+   * @param mission - Misión a activar
    */
-  public setRenderMode(mode: RenderMode): void {
-    this.renderMode.set(mode);
-    this.renderCurrentMode();
+  public selectMission(mission: Mission): void {
+    if (mission.completed) return;
+
+    // Desactivar misión anterior
+    this.missions = this.missions.map((m) => ({ ...m, active: m.id === mission.id }));
+    this.activeMission.set(this.missions.find((m) => m.id === mission.id) ?? null);
   }
 
   /**
-   * Gestiona el clic interactivo del usuario sobre cualquier punto del mapa
-   * para trasladar suavemente al avatar flotante y registrar el sendero de expedición.
-   *
-   * @param event - Evento de clic del mouse sobre el contenedor del mapa.
-   * @returns void
+   * Cancela la misión activa sin penalización.
    */
-  public onMapClick(event: MouseEvent): void {
-    const stage = this.mapStageRef?.nativeElement;
-    if (!stage) return;
-
-    const rect = stage.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
-
-    const xPercent = Math.max(3, Math.min(97, Math.round((clickX / rect.width) * 100)));
-    const yPercent = Math.max(3, Math.min(97, Math.round((clickY / rect.height) * 100)));
-
-    this.avatarPosition.set({ x: xPercent, y: yPercent });
-    this.avatarTrail.update((trail) => [...trail, { x: xPercent, y: yPercent }]);
-    this.expeditionDistance.update((dist) => dist + 35);
-    this.expeditionXp.update((xp) => xp + 5);
+  public cancelMission(): void {
+    this.missions = this.missions.map((m) => ({ ...m, active: false }));
+    this.activeMission.set(null);
   }
 
   /**
-   * Simula el avance de un paso (+35m) del aventurero por la calzada principal,
-   * acumulando telemetría y desplazando el avatar con animación de salto.
+   * Verifica si el avatar está dentro del radio de proximidad del POI destino.
+   * Si es así, completa la misión y otorga XP.
    *
-   * @returns void
+   * @param pos - Posición actual del avatar en porcentaje del canvas
    */
-  public advanceStep(): void {
-    const current = this.avatarPosition();
-    // Desplazamiento gradual hacia el este / norte en la avenida
-    const nextX = Math.min(92, current.x + 4.5);
-    const nextY = Math.max(8, current.y - 3.2);
+  private checkMissionArrival(pos: MapPositionPercent): void {
+    const mission = this.activeMission();
+    if (!mission || mission.completed) return;
 
-    this.avatarPosition.set({ x: nextX, y: nextY });
-    this.avatarTrail.update((trail) => [...trail, { x: nextX, y: nextY }]);
-    this.expeditionDistance.update((dist) => dist + 35);
-    this.expeditionXp.update((xp) => xp + 5);
+    const poi = this.poiMarkers.find((p) => p.id === mission.targetPoiId);
+    if (!poi) return;
+
+    const dx = Math.abs(pos.x - poi.relX * 100);
+    const dy = Math.abs(pos.y - poi.relY * 100);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist <= poi.proximityRadius) {
+      this.completeMission(mission);
+    }
   }
 
   /**
-   * Re-centra la cámara y la posición del avatar en el punto focal de la expedición.
-   *
-   * @returns void
+   * Marca la misión como completada, otorga XP y desactiva la misión activa.
+   * @param mission - Misión a completar
    */
-  public centerOnAvatar(): void {
-    this.avatarPosition.set({ x: 38, y: 56 });
-    this.avatarTrail.update((trail) => [...trail, { x: 38, y: 56 }]);
+  private completeMission(mission: Mission): void {
+    this.missions = this.missions.map((m) =>
+      m.id === mission.id ? { ...m, completed: true, active: false } : m
+    );
+    this.expeditionXp.update((xp) => xp + mission.xpReward);
+    this.activeMission.set(null);
+    this.cdr.markForCheck();
   }
 
   /**
-   * Reinicia el recorrido de expedición acumulado, restaurando el avatar a su punto inicial.
-   *
-   * @returns void
+   * Retorna el POI correspondiente a la misión activa (para mostrar la línea destino).
    */
-  public resetExpedition(): void {
-    this.avatarPosition.set({ x: 38, y: 56 });
-    this.avatarTrail.set([{ x: 38, y: 56 }]);
-    this.expeditionDistance.set(0);
-    this.expeditionXp.set(0);
+  public getActiveMissionPoi(): PoiMarker | null {
+    const mission = this.activeMission();
+    if (!mission) return null;
+    return this.poiMarkers.find((p) => p.id === mission.targetPoiId) ?? null;
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Sendero SVG
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * Genera el trazado SVG para conectar la secuencia de puntos del sendero recorrido.
-   *
-   * @returns Cadena con la definición del path SVG en coordenadas relativas.
+   * Genera el path SVG del sendero recorrido (líneas amarillas).
+   * @returns Cadena de comandos SVG path (M x y L x y ...)
    */
   public getTrailSvgPath(): string {
     const trail = this.avatarTrail();
@@ -349,9 +615,71 @@ export class PixelMapViewerComponent implements AfterViewInit {
   }
 
   /**
-   * Ejecuta el pipeline de renderizado pixel-art en Canvas 2D según el modo configurado.
-   *
-   * @returns void
+   * Genera el path SVG de la línea punteada hacia el POI destino de la misión activa.
+   * @returns Path SVG o cadena vacía si no hay misión activa
+   */
+  public getMissionTargetPath(): string {
+    const poi = this.getActiveMissionPoi();
+    const pos = this.avatarPosition();
+    if (!poi) return '';
+    return `M ${pos.x} ${pos.y} L ${poi.relX * 100} ${poi.relY * 100}`;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Controles del mapa y canvas
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** Callback al cargar la imagen de referencia del rasterizador. */
+  public onImageLoaded(): void {
+    this.renderCurrentMode();
+  }
+
+  /** Alterna la cuantización de paleta y re-renderiza. */
+  public toggleQuantize(): void {
+    this.quantizePalette.update((v) => !v);
+    this.renderCurrentMode();
+  }
+
+  /** Alterna la cuadrícula de bloques de 5px. */
+  public toggleGrid(): void {
+    this.showGrid.update((v) => !v);
+    this.renderCurrentMode();
+  }
+
+  /** Alterna la visibilidad de los labels de calles. */
+  public toggleStreetLabels(): void {
+    this.showStreetLabels.update((v) => !v);
+  }
+
+  /** Alterna la visibilidad de los POI circulares. */
+  public togglePois(): void {
+    this.showPois.update((v) => !v);
+  }
+
+  /** Alterna el efecto de scanlines CRT. */
+  public toggleScanlines(): void {
+    this.scanlines.update((v) => !v);
+    this.renderCurrentMode();
+  }
+
+  /** Re-centra el avatar en el punto inicial de expedición. */
+  public centerOnAvatar(): void {
+    // El GPS actualizará la posición real; centramos la vista visualmente
+    const pos = this.avatarPosition();
+    this.avatarTrail.update((trail) => [...trail, pos]);
+  }
+
+  /** Reinicia el sendero y los contadores de expedición. */
+  public resetExpedition(): void {
+    const pos = this.avatarPosition();
+    this.avatarTrail.set([pos]);
+    this.expeditionDistance.set(0);
+    this.expeditionXp.set(0);
+    this.cancelMission();
+  }
+
+  /**
+   * Ejecuta el pipeline de renderizado pixel-art según el modo configurado.
    */
   public renderCurrentMode(): void {
     if (!this.pixelCanvasRef?.nativeElement) return;
@@ -382,47 +710,36 @@ export class PixelMapViewerComponent implements AfterViewInit {
   }
 
   /**
-   * Rasteriza la imagen limpia (sin rótulos incrustados) a bloques discretos de 5px
-   * con cuantización cromática a la paleta viva de 16-bits.
-   *
-   * @returns void
+   * Rasteriza la imagen de Google Maps a bloques de 5px con paleta ciudad.
    */
   private renderFromImage(): void {
     const canvas = this.pixelCanvasRef.nativeElement;
     const img = this.refImgRef?.nativeElement;
     if (!img) return;
 
-    const targetWidth = img.naturalWidth || 1200;
-    const targetHeight = img.naturalHeight || 800;
-
     const options: MapRasterizeOptions = {
       blockSize: this.blockSize(),
       quantizePalette: this.quantizePalette(),
       showGridLines: this.showGrid(),
       enableScanlines: this.scanlines(),
-      showLabels: false, // Las etiquetas en pantalla se renderizan en la capa HTML sobrepuesta
+      showLabels: false,
     };
 
     PixelRasterizer.rasterizeMapImage(img, canvas, options);
   }
 
   /**
-   * Renderiza una maqueta urbana matemática pura con rotondas y calles diagonales (Bresenham).
-   *
-   * @returns void
+   * Renderiza primitivas geométricas (modo alternativo de demostración).
    */
   private renderGeometricPrimitives(): void {
     const canvas = this.pixelCanvasRef.nativeElement;
     const bSize = this.blockSize();
     const width = 1200;
     const height = 800;
-
     const gridCols = Math.floor(width / bSize);
     const gridRows = Math.floor(height / bSize);
 
     const engine = new PixelRasterizer(gridCols, gridRows, '#f8fafc');
-
-    // Parque poligonal
     engine.fillPolygon(
       [
         { x: Math.floor(gridCols * 0.62), y: Math.floor(gridRows * 0.08) },
@@ -430,54 +747,21 @@ export class PixelMapViewerComponent implements AfterViewInit {
         { x: Math.floor(gridCols * 0.90), y: Math.floor(gridRows * 0.50) },
         { x: Math.floor(gridCols * 0.65), y: Math.floor(gridRows * 0.45) },
       ],
-      '#2ecc71'
+      '#10b981'
     );
 
-    // Lago dentro del parque
-    const lakeX = Math.floor(gridCols * 0.78);
-    const lakeY = Math.floor(gridRows * 0.3);
-    engine.drawBresenhamCircle(lakeX, lakeY, Math.floor(gridRows * 0.1), 0, '#0984e3', true);
-
-    // Avenida diagonal principal
-    const avenueWidth = Math.max(3, Math.floor(6 * (5 / bSize)));
-    engine.drawBresenhamLine(0, gridRows, gridCols, Math.floor(gridRows * 0.25), avenueWidth, '#1e272e');
-    engine.drawBresenhamLine(0, gridRows, gridCols, Math.floor(gridRows * 0.25), 1, '#ffd32a');
-
-    // Rotonda central
-    const rotondaX = Math.floor(gridCols * 0.5);
-    const rotondaY = Math.floor(gridRows * 0.58);
-    const radioExterior = Math.floor(gridRows * 0.24);
-    const anchoPista = Math.max(2, Math.floor(5 * (5 / bSize)));
-
-    engine.drawBresenhamCircle(rotondaX, rotondaY, radioExterior, anchoPista, '#1e272e', false);
-    engine.drawBresenhamCircle(rotondaX, rotondaY, radioExterior - 2, 1, '#ffd32a', false);
-    engine.drawBresenhamCircle(rotondaX, rotondaY, radioExterior - anchoPista, 0, '#00b894', true);
-    engine.drawBresenhamCircle(rotondaX, rotondaY, 3, 0, '#f9ca24', true);
-
-    // Vías perpendiculares
     const roadW = Math.max(2, Math.floor(4 * (5 / bSize)));
-    engine.drawBresenhamLine(rotondaX, 0, rotondaX, rotondaY - radioExterior, roadW, '#1e272e');
-    engine.drawBresenhamLine(rotondaX, rotondaY + radioExterior, rotondaX, gridRows, roadW, '#1e272e');
-    engine.drawBresenhamLine(0, rotondaY, rotondaX - radioExterior, rotondaY, roadW, '#1e272e');
-    engine.drawBresenhamLine(rotondaX + radioExterior, rotondaY, gridCols, rotondaY, roadW, '#1e272e');
-
-    engine.renderToCanvas(canvas, bSize, {
-      showGrid: this.showGrid(),
-      scanlines: this.scanlines(),
-    });
+    engine.drawBresenhamLine(0, gridRows, gridCols, Math.floor(gridRows * 0.25), roadW, '#545b6b');
+    engine.renderToCanvas(canvas, bSize, { showGrid: this.showGrid(), scanlines: this.scanlines() });
   }
 
   /**
-   * Descarga la visualización del mapa pixel-art como un archivo PNG nativo
-   * incorporando los rótulos de calles para portabilidad completa.
-   *
-   * @returns void
+   * Descarga el mapa actual como PNG con etiquetas incrustadas.
    */
   public downloadCanvas(): void {
     const canvas = this.pixelCanvasRef?.nativeElement;
     if (!canvas) return;
 
-    // Crear un canvas temporal para exportar con las etiquetas sobrepuestas incrustadas
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = canvas.width;
     exportCanvas.height = canvas.height;
@@ -486,9 +770,8 @@ export class PixelMapViewerComponent implements AfterViewInit {
 
     ctx.drawImage(canvas, 0, 0);
 
-    // Dibujar las etiquetas sobre el canvas de exportación
     if (this.showStreetLabels()) {
-      const labelsToDraw: StreetLabel[] = this.relativeStreetLabels.map((lbl) => ({
+      const labelsToDraw: StreetLabel[] = this.streetTextLabels.map((lbl) => ({
         text: lbl.text,
         x: Math.round(lbl.relX * exportCanvas.width),
         y: Math.round(lbl.relY * exportCanvas.height),

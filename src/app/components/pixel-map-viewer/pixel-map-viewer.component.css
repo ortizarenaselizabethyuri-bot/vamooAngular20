@@ -1,7 +1,7 @@
 /**
  * @fileoverview Estilos para PixelMapViewerComponent.
- * Estética retro-moderna RPG 16-bits con mapa completo, telemetría HUD,
- * direcciones sobrepuestas de alta nitidez y avatar de usuario flotante/saltando.
+ * Paleta ciudad-realista, personaje pixel-art animado, POI circulares flotantes,
+ * texto de calles plano rotado (sin badge), panel de misiones, sendero GPS amarillo.
  */
 
 :host {
@@ -12,72 +12,52 @@
 .pixel-viewer-container {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
   width: 100%;
   color: #f3f4f6;
   font-family: var(--font-pixel-sub), sans-serif;
 }
 
 /* Imagen fuente oculta para Canvas 2D */
-.hidden-source-img {
-  display: none;
-}
+.hidden-source-img { display: none; }
 
 /* ========================================================
-   1. TELEMETRÍA EN VIVO (HUD DE EXPEDICIÓN)
+   1. TELEMETRÍA HUD SUPERIOR
    ======================================================== */
 .expedition-metrics-dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-  width: 100%;
+  gap: 0.65rem;
 }
 
 @media (max-width: 860px) {
-  .expedition-metrics-dashboard {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .expedition-metrics-dashboard { grid-template-columns: repeat(2, 1fr); }
 }
-
 @media (max-width: 480px) {
-  .expedition-metrics-dashboard {
-    grid-template-columns: 1fr;
-  }
+  .expedition-metrics-dashboard { grid-template-columns: 1fr; }
 }
 
 .metric-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.7rem;
   background: rgba(15, 23, 42, 0.85);
   border: 2px solid #334155;
   border-radius: 6px;
-  padding: 0.65rem 0.9rem;
-  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.4), 0 3px 0 #0f172a;
+  padding: 0.6rem 0.85rem;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.4), 0 3px 0 #0f172a;
 }
 
-.metric-card.xp-card {
-  border-color: #f59e0b;
-  background: rgba(30, 27, 75, 0.8);
-}
+.metric-card.xp-card    { border-color: #f59e0b; background: rgba(30, 27, 75, 0.8); }
+.metric-card.gps-card   { border-color: #10b981; }
+.metric-card.avatar-card{ border-color: #8b5cf6; }
 
-.metric-card.gps-card {
-  border-color: #10b981;
-}
-
-.metric-card.avatar-card {
-  border-color: #8b5cf6;
-}
-
-.metric-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-}
+.metric-icon  { font-size: 1.5rem; line-height: 1; }
 
 .metric-data {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.12rem;
   min-width: 0;
 }
 
@@ -90,71 +70,232 @@
   text-overflow: ellipsis;
 }
 
-.xp-card .metric-value {
-  color: #fcd34d;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
-}
+.xp-card .metric-value { color: #fcd34d; text-shadow: 0 0 8px rgba(251,191,36,0.5); }
 
 .metric-label {
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   color: #94a3b8;
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
-.status-text.active-gps {
+.status-text.active-gps { color: #34d399; }
+
+/* ========================================================
+   2. PANEL DE MISIONES
+   ======================================================== */
+.missions-panel {
+  background: rgba(11, 17, 30, 0.95);
+  border: 2px solid #1e3a5f;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.missions-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(90deg, #0f2744 0%, #1a3a6e 100%);
+  border-bottom: 2px solid #1e3a5f;
+  padding: 0.55rem 0.9rem;
+}
+
+.missions-header-icon {
+  font-size: 1rem;
+}
+
+.missions-header-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.7rem;
+  color: #fbbf24;
+  letter-spacing: 1px;
+}
+
+.missions-header-sub {
+  font-size: 0.58rem;
+  color: #64748b;
+  margin-left: auto;
+}
+
+.missions-list {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+/* Cada misión como tarjeta horizontal */
+.mission-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  border-right: 1px solid #1e293b;
+  cursor: pointer;
+  min-width: 200px;
+  flex: 1;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.mission-card:hover {
+  background: rgba(30, 58, 111, 0.35);
+}
+
+.mission-card.mission-active {
+  background: rgba(16, 185, 129, 0.08);
+  border-bottom: 2px solid #10b981;
+}
+
+.mission-card.mission-completed {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mission-icon-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mission-icon {
+  font-size: 1.4rem;
+  display: block;
+}
+
+.mission-check {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: #10b981;
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #065f46;
+}
+
+.mission-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mission-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.62rem;
+  color: #f1f5f9;
+  white-space: nowrap;
+}
+
+.mission-desc {
+  font-size: 0.57rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  flex-wrap: wrap;
+}
+
+.mission-xp {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(251,191,36,0.3);
+}
+
+.mission-dist {
+  font-size: 0.57rem;
+  color: #94a3b8;
+}
+
+.mission-status-active {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
   color: #34d399;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+.mission-status-done {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #10b981;
+}
+
+.mission-status-idle {
+  font-size: 0.52rem;
+  color: #475569;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.mission-cancel-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #f87171;
+  font-size: 0.6rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mission-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
 }
 
 /* ========================================================
-   2. BOTONERA DE CONTROLES DE EXPEDICIÓN
+   3. BOTONERA DE CONTROLES DEL MAPA
    ======================================================== */
 .expedition-control-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-wrap: wrap;
-  width: 100%;
 }
 
-.toolbar-spacer {
-  flex: 1;
-}
+.toolbar-spacer { flex: 1; }
 
 .btn-expedition {
   font-family: var(--font-pixel), monospace;
   font-size: 0.62rem;
-  padding: 0.5rem 0.85rem;
+  padding: 0.45rem 0.8rem;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   color: #ffffff;
   border: 2px solid transparent;
   transition: transform 0.1s steps(2), filter 0.1s steps(2);
 }
 
-.btn-expedition:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.12);
-}
-
-.btn-expedition:active {
-  transform: translateY(1px);
-}
-
-.btn-step {
-  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
-  border-color: #1e3a8a;
-  box-shadow: inset 1px 1px 0 #93c5fd, 0 3px 0 #1e3a8a;
-}
-
-.btn-center {
-  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
-  border-color: #312e81;
-  box-shadow: inset 1px 1px 0 #a5b4fc, 0 3px 0 #312e81;
-}
+.btn-expedition:hover  { transform: translateY(-1px); filter: brightness(1.12); }
+.btn-expedition:active { transform: translateY(1px); }
 
 .btn-reset {
   background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
@@ -165,13 +306,13 @@
 .chip-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   background: rgba(15, 23, 42, 0.75);
   color: #94a3b8;
   border: 1.5px solid #334155;
-  padding: 0.4rem 0.65rem;
+  padding: 0.38rem 0.6rem;
   border-radius: 4px;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-family: var(--font-pixel), monospace;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -183,51 +324,53 @@
 }
 
 .chip-toggle.active {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.12);
   border-color: #10b981;
   color: #34d399;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.chip-icon { font-size: 0.7rem; }
+
+.action-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .action-btn.btn-export {
-  font-family: var(--font-pixel), monospace;
-  font-size: 0.62rem;
-  padding: 0.45rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
   background: linear-gradient(180deg, #10b981 0%, #047857 100%);
   border: 2px solid #064e3b;
   color: #ffffff;
   box-shadow: inset 1px 1px 0 #6ee7b7, 0 3px 0 #064e3b;
 }
 
-.action-btn.btn-export:hover {
-  filter: brightness(1.15);
-}
+.action-btn.btn-export:hover { filter: brightness(1.15); }
+
+.btn-icon { font-size: 0.9rem; }
 
 /* ========================================================
-   3. ESCENARIO DEL MAPA COMPLETO INTERACTIVO
+   4. ESCENARIO DEL MAPA — CANVAS + OVERLAYS
    ======================================================== */
 .full-map-stage {
   position: relative;
   width: 100%;
-  height: 560px;
+  height: 520px;
   border: 4px solid #090e17;
   border-radius: 8px;
   overflow: hidden;
   background: #0f172a;
-  box-shadow: 
-    inset 0 0 15px rgba(0, 0, 0, 0.8),
-    0 8px 24px rgba(0, 0, 0, 0.6);
-  cursor: crosshair;
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 8px 24px rgba(0,0,0,0.6);
+  cursor: default;
 }
 
 @media (max-width: 768px) {
-  .full-map-stage {
-    height: 440px;
-  }
+  .full-map-stage { height: 400px; }
 }
 
-/* Canvas 2D rasterizado a 5px */
+/* Canvas 2D rasterizado */
 .full-pixel-canvas {
   width: 100%;
   height: 100%;
@@ -237,248 +380,501 @@
   image-rendering: crisp-edges;
 }
 
-/* Trazado SVG del sendero de expedición */
+/* SVG del sendero de expedición */
 .trail-svg-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   pointer-events: none;
   z-index: 10;
 }
 
+/* Línea amarilla del recorrido recorrido */
 .trail-svg-path {
   fill: none;
-  stroke: #f59e0b;
-  stroke-width: 0.75;
-  stroke-dasharray: 1.5 1;
+  stroke: #fbbf24;
+  stroke-width: 0.8;
+  stroke-dasharray: 2 1;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.8));
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.9));
 }
 
+/* Puntos dorados de waypoint */
 .trail-waypoint-dot {
-  fill: #facc15;
-  stroke: #78350f;
-  stroke-width: 0.4;
+  fill: #fde68a;
+  stroke: #92400e;
+  stroke-width: 0.3;
+}
+
+/* Línea punteada azul hacia el destino de misión */
+.mission-target-path {
+  fill: none;
+  stroke: #60a5fa;
+  stroke-width: 0.7;
+  stroke-dasharray: 2.5 1.5;
+  stroke-linecap: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.7));
+  animation: dash-march 1s linear infinite;
+}
+
+@keyframes dash-march {
+  to { stroke-dashoffset: -8; }
+}
+
+/* Pulso en el POI destino */
+.mission-target-pulse {
+  fill: rgba(96, 165, 250, 0.25);
+  stroke: #60a5fa;
+  stroke-width: 0.5;
+  animation: target-pulse-svg 1.5s ease-in-out infinite;
+}
+
+@keyframes target-pulse-svg {
+  0%, 100% { r: 2.5; opacity: 0.9; }
+  50%       { r: 4;   opacity: 0.4; }
 }
 
 /* ========================================================
-   4. CAPA DE DIRECCIONES SOBREPUESTAS (TEXTO NÍTIDO)
+   4a. TEXTO DE CALLES — PLANO Y ROTADO (sin badge, sin borde)
    ======================================================== */
-.street-labels-overlay {
+.street-text-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 12;
+}
+
+/* Texto base de calle — sin encuadre, solo sombra para legibilidad */
+.street-plain-text {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: 0.4px;
+}
+
+/* Avenidas — texto más destacado */
+.street-avenue-text {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(241, 245, 249, 0.92);
+  text-shadow:
+    1px 1px 0 rgba(0,0,0,0.95),
+   -1px -1px 0 rgba(0,0,0,0.95),
+    1px -1px 0 rgba(0,0,0,0.95),
+   -1px 1px 0 rgba(0,0,0,0.95),
+    0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* Calles locales — texto más sutil */
+.street-local-text {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.54rem;
+  font-weight: 600;
+  color: rgba(203, 213, 225, 0.78);
+  text-shadow:
+    1px 1px 0 rgba(0,0,0,0.9),
+   -1px -1px 0 rgba(0,0,0,0.9),
+    0 2px 3px rgba(0,0,0,0.7);
+}
+
+/* ========================================================
+   4b. POI CIRCULARES FLOTANTES
+   ======================================================== */
+.poi-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   pointer-events: none;
   z-index: 20;
 }
 
-.street-label-badge {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: rgba(15, 23, 42, 0.94);
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
-  border-radius: 20px;
-  padding: 0.25rem 0.55rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #ffffff;
-  white-space: nowrap;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7), 0 0 6px rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
-  cursor: default;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  user-select: none;
-}
-
-.street-label-badge:hover {
-  transform: translate(-50%, -50%) scale(1.12) !important;
-  z-index: 25;
-  border-color: #ffd32a;
-  box-shadow: 0 6px 16px rgba(255, 211, 42, 0.4);
-}
-
-.street-label-badge.badge-avenue {
-  background: rgba(20, 24, 33, 0.96);
-  border-color: #ffd32a;
-  color: #ffd32a;
-}
-
-.street-label-badge.badge-park {
-  background: rgba(6, 78, 59, 0.95);
-  border-color: #34d399;
-  color: #ecfdf5;
-}
-
-.street-label-badge.badge-street {
-  background: rgba(30, 41, 59, 0.94);
-  border-color: rgba(203, 213, 225, 0.5);
-  color: #f8fafc;
-}
-
-.badge-icon {
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-.badge-text {
-  letter-spacing: 0.3px;
-}
-
-/* ========================================================
-   5. AVATAR DEL AVENTURERO PIXELADO Y FLOTANTE / SALTANDO
-   ======================================================== */
-.floating-adventurer-marker {
+/* Contenedor de cada POI */
+.poi-marker {
   position: absolute;
   transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 35;
-  transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: poi-float 2.8s ease-in-out infinite;
 }
 
-/* Cuerpo con animación continua de levitación y salto */
-.avatar-float-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: adventurerFloatHop 1.6s ease-in-out infinite;
+/* Offset de animación para que no todos floten sincronizados */
+.poi-marker:nth-child(2) { animation-delay: 0.4s; }
+.poi-marker:nth-child(3) { animation-delay: 0.8s; }
+.poi-marker:nth-child(4) { animation-delay: 1.2s; }
+.poi-marker:nth-child(5) { animation-delay: 1.6s; }
+.poi-marker:nth-child(6) { animation-delay: 2.0s; }
+
+@keyframes poi-float {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+  50%       { transform: translate(-50%, -50%) translateY(-5px); }
 }
 
-@keyframes adventurerFloatHop {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  45% {
-    transform: translateY(-16px);
-  }
-  50% {
-    transform: translateY(-18px) scale(1.05);
-  }
-  55% {
-    transform: translateY(-16px);
-  }
-}
-
-/* Marco exterior con diseño Pixel-Art retro y bordes dorados */
-.avatar-frame {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 8px;
-  background: #1e293b;
-  border: 3px solid #ffd32a;
-  box-shadow: 
-    0 0 0 2px #0f172a,
-    0 0 14px rgba(255, 211, 42, 0.5),
-    0 8px 16px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
+/* Círculo del POI */
+.poi-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2.5px solid rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  pointer-events: all;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-/* Foto de perfil del usuario con renderizado pixel-art */
-.pixel-avatar-img {
+.poi-circle:hover {
+  transform: scale(1.2);
+  filter: brightness(1.2);
+}
+
+/* POI destino de misión activa: pulso extra */
+.poi-marker.poi-target .poi-circle {
+  animation: poi-target-pulse 1s ease-in-out infinite;
+  border-color: #ffffff;
+  border-width: 3px;
+}
+
+@keyframes poi-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.6), 0 4px 12px rgba(0,0,0,0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(96, 165, 250, 0), 0 4px 12px rgba(0,0,0,0.5); }
+}
+
+.poi-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* Nombre del POI bajo el círculo */
+.poi-label {
+  margin-top: 4px;
+  background: rgba(11, 15, 25, 0.9);
+  color: #e2e8f0;
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.52rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  letter-spacing: 0.2px;
+}
+
+/* ========================================================
+   5. PERSONAJE PIXEL-ART ANIMADO DEL AVENTURERO
+   ======================================================== */
+.floating-adventurer-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 35;
+  transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  image-rendering: pixelated;
+}
+
+.pixel-character-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: charBounceWalk 0.7s steps(2) infinite;
+  position: relative;
+}
+
+@keyframes charBounceWalk {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-4px); }
+  100% { transform: translateY(0px); }
+}
+
+/* ---- CABEZA ---- */
+.char-head {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  z-index: 5;
+}
+
+.char-face {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #fbbf24;
+  box-shadow: 0 0 0 2px #0f172a, 0 0 12px rgba(251, 191, 36, 0.6);
+  background: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.char-face-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: contrast(1.1) brightness(1.04);
-  display: block;
 }
 
-/* Fallback con emoji representativo del rango */
-.pixel-avatar-fallback {
-  font-size: 28px;
-  filter: drop-shadow(0 2px 0 #000);
+.char-face-emoji {
+  font-size: 20px;
+  line-height: 1;
 }
 
-/* Insignia de rango en la esquina superior */
-.avatar-rank-pill {
+.char-eyes {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #10b981;
-  border: 1.5px solid #ffffff;
-  color: #ffffff;
-  font-size: 0.5rem;
-  font-family: var(--font-pixel), monospace;
-  padding: 1px 4px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 3;
 }
 
-/* Etiqueta flotante con el nombre del aventurero */
-.avatar-nametag {
-  margin-top: 5px;
-  background: rgba(11, 15, 25, 0.95);
+.char-eye {
+  width: 5px;
+  height: 5px;
+  background: #111827;
+  border-radius: 1px;
+  animation: eyeBlink 3.5s steps(1) infinite;
+}
+
+.char-eye:nth-child(2) { animation-delay: 0.05s; }
+
+@keyframes eyeBlink {
+  0%, 92%, 100% { height: 5px; }
+  94%, 98%       { height: 1px; transform: scaleY(0.2); }
+}
+
+.char-hat {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 10px;
+  background: #10b981;
+  border-radius: 3px 3px 0 0;
+  border: 2px solid #065f46;
+  z-index: 4;
+}
+
+.char-hat::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 3px 3px 0 0;
+  border: 2px solid #065f46;
+  border-bottom: none;
+}
+
+/* ---- TORSO ---- */
+.char-torso {
+  position: relative;
+  width: 30px;
+  height: 22px;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  border-radius: 3px;
+  border: 2px solid #1e3a8a;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2);
+  margin-top: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.char-backpack {
+  position: absolute;
+  right: -8px;
+  top: 2px;
+  width: 10px;
+  height: 14px;
+  background: linear-gradient(180deg, #92400e 0%, #78350f 100%);
+  border-radius: 2px;
+  border: 1.5px solid #451a03;
+}
+
+.char-backpack::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 3px;
+  background: #b45309;
+  border-radius: 1px;
+}
+
+.char-arms {
+  position: absolute;
+  width: 100%;
+  top: 2px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.char-arm {
+  width: 7px;
+  height: 14px;
+  background: linear-gradient(180deg, #1d4ed8 60%, #dbeafe 100%);
+  border-radius: 2px;
+  border: 1.5px solid #1e3a8a;
+  transform-origin: top center;
+}
+
+.char-arm-left  { margin-left: -7px;  animation: armSwingLeft  0.7s steps(2) infinite; }
+.char-arm-right { margin-right: -7px; animation: armSwingRight 0.7s steps(2) infinite; }
+
+@keyframes armSwingLeft  { 0%, 100% { transform: rotate(-20deg); } 50% { transform: rotate(20deg);  } }
+@keyframes armSwingRight { 0%, 100% { transform: rotate(20deg);  } 50% { transform: rotate(-20deg); } }
+
+/* ---- PIERNAS ---- */
+.char-legs {
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.char-leg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 10px;
+  height: 14px;
+  background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+  border-radius: 2px 2px 0 0;
+  border: 1.5px solid #111827;
+  transform-origin: top center;
+}
+
+.char-leg-left  { animation: legStepLeft  0.7s steps(2) infinite; }
+.char-leg-right { animation: legStepRight 0.7s steps(2) infinite; }
+
+@keyframes legStepLeft  { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg);  } }
+@keyframes legStepRight { 0%, 100% { transform: rotate(12deg);  } 50% { transform: rotate(-12deg); } }
+
+.char-shoe {
+  width: 12px;
+  height: 6px;
+  background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+  border-radius: 1px 3px 3px 1px;
+  border: 1.5px solid #451a03;
+  margin-top: 12px;
+  position: absolute;
+}
+
+.char-shoe-left  { transform: translateX(-2px); }
+.char-shoe-right { transform: translateX(2px) scaleX(-1); }
+
+/* ---- NAMETAG ---- */
+.char-nametag {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(11, 15, 25, 0.96);
   border: 1.5px solid #10b981;
-  color: #a7f3d0;
-  padding: 2px 8px;
   border-radius: 4px;
-  font-family: var(--font-pixel), monospace;
-  font-size: 0.55rem;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6);
+  padding: 2px 7px;
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.7);
+  animation: nametag-float 2s ease-in-out infinite;
 }
 
-.nametag-icon {
-  font-size: 0.65rem;
+@keyframes nametag-float {
+  0%, 100% { transform: translateX(-50%) translateY(0px); }
+  50%       { transform: translateX(-50%) translateY(-3px); }
 }
 
-/* Sombra elíptica reactiva que se encoge durante el salto */
+.char-nametag-star { font-size: 0.6rem; }
+
+.char-nametag-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.5rem;
+  color: #a7f3d0;
+  letter-spacing: 0.3px;
+}
+
+.char-rank-badge {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.45rem;
+  background: #10b981;
+  color: #ffffff;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* ---- SOMBRA DEL SUELO ---- */
 .avatar-ground-shadow {
-  width: 34px;
-  height: 9px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 75%);
+  width: 30px;
+  height: 8px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 75%);
   border-radius: 50%;
-  margin-top: 3px;
-  animation: shadowPulseHop 1.6s ease-in-out infinite;
+  margin-top: 1px;
+  animation: groundShadowPulse 0.7s steps(2) infinite;
 }
 
-@keyframes shadowPulseHop {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.75;
-  }
-  50% {
-    transform: scale(0.55);
-    opacity: 0.25;
-  }
-}
-
-/* Mensaje sutil de sugerencia de clic */
-.stage-click-hint {
-  position: absolute;
-  bottom: 10px;
-  left: 12px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.62rem;
-  color: #cbd5e1;
-  pointer-events: none;
-  z-index: 25;
+@keyframes groundShadowPulse {
+  0%, 100% { transform: scale(1);    opacity: 0.65; }
+  50%       { transform: scale(0.7); opacity: 0.3;  }
 }
 
 /* ========================================================
-   6. BARRA INFERIOR DE LEYENDAS Y RENDIMIENTO
+   6. INDICADOR GPS EN EL MAPA
+   ======================================================== */
+.gps-status-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1.5px solid #334155;
+  border-radius: 4px;
+  padding: 0.28rem 0.6rem;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #64748b;
+  pointer-events: none;
+  z-index: 40;
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.gps-status-badge.gps-on {
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+  animation: gps-blink 2s ease-in-out infinite;
+}
+
+@keyframes gps-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+/* ========================================================
+   7. BARRA INFERIOR DE LEYENDAS Y RENDIMIENTO
    ======================================================== */
 .map-legend-bar {
   display: flex;
@@ -487,7 +883,7 @@
   background: #0b111e;
   border: 2px solid #1e293b;
   border-radius: 4px;
-  padding: 0.45rem 0.75rem;
+  padding: 0.4rem 0.7rem;
   gap: 0.8rem;
   flex-wrap: wrap;
 }
@@ -507,14 +903,20 @@
   animation: pulseGreen 2s infinite;
 }
 
+.pulse-indicator.paused {
+  background: #475569;
+  box-shadow: none;
+  animation: none;
+}
+
 @keyframes pulseGreen {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
 }
 
 .status-legend-text {
   font-family: var(--font-pixel), monospace;
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: #86efac;
 }
 
@@ -526,12 +928,12 @@
 
 .stat-pill {
   font-family: var(--font-pixel), monospace;
-  font-size: 0.58rem;
-  padding: 0.2rem 0.5rem;
+  font-size: 0.56rem;
+  padding: 0.18rem 0.45rem;
   border-radius: 3px;
   background: #1e293b;
   color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .stat-pill.highlight {

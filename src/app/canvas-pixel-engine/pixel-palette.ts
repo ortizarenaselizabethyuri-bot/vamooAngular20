@@ -22,38 +22,44 @@ export interface PaletteEntry {
 }
 
 /**
- * Paleta de colores vibrantes estilo JRPG de 16-bits de alta saturación.
- * Diseñada para resaltar la identidad gráfica retro con alto impacto visual.
+ * Paleta de colores CIUDAD VIVA — tonos urbanos realistas con alta legibilidad pixel-art.
+ * Diseñada para representar fielmente el tejido urbano:
+ * - Asfalto en grises reales (gris oscuro, medio y claro según jerarquía vial)
+ * - Parques en verde esmeralda saturado y vibrante
+ * - Edificios en crema/beige cálido urbano (sin techos rojos artificiales)
+ * - Aceras en gris claro distinguible del asfalto
+ * - Agua en azul turquesa cristalino
  */
 export const VIBRANT_16BIT_PALETTE: PaletteEntry[] = [
-  // 1. Asfalto y Carreteras (Carbón profundo y líneas vivas)
-  { name: 'asfalto_carbon_profundo', hex: '#1e272e', rgb: [30, 39, 46] },
-  { name: 'asfalto_gris_oscuro', hex: '#2f3640', rgb: [47, 54, 64] },
-  { name: 'linea_vial_blanca_pura', hex: '#ffffff', rgb: [255, 255, 255] },
-  { name: 'linea_vial_oro_brillante', hex: '#ffd32a', rgb: [255, 211, 42] },
+  // 1. ASFALTO Y CARRETERAS — Jerarquía de grises urbanos reales
+  { name: 'asfalto_autopista',      hex: '#3d4451', rgb: [61, 68, 81] },   // Autopistas/vías rápidas — gris pizarra oscuro
+  { name: 'asfalto_avenida',        hex: '#545b6b', rgb: [84, 91, 107] },  // Avenidas principales — gris medio cálido
+  { name: 'asfalto_calle',          hex: '#6b7280', rgb: [107, 114, 128] }, // Calles locales — gris medio neutro
+  { name: 'asfalto_callejon',       hex: '#7f8694', rgb: [127, 134, 148] }, // Callejones/senderos — gris claro
+  { name: 'linea_blanca',           hex: '#e5e7eb', rgb: [229, 231, 235] }, // Líneas de demarcación blancas
+  { name: 'linea_amarilla',         hex: '#fbbf24', rgb: [251, 191, 36] },  // Líneas amarillas de división
 
-  // 2. Vegetación y Parques (Verdes vivos y esmeralda)
-  { name: 'cesped_esmeralda_vivo', hex: '#10b981', rgb: [16, 185, 129] },
-  { name: 'cesped_menta_brillante', hex: '#2ecc71', rgb: [46, 204, 113] },
-  { name: 'cesped_turquesa_bosque', hex: '#00b894', rgb: [0, 184, 148] },
-  { name: 'arboles_verde_profundo', hex: '#059669', rgb: [5, 150, 105] },
+  // 2. ACERAS, VEREDAS Y PLAZAS — Gris claro diferenciado del asfalto
+  { name: 'acera_clara',            hex: '#c9cdd4', rgb: [201, 205, 212] }, // Veredas y aceras — gris perla
+  { name: 'plaza_adoquin',          hex: '#b8bcc4', rgb: [184, 188, 196] }, // Plazas adoquinadas — gris frío
+  { name: 'vereda_beige',           hex: '#d4c9b8', rgb: [212, 201, 184] }, // Veredas beige cálido
 
-  // 3. Edificios y Urbanismo (Techos terracota saturados y muros cálidos)
-  { name: 'techo_terracota_viva', hex: '#e74c3c', rgb: [231, 76, 60] },
-  { name: 'techo_ladrillo_fuego', hex: '#ff5722', rgb: [255, 87, 34] },
-  { name: 'techo_carmesí_oscuro', hex: '#c0392b', rgb: [192, 57, 43] },
-  { name: 'pared_oro_calido', hex: '#f9ca24', rgb: [249, 202, 36] },
-  { name: 'pared_crema_dorada', hex: '#ffeaa7', rgb: [255, 234, 167] },
-  { name: 'pared_blanco_puro', hex: '#f8f9fa', rgb: [248, 249, 250] },
+  // 3. PARQUES, ÁREAS VERDES — Verde esmeralda vivo y saturado
+  { name: 'pasto_esmeralda_vivo',   hex: '#10b981', rgb: [16, 185, 129] },  // Césped principal — esmeralda puro
+  { name: 'pasto_verde_brillante',  hex: '#059669', rgb: [5, 150, 105] },   // Pasto más oscuro/sombras
+  { name: 'parque_verde_claro',     hex: '#34d399', rgb: [52, 211, 153] },  // Zonas claras del parque
+  { name: 'arboles_verde_profundo', hex: '#065f46', rgb: [6, 95, 70] },     // Masas arbóreas densas
 
-  // 4. Hidrografía (Aguas luminosas y cristalinas)
-  { name: 'agua_oceano_vibrante', hex: '#0984e3', rgb: [9, 132, 227] },
-  { name: 'agua_turquesa_cristalina', hex: '#00cec9', rgb: [0, 206, 201] },
-  { name: 'agua_cielo_superficie', hex: '#74b9ff', rgb: [116, 185, 255] },
+  // 4. EDIFICIOS, LOTES Y URBANISMO — Crema y beige urbano cálido
+  { name: 'edificio_crema',         hex: '#f5f0e8', rgb: [245, 240, 232] }, // Edificios claros — crema puro
+  { name: 'edificio_beige',         hex: '#e8dcc8', rgb: [232, 220, 200] }, // Edificios beige medio
+  { name: 'edificio_gris_claro',    hex: '#dde1e7', rgb: [221, 225, 231] }, // Edificios modernos grises
+  { name: 'lote_arena',             hex: '#d4c4a0', rgb: [212, 196, 160] }, // Lotes sin construir/tierra
 
-  // 5. Suelo y Veredas
-  { name: 'sendero_arena_dorada', hex: '#e17055', rgb: [225, 112, 85] },
-  { name: 'acera_adoquin_clara', hex: '#dff9fb', rgb: [223, 249, 251] },
+  // 5. HIDROGRAFÍA — Azul cristalino distinguible
+  { name: 'agua_profunda',          hex: '#1e6091', rgb: [30, 96, 145] },   // Agua profunda — azul marino
+  { name: 'agua_media',             hex: '#2980b9', rgb: [41, 128, 185] },  // Agua media — azul real
+  { name: 'agua_cristalina',        hex: '#5dade2', rgb: [93, 173, 226] },  // Agua poco profunda — celeste
 ];
 
 /**
