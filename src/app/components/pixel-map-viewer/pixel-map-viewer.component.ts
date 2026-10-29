@@ -115,13 +115,15 @@ export interface StreetTextLabel {
 
 /**
  * Definición de un nivel de zoom del mapa.
- * Cada nivel representa un área geográfica diferente capturada desde el mismo centro GPS.
+ * Cada nivel representa un área geográfica y escala diferente capturada desde el mismo centro GPS.
  */
 export interface ZoomLevel {
   /** Etiqueta visible para el usuario */
   label: string;
   /** Icono del botón de zoom */
   icon: string;
+  /** Factor multiplicador de escala sobre la imagen fuente */
+  scale: number;
   /** Cobertura geográfica en grados de latitud */
   latDeg: number;
   /** Cobertura geográfica en grados de longitud */
@@ -173,68 +175,70 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Definición de los 6 niveles de zoom pre-renderizados ──────────────────
 
   /**
-   * Array de 6 niveles de zoom internos.
-   * Nivel 0 = vista más amplia (ciudad), Nivel 5 = vista más cercana (calle).
-   * La cobertura geográfica (latDeg / lngDeg) define el área del mapa visible.
-   *
-   * Referencia de escala (Lima, Perú):
-   *   - latDeg 0.06 ≈ ~6.7 km de altura  → vista ciudad completa
-   *   - latDeg 0.03 ≈ ~3.3 km de altura  → vista distrito
-   *   - latDeg 0.018 ≈ ~2.0 km de altura → vista barrio amplio
-   *   - latDeg 0.012 ≈ ~1.3 km de altura → vista barrio cercano (default original)
-   *   - latDeg 0.007 ≈ ~0.8 km de altura → vista bloque / avenida
-   *   - latDeg 0.004 ≈ ~0.4 km de altura → vista calle / edificio
+   * Array de 6 niveles de zoom internos con factores de recorte proporcionales:
+   *   - Nivel 0 (CIUDAD): Escala 1.0x (vista completa panorámica)
+   *   - Nivel 1 (DISTRITO): Escala 1.35x
+   *   - Nivel 2 (BARRIO): Escala 1.85x (vista media, default de inicio)
+   *   - Nivel 3 (SECTOR): Escala 2.5x
+   *   - Nivel 4 (AVENIDA): Escala 3.3x
+   *   - Nivel 5 (CALLE): Escala 4.5x (vista cercana a nivel peatonal)
    */
   public readonly ZOOM_LEVELS: ZoomLevel[] = [
     {
       label: 'CIUDAD',
       icon: '🌍',
-      latDeg: 0.060,
-      lngDeg: 0.090,
-      description: '~6 km de área',
+      scale: 1.0,
+      latDeg: 0.054,
+      lngDeg: 0.081,
+      description: 'Vista completa (~6 km)',
     },
     {
       label: 'DISTRITO',
       icon: '🗺️',
-      latDeg: 0.030,
-      lngDeg: 0.045,
-      description: '~3 km de área',
+      scale: 1.35,
+      latDeg: 0.040,
+      lngDeg: 0.060,
+      description: 'Distrito (~4 km)',
     },
     {
       label: 'BARRIO',
       icon: '🏘️',
-      latDeg: 0.018,
-      lngDeg: 0.027,
-      description: '~2 km de área',
+      scale: 1.85,
+      latDeg: 0.029,
+      lngDeg: 0.044,
+      description: 'Barrio (~2.5 km)',
     },
     {
-      label: 'ZONA',
+      label: 'SECTOR',
       icon: '🏙️',
-      latDeg: 0.012,
-      lngDeg: 0.018,
-      description: '~1.3 km de área',
+      scale: 2.5,
+      latDeg: 0.021,
+      lngDeg: 0.032,
+      description: 'Sector (~1.5 km)',
     },
     {
       label: 'AVENIDA',
       icon: '🛣️',
-      latDeg: 0.007,
-      lngDeg: 0.011,
-      description: '~800 m de área',
+      scale: 3.3,
+      latDeg: 0.016,
+      lngDeg: 0.024,
+      description: 'Avenida (~900 m)',
     },
     {
       label: 'CALLE',
       icon: '🔍',
-      latDeg: 0.004,
-      lngDeg: 0.006,
-      description: '~400 m de área',
+      scale: 4.5,
+      latDeg: 0.012,
+      lngDeg: 0.018,
+      description: 'Calle (~400 m)',
     },
   ];
 
   /**
    * Índices de los 3 niveles expuestos al usuario:
-   *   - Índice 0 → CIUDAD (vista amplia)
-   *   - Índice 2 → BARRIO (vista media, default al inicio)
-   *   - Índice 5 → CALLE  (vista más cercana)
+   *   - Índice 0 → CIUDAD (vista amplia panorámica 1.0x)
+   *   - Índice 2 → BARRIO (vista intermedia 1.85x)
+   *   - Índice 5 → CALLE  (vista cercana 4.5x)
    */
   public readonly USER_ZOOM_INDICES = [0, 2, 5] as const;
 
@@ -516,15 +520,24 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Hook post-vista: inicializa los 6 off-screen canvases cuando la imagen esté lista.
-   * Si la imagen ya está cargada en caché, renderiza de inmediato.
+   *
+   * Usa requestAnimationFrame para dar tiempo al navegador de aplicar el layout CSS,
+   * de modo que clientWidth/clientHeight del canvas tengan valores reales (no cero).
+   * Si la imagen ya está en caché (complete === true), renderiza en el siguiente frame.
+   * Si aún está cargando, el evento (load) del <img> llamará onImageLoaded().
+   *
+   * @returns void
    */
   public ngAfterViewInit(): void {
-    const img = this.refImgRef?.nativeElement;
-    if (img?.complete) {
-      this.buildOffscreenZoomCanvases();
-      this.applyZoomCanvas();
-    }
-    // Si la imagen no está lista, el evento (load) del <img> llamará onImageLoaded()
+    // Usar rAF para asegurar que el layout CSS ya aplicó sus dimensiones al canvas
+    requestAnimationFrame(() => {
+      const img = this.refImgRef?.nativeElement;
+      if (img?.complete && img.naturalWidth > 0) {
+        this.buildOffscreenZoomCanvases();
+        this.applyZoomCanvas();
+      }
+      // Si la imagen no está lista aún, onImageLoaded() se encargará
+    });
   }
 
   /**
@@ -719,16 +732,32 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   /**
    * Pre-renderiza los 6 niveles de zoom en off-screen canvases independientes.
    *
-   * Propósito: Generar una sola vez el rasterizado pixel-art para cada span geográfico.
-   * Al cambiar zoom, solo se copia el canvas ya listo al canvas visible (O(1)).
-   * Esto elimina el lag de rasterización al cambiar de nivel.
+   * Cada nivel aplica un recorte (crop) proporcional a la imagen fuente, centrado en el
+   * centro de la imagen, que se escala al tamaño de salida del canvas. Esto produce
+   * el efecto visual de zoom-in: a menor área de recorte → imagen más ampliada.
+   *
+   * Fórmula de crop por nivel i (total = 6):
+   *   - factor = (6 - i) / 6  →  factor 1.0 = imagen completa (nivel 0, CIUDAD)
+   *                            →  factor ~0.17 = región muy pequeña ampliada (nivel 5, CALLE)
+   *   - cropW = imgW * factor,  cropH = imgH * factor
+   *   - cropX = (imgW - cropW) / 2,  cropY = (imgH - cropH) / 2  (centrado)
+   *
+   * Al cambiar zoom se copia el canvas ya listo al canvas visible (O(1), sin re-rasterizar).
    *
    * @returns void
    */
   private buildOffscreenZoomCanvases(): void {
-    const img = this.refImgRef?.nativeElement;
+    const img          = this.refImgRef?.nativeElement;
     const visibleCanvas = this.pixelCanvasRef?.nativeElement;
     if (!img || !visibleCanvas) return;
+
+    // Esperar a que la imagen esté cargada (naturalWidth > 0)
+    const imgW = img.naturalWidth;
+    const imgH = img.naturalHeight;
+    if (!imgW || !imgH) {
+      console.warn('[PixelMap] Imagen aún no cargada, postergando pre-render de zoom.');
+      return;
+    }
 
     this.isProcessing.set(true);
     const start = performance.now();
@@ -736,27 +765,45 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     // Limpiar canvases anteriores
     this.offscreenCanvases = [];
 
-    const canvasWidth = visibleCanvas.clientWidth || visibleCanvas.width || 600;
-    const canvasHeight = visibleCanvas.clientHeight || visibleCanvas.height || 400;
+    // Tamaño de salida: usar dimensiones reales del canvas DOM (o fallback)
+    const outW  = visibleCanvas.clientWidth  || 600;
+    const outH  = visibleCanvas.clientHeight || 400;
     const bSize = this.blockSize();
+    const total = this.ZOOM_LEVELS.length;  // 6
 
-    const options: MapRasterizeOptions = {
-      blockSize: bSize,
+    const baseOptions: Omit<MapRasterizeOptions, 'crop'> = {
+      blockSize      : bSize,
       quantizePalette: this.quantizePalette(),
-      showGridLines: this.showGrid(),
+      showGridLines  : this.showGrid(),
       enableScanlines: this.scanlines(),
-      showLabels: false,
+      showLabels     : false,
     };
 
-    // Generar un canvas off-screen por cada nivel de zoom
-    for (let i = 0; i < this.ZOOM_LEVELS.length; i++) {
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = canvasWidth;
-      offCanvas.height = canvasHeight;
+    for (let i = 0; i < total; i++) {
+      const offCanvas    = document.createElement('canvas');
+      offCanvas.width    = outW;
+      offCanvas.height   = outH;
 
-      // Rasterizar la imagen de referencia en este off-screen canvas
+      /**
+       * Factor de recorte:
+       *   - i = 0 (CIUDAD)  → factor = 1.0  → crop = imagen completa
+       *   - i = 5 (CALLE)   → factor ≈ 0.2  → crop = 20% central de la imagen (ampliado 5×)
+       *
+       * Usamos una progresión exponencial para que los saltos visuales sean uniformes.
+       * base^0 = 1.0 (zoom out), base^5 → 0.2 (zoom in máximo)
+       */
+      const zoomFactor  = Math.pow(0.2, i / (total - 1));  // 1.0 → ~0.2 en 6 pasos
+      const cropW       = Math.round(imgW * zoomFactor);
+      const cropH       = Math.round(imgH * zoomFactor);
+      const cropX       = Math.round((imgW - cropW) / 2);
+      const cropY       = Math.round((imgH - cropH) / 2);
+
+      const options: MapRasterizeOptions = {
+        ...baseOptions,
+        crop: { x: cropX, y: cropY, width: cropW, height: cropH },
+      };
+
       PixelRasterizer.rasterizeMapImage(img, offCanvas, options);
-
       this.offscreenCanvases.push(offCanvas);
     }
 

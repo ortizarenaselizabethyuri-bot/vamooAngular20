@@ -50,6 +50,8 @@ export interface MapRasterizeOptions {
   labels?: StreetLabel[];
   /** Si es true, dibuja los rótulos de calles legibles sobre el mapa rasterizado */
   showLabels?: boolean;
+  /** Rectángulo de recorte opcional en la imagen fuente { x, y, width, height } para zoom */
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 /**
@@ -394,8 +396,11 @@ export class PixelRasterizer {
 
   /**
    * Rasteriza una imagen fuente (ej. mapa de Google Maps sin texto) convirtiéndola en un mapa de píxeles de 5px.
-   * Realiza submuestreo por bloques atómicos y cuantización cromática a la paleta viva de 16-bits,
-   * seguida del renderizado opcional de la capa de rótulos viales legibles normales.
+   *
+   * Realiza submuestreo por bloques atómicos y cuantización cromática a la paleta viva de 16-bits.
+   * Si se proporciona `options.crop`, la región de la imagen fuente indicada se escala al tamaño
+   * completo del canvas destino antes de rasterizar — esto genera el efecto de zoom-in.
+   * El canvas destino conserva sus dimensiones actuales (width/height ya asignados externamente).
    *
    * @param sourceImage - Imagen o Canvas fuente a procesar.
    * @param targetCanvas - Canvas destino donde se renderizará el resultado pixelado.
@@ -409,32 +414,55 @@ export class PixelRasterizer {
     const targetCtx = targetCanvas.getContext('2d');
     if (!targetCtx) return;
 
-    const naturalWidth = (sourceImage as HTMLImageElement).naturalWidth || (sourceImage as any).width || 600;
+    const naturalWidth  = (sourceImage as HTMLImageElement).naturalWidth  || (sourceImage as any).width  || 600;
     const naturalHeight = (sourceImage as HTMLImageElement).naturalHeight || (sourceImage as any).height || 400;
 
-    const blockSize = Math.max(2, Math.floor(options.blockSize || 5));
-    const gridCols = Math.floor(naturalWidth / blockSize);
-    const gridRows = Math.floor(naturalHeight / blockSize);
+    // Dimensiones del canvas destino ya fijadas externamente (o usar imagen si no están)
+    const outW = targetCanvas.width  || naturalWidth;
+    const outH = targetCanvas.height || naturalHeight;
 
-    const offscreen = document.createElement('canvas');
-    offscreen.width = naturalWidth;
-    offscreen.height = naturalHeight;
-    const offCtx = offscreen.getContext('2d');
+    const blockSize = Math.max(2, Math.floor(options.blockSize || 5));
+    const gridCols  = Math.floor(outW / blockSize);
+    const gridRows  = Math.floor(outH / blockSize);
+
+    // Canvas intermedio donde se pinta la región de la imagen (con o sin recorte)
+    // y se escala al tamaño de salida para que el muestreo sea sobre la zona correcta
+    const offscreen    = document.createElement('canvas');
+    offscreen.width    = outW;
+    offscreen.height   = outH;
+    const offCtx       = offscreen.getContext('2d');
     if (!offCtx) return;
 
-    offCtx.drawImage(sourceImage, 0, 0, naturalWidth, naturalHeight);
-    const imgData = offCtx.getImageData(0, 0, naturalWidth, naturalHeight);
-    const data = imgData.data;
+    // Si hay crop, escalar solo esa región al área de salida → efecto zoom-in
+    if (options.crop) {
+      offCtx.drawImage(
+        sourceImage,
+        options.crop.x,
+        options.crop.y,
+        options.crop.width,
+        options.crop.height,
+        0,
+        0,
+        outW,
+        outH
+      );
+    } else {
+      // Sin crop: imagen completa escalada al canvas de salida
+      offCtx.drawImage(sourceImage, 0, 0, outW, outH);
+    }
+
+    const imgData = offCtx.getImageData(0, 0, outW, outH);
+    const data    = imgData.data;
 
     targetCtx.imageSmoothingEnabled = false;
-    targetCanvas.width = naturalWidth;
-    targetCanvas.height = naturalHeight;
 
+    // ── Rasterizado por bloques ─────────────────────────────────────────────
     for (let gy = 0; gy < gridRows; gy++) {
       for (let gx = 0; gx < gridCols; gx++) {
-        const sampleX = Math.min(naturalWidth - 1, gx * blockSize + Math.floor(blockSize / 2));
-        const sampleY = Math.min(naturalHeight - 1, gy * blockSize + Math.floor(blockSize / 2));
-        const pixelIdx = (sampleY * naturalWidth + sampleX) * 4;
+        // Tomar el píxel central del bloque como color representativo
+        const sampleX   = Math.min(outW - 1, gx * blockSize + Math.floor(blockSize / 2));
+        const sampleY   = Math.min(outH - 1, gy * blockSize + Math.floor(blockSize / 2));
+        const pixelIdx  = (sampleY * outW + sampleX) * 4;
 
         const r = data[pixelIdx];
         const g = data[pixelIdx + 1];
@@ -443,7 +471,7 @@ export class PixelRasterizer {
         let finalColorHex: string;
 
         if (options.quantizePalette) {
-          const match = quantizeRgbToPalette(r, g, b, VIBRANT_16BIT_PALETTE);
+          const match  = quantizeRgbToPalette(r, g, b, VIBRANT_16BIT_PALETTE);
           finalColorHex = match.hex;
         } else {
           finalColorHex = `rgb(${r}, ${g}, ${b})`;
@@ -454,12 +482,13 @@ export class PixelRasterizer {
 
         if (options.showGridLines && blockSize >= 4) {
           targetCtx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
-          targetCtx.lineWidth = 1;
+          targetCtx.lineWidth   = 1;
           targetCtx.strokeRect(gx * blockSize, gy * blockSize, blockSize, blockSize);
         }
       }
     }
 
+    // ── Efecto scanlines CRT ────────────────────────────────────────────────
     if (options.enableScanlines) {
       targetCtx.fillStyle = 'rgba(0, 0, 0, 0.12)';
       for (let sy = 0; sy < targetCanvas.height; sy += 2) {
@@ -467,7 +496,7 @@ export class PixelRasterizer {
       }
     }
 
-    // Renderizar la capa de texto legible normal por encima de los bloques pixelados
+    // ── Capa de rótulos viales encima de los bloques ────────────────────────
     if (options.showLabels && options.labels && options.labels.length > 0) {
       PixelRasterizer.drawStreetLabels(targetCtx, options.labels);
     }
