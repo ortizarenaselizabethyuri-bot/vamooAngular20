@@ -22,6 +22,125 @@
 .hidden-source-img { display: none; }
 
 /* ========================================================
+   0. BARRA DE SELECCIÓN DE CIUDAD Y UBICACIÓN REAL
+   Permite al aventurero cambiar de ciudad (Huancayo, Lima, etc.)
+   ======================================================== */
+.city-selector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  background: rgba(11, 17, 30, 0.95);
+  border: 2px solid #1e3a5f;
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 3px 0 #0f172a;
+  flex-wrap: wrap;
+}
+
+.city-selector-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.city-lead-icon { font-size: 0.95rem; }
+
+.city-lead-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.city-lead-badge {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.62rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 3px;
+  padding: 2px 7px;
+  letter-spacing: 0.5px;
+}
+
+.city-pills-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.city-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid #334155;
+  border-radius: 4px;
+  padding: 0.35rem 0.65rem;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.56rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.12s steps(2);
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3), 0 2px 0 #0f172a;
+}
+
+.city-pill-btn:hover {
+  border-color: #64748b;
+  color: #f1f5f9;
+  background: rgba(30, 41, 59, 0.92);
+  transform: translateY(-1px);
+}
+
+.city-pill-btn:active {
+  transform: translateY(1px);
+}
+
+.city-pill-btn.city-pill-active {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow:
+    inset 0 0 8px rgba(16, 185, 129, 0.2),
+    0 0 10px rgba(16, 185, 129, 0.25),
+    0 2px 0 #064e3b;
+}
+
+.city-pill-icon { font-size: 0.85rem; line-height: 1; }
+.city-pill-label { letter-spacing: 0.4px; }
+
+.city-selector-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.city-gps-tag {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #10b981;
+}
+
+.city-gps-region {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.58rem;
+  color: #64748b;
+}
+
+.gps-coords-city-tag {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.42rem;
+  background: #10b981;
+  color: #ffffff;
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.3px;
+}
+
+/* ========================================================
    1. TELEMETRÍA HUD SUPERIOR
    ======================================================== */
 .expedition-metrics-dashboard {

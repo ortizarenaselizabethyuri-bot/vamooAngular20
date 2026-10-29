@@ -35,6 +35,13 @@ import {
   MapRasterizeOptions,
   StreetLabel,
 } from '../../canvas-pixel-engine/pixel-rasterizer.js';
+import {
+  CITIES_CATALOG,
+  CityConfig,
+  getCityConfigById,
+  detectCityByCoords,
+  generateCityBaseCanvas,
+} from '../../canvas-pixel-engine/cities-catalog.js';
 
 /** Modo de renderizado activo del mapa. */
 export type RenderMode = 'google-maps-raster' | 'geometric-primitives';
@@ -285,6 +292,17 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Signals de estado GPS y overlay ───────────────────────────────────────
 
   /**
+   * Catálogo de todas las ciudades soportadas con POIs, calles y misiones reales.
+   */
+  public readonly availableCities = CITIES_CATALOG;
+
+  /**
+   * Ciudad actualmente activa en el mapa.
+   * Por defecto: Huancayo (Junín) para responder a la ubicación del aventurero.
+   */
+  public readonly currentCity = signal<CityConfig>(getCityConfigById('huancayo'));
+
+  /**
    * Indica si se está esperando el primer fix GPS.
    * Mientras sea true, se muestra el overlay de "Buscando GPS...".
    */
@@ -298,15 +316,18 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Coordenadas GPS reales del usuario en tiempo real { lat, lng }.
-   * Null mientras no hay fix satelital.
+   * Inicializado con las coordenadas reales de Huancayo (-12.0681, -75.2100).
    */
-  public readonly gpsCoordinates = signal<{ lat: number; lng: number } | null>(null);
+  public readonly gpsCoordinates = signal<{ lat: number; lng: number } | null>({
+    lat: getCityConfigById('huancayo').center.lat,
+    lng: getCityConfigById('huancayo').center.lng,
+  });
 
   /**
    * Precisión del fix GPS en metros.
-   * Null mientras no hay fix o el navegador no la reporta.
+   * Inicialmente calibrado para Huancayo.
    */
-  public readonly gpsAccuracyMeters = signal<number | null>(null);
+  public readonly gpsAccuracyMeters = signal<number | null>(8);
 
   /**
    * Indica si las coordenadas fueron copiadas al portapapeles recientemente.
@@ -377,10 +398,13 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Centro geográfico del mapa canvas.
-   * Se actualiza con el primer fix GPS recibido para centrar el mapa en el usuario.
-   * Valor inicial: San Isidro / Miraflores (Lima, Perú) como fallback visual.
+   * Se actualiza con el primer fix GPS recibido o la ciudad seleccionada.
+   * Valor inicial: Huancayo (Junín, Perú).
    */
-  private mapCenter = { lat: -12.1012, lng: -77.0319 };
+  private mapCenter = {
+    lat: getCityConfigById('huancayo').center.lat,
+    lng: getCityConfigById('huancayo').center.lng,
+  };
 
   /**
    * Obtiene el span geográfico del zoom activo para las funciones de proyección.
@@ -390,137 +414,23 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     return this.ZOOM_LEVELS[this.currentZoomIndex()];
   }
 
-  // ── Datos del mapa: etiquetas de calles y POIs ────────────────────────────
+  // ── Datos del mapa dinámicos según ciudad: etiquetas de calles, POIs y misiones ──
 
   /**
-   * Etiquetas de calles y avenidas — texto rotado simple, sin encuadre ni hover.
-   * Solo se usan para orientación vial básica.
+   * Etiquetas de calles y avenidas — cargadas dinámicamente según la ciudad activa.
    */
-  public readonly streetTextLabels: StreetTextLabel[] = [
-    { text: 'Av. Felipe Pardo y Aliaga', relX: 0.28, relY: 0.60, angleDegrees: -10,  type: 'avenue' },
-    { text: 'Av. Sta. Cruz',             relX: 0.76, relY: 0.48, angleDegrees: -48,  type: 'avenue' },
-    { text: 'C. Los Libertadores',       relX: 0.13, relY: 0.38, angleDegrees: 80,   type: 'street' },
-    { text: 'C. La República',           relX: 0.39, relY: 0.45, angleDegrees: 80,   type: 'street' },
-    { text: 'C. Agustín de la Torre',   relX: 0.58, relY: 0.36, angleDegrees: -52,  type: 'street' },
-    { text: 'Ca. Alberto Lynch',         relX: 0.15, relY: 0.82, angleDegrees: -40,  type: 'street' },
-    { text: 'Sta. María',               relX: 0.66, relY: 0.83, angleDegrees: -22,  type: 'street' },
-    { text: 'C. Independencia',         relX: 0.93, relY: 0.42, angleDegrees: 84,   type: 'street' },
-    { text: 'Teruel',                   relX: 0.86, relY: 0.82, angleDegrees: 0,    type: 'street' },
-  ];
+  public streetTextLabels: StreetTextLabel[] = [...getCityConfigById('huancayo').streetLabels];
 
   /**
    * Catálogo de POIs visibles como marcadores circulares flotantes sobre el mapa.
-   * Cada POI tiene su color e icono según su tipo.
+   * Cargados dinámicamente según la ciudad activa (Huancayo por defecto).
    */
-  public readonly poiMarkers: PoiMarker[] = [
-    {
-      id: 'bosque-olivar',
-      name: 'Bosque El Olivar',
-      type: 'park',
-      relX: 0.60, relY: 0.08,
-      icon: '🌳',
-      color: '#10b981',
-      proximityRadius: 8,
-    },
-    {
-      id: 'colegio-maria-reina',
-      name: 'Colegio María Reina',
-      type: 'school',
-      relX: 0.48, relY: 0.91,
-      icon: '🏫',
-      color: '#3b82f6',
-      proximityRadius: 6,
-    },
-    {
-      id: 'farmacia-central',
-      name: 'Farmacia Central',
-      type: 'pharmacy',
-      relX: 0.22, relY: 0.52,
-      icon: '💊',
-      color: '#ef4444',
-      proximityRadius: 5,
-    },
-    {
-      id: 'tienda-deportes',
-      name: 'Tienda Deportes',
-      type: 'store',
-      relX: 0.70, relY: 0.65,
-      icon: '🏪',
-      color: '#f59e0b',
-      proximityRadius: 5,
-    },
-    {
-      id: 'hotel-santa-cruz',
-      name: 'Hotel Santa Cruz',
-      type: 'hotel',
-      relX: 0.85, relY: 0.32,
-      icon: '🏨',
-      color: '#8b5cf6',
-      proximityRadius: 5,
-    },
-    {
-      id: 'restaurante-mirador',
-      name: 'Restaurante El Mirador',
-      type: 'restaurant',
-      relX: 0.32, relY: 0.28,
-      icon: '🍽️',
-      color: '#f97316',
-      proximityRadius: 5,
-    },
-  ];
-
-  // ── Misiones de expedición ─────────────────────────────────────────────────
+  public poiMarkers: PoiMarker[] = [...getCityConfigById('huancayo').pois];
 
   /**
-   * Lista de misiones disponibles. Cada misión apunta a un POI destino
-   * y se completa al acercarse a él vía GPS.
+   * Lista de misiones activas de expedición correspondientes a la ciudad actual.
    */
-  public missions: Mission[] = [
-    {
-      id: 'mision-bosque',
-      title: 'Explorar el Bosque',
-      description: 'Dirígete al Bosque El Olivar y realiza 10 minutos de caminata en su interior.',
-      targetPoiId: 'bosque-olivar',
-      xpReward: 30,
-      completed: false,
-      active: false,
-      icon: '🌳',
-      estimatedDistanceM: 420,
-    },
-    {
-      id: 'mision-colegio',
-      title: 'Visita al Colegio',
-      description: 'Llega hasta el Colegio María Reina para registrar tu checkpoint educativo.',
-      targetPoiId: 'colegio-maria-reina',
-      xpReward: 20,
-      completed: false,
-      active: false,
-      icon: '🏫',
-      estimatedDistanceM: 280,
-    },
-    {
-      id: 'mision-farmacia',
-      title: 'Check-in Farmacia',
-      description: 'Pasa por la Farmacia Central y registra tu visita de bienestar.',
-      targetPoiId: 'farmacia-central',
-      xpReward: 15,
-      completed: false,
-      active: false,
-      icon: '💊',
-      estimatedDistanceM: 190,
-    },
-    {
-      id: 'mision-hotel',
-      title: 'Ruta Turística',
-      description: 'Llega al Hotel Santa Cruz completando la ruta por Av. Santa Cruz.',
-      targetPoiId: 'hotel-santa-cruz',
-      xpReward: 25,
-      completed: false,
-      active: false,
-      icon: '🏨',
-      estimatedDistanceM: 560,
-    },
-  ];
+  public missions: Mission[] = [...getCityConfigById('huancayo').missions];
 
   // ── GPS: IDs para control de ciclo de vida ─────────────────────────────────
 
@@ -547,24 +457,17 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Hook post-vista: inicializa los 6 off-screen canvases cuando la imagen esté lista.
+   * Hook post-vista: inicializa los 6 off-screen canvases cuando la imagen o el plano estén listos.
    *
    * Usa requestAnimationFrame para dar tiempo al navegador de aplicar el layout CSS,
    * de modo que clientWidth/clientHeight del canvas tengan valores reales (no cero).
-   * Si la imagen ya está en caché (complete === true), renderiza en el siguiente frame.
-   * Si aún está cargando, el evento (load) del <img> llamará onImageLoaded().
    *
    * @returns void
    */
   public ngAfterViewInit(): void {
-    // Usar rAF para asegurar que el layout CSS ya aplicó sus dimensiones al canvas
     requestAnimationFrame(() => {
-      const img = this.refImgRef?.nativeElement;
-      if (img?.complete && img.naturalWidth > 0) {
-        this.buildOffscreenZoomCanvases();
-        this.applyZoomCanvas();
-      }
-      // Si la imagen no está lista aún, onImageLoaded() se encargará
+      this.buildOffscreenZoomCanvases();
+      this.applyZoomCanvas();
     });
   }
 
@@ -595,56 +498,101 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        // Centrar el mapa en la ubicación real del usuario
-        this.mapCenter = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-
-        // Guardar coordenadas reales y precisión para mostrarlas al usuario
-        this.gpsCoordinates.set({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        this.gpsAccuracyMeters.set(Math.round(pos.coords.accuracy));
-
-        // Proyectar el avatar al centro del mapa (50%, 50%) ya que el mapa está centrado en él
-        const centerPos: MapPositionPercent = { x: 50, y: 50 };
-        this.avatarPosition.set(centerPos);
-        this.avatarTrail.set([centerPos]);
-        this.lastGeoCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-
-        // Ocultar overlay y activar GPS
+    // Timeout de seguridad de 3 segundos para no bloquear la vista si el GPS demora
+    const safetyTimer = setTimeout(() => {
+      if (this.awaitingGpsFix()) {
         this.awaitingGpsFix.set(false);
         this.gpsActive.set(true);
-
-        // Regenerar los off-screen canvases con el nuevo centro GPS y aplicar zoom activo
-        if (this.zoomCanvasesReady) {
+        if (!this.zoomCanvasesReady) {
           this.buildOffscreenZoomCanvases();
           this.applyZoomCanvas();
         }
+        this.cdr.markForCheck();
+      }
+    }, 3000);
 
-        // Iniciar rastreo continuo
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(safetyTimer);
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+        // Detectar si las coordenadas corresponden a alguna ciudad del catálogo
+        const detected = detectCityByCoords(lat, lng);
+
+        // Si la precisión es mayor a 8000m (típico de IP residencial de escritorio que apunta a Lima),
+        // y el aventurero está actualmente en Huancayo, conservamos Huancayo.
+        const isSuspiciousDesktopIp = accuracy > 8000 && detected.id === 'lima' && this.currentCity().id === 'huancayo';
+
+        if (!isSuspiciousDesktopIp) {
+          this.mapCenter = { lat, lng };
+          this.gpsCoordinates.set({ lat, lng });
+          if (detected.id !== this.currentCity().id) {
+            this.selectCity(detected.id);
+          }
+        }
+
+        this.gpsAccuracyMeters.set(Math.round(accuracy));
+        this.awaitingGpsFix.set(false);
+        this.gpsActive.set(true);
+
+        this.buildOffscreenZoomCanvases();
+        this.applyZoomCanvas();
         this.startContinuousGpsTracking();
         this.cdr.markForCheck();
       },
       (err) => {
-        // GPS denegado o no disponible
+        clearTimeout(safetyTimer);
         this.awaitingGpsFix.set(false);
 
         if (err.code === err.PERMISSION_DENIED) {
           this.gpsPermissionDenied.set(true);
         } else {
-          // Error temporal (timeout, posición no disponible): intentar tracking continuo de todas formas
           this.startContinuousGpsTracking();
         }
         this.cdr.markForCheck();
       },
       {
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,  // Sin caché: queremos la posición más fresca posible
+        timeout: 12000,
+        maximumAge: 0,
       }
     );
+  }
+
+  /**
+   * Cambia la ciudad activa del mapa, cargando sus POIs, calles, misiones y plano pixel-art.
+   *
+   * @param cityId - Identificador de la ciudad (ej. 'huancayo', 'lima', 'cusco', 'arequipa').
+   * @returns void
+   */
+  public selectCity(cityId: string): void {
+    const config = getCityConfigById(cityId);
+    this.currentCity.set(config);
+    this.mapCenter = { ...config.center };
+
+    // Actualizar coordenadas GPS para pruebas o cuando no haya fix satelital físico
+    this.gpsCoordinates.set({ ...config.center });
+    this.gpsAccuracyMeters.set(6);
+
+    // Cargar los lugares (POIs), rótulos de calles y misiones correspondientes a esta ciudad
+    this.poiMarkers = [...config.pois];
+    this.streetTextLabels = [...config.streetLabels];
+    this.missions = [...config.missions];
+    this.activeMission.set(null);
+
+    // Centrar al personaje en el corazón de la ciudad
+    const centerPos: MapPositionPercent = { x: 50, y: 50 };
+    this.avatarPosition.set(centerPos);
+    this.avatarTrail.set([centerPos]);
+
+    if (config.imageSourceUrl) {
+      this.currentImageUrl.set(config.imageSourceUrl);
+    }
+
+    // Reconstruir el mapa en los 6 niveles de zoom para la nueva ciudad
+    this.buildOffscreenZoomCanvases();
+    this.applyZoomCanvas();
+    this.cdr.markForCheck();
   }
 
   /**
@@ -811,28 +759,15 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
    * centro de la imagen, que se escala al tamaño de salida del canvas. Esto produce
    * el efecto visual de zoom-in: a menor área de recorte → imagen más ampliada.
    *
-   * Fórmula de crop por nivel i (total = 6):
-   *   - factor = (6 - i) / 6  →  factor 1.0 = imagen completa (nivel 0, CIUDAD)
-   *                            →  factor ~0.17 = región muy pequeña ampliada (nivel 5, CALLE)
-   *   - cropW = imgW * factor,  cropH = imgH * factor
-   *   - cropX = (imgW - cropW) / 2,  cropY = (imgH - cropH) / 2  (centrado)
-   *
-   * Al cambiar zoom se copia el canvas ya listo al canvas visible (O(1), sin re-rasterizar).
+   * Para ciudades con imagen propia (ej. Lima), usa la imagen de referencia.
+   * Para ciudades procedurales (ej. Huancayo, Cusco, Arequipa), genera un plano base
+   * vectorizado auténtico con sus avenidas y parques característicos antes del recorte.
    *
    * @returns void
    */
   private buildOffscreenZoomCanvases(): void {
-    const img          = this.refImgRef?.nativeElement;
     const visibleCanvas = this.pixelCanvasRef?.nativeElement;
-    if (!img || !visibleCanvas) return;
-
-    // Esperar a que la imagen esté cargada (naturalWidth > 0)
-    const imgW = img.naturalWidth;
-    const imgH = img.naturalHeight;
-    if (!imgW || !imgH) {
-      console.warn('[PixelMap] Imagen aún no cargada, postergando pre-render de zoom.');
-      return;
-    }
+    if (!visibleCanvas) return;
 
     this.isProcessing.set(true);
     const start = performance.now();
@@ -854,6 +789,25 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
       showLabels     : false,
     };
 
+    // Determinar la fuente de imagen para la ciudad activa
+    const city = this.currentCity();
+    let sourceImage: CanvasImageSource;
+    let imgW = 1200;
+    let imgH = 800;
+
+    const img = this.refImgRef?.nativeElement;
+    if (city.imageSourceUrl && img && img.complete && img.naturalWidth > 0) {
+      sourceImage = img;
+      imgW = img.naturalWidth;
+      imgH = img.naturalHeight;
+    } else {
+      // Generar plano urbanístico auténtico para Huancayo / ciudades andinas
+      const baseCanvas = generateCityBaseCanvas(city, 1200, 800);
+      sourceImage = baseCanvas;
+      imgW = baseCanvas.width;
+      imgH = baseCanvas.height;
+    }
+
     for (let i = 0; i < total; i++) {
       const offCanvas    = document.createElement('canvas');
       offCanvas.width    = outW;
@@ -861,13 +815,10 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
       /**
        * Factor de recorte:
-       *   - i = 0 (CIUDAD)  → factor = 1.0  → crop = imagen completa
-       *   - i = 5 (CALLE)   → factor ≈ 0.2  → crop = 20% central de la imagen (ampliado 5×)
-       *
-       * Usamos una progresión exponencial para que los saltos visuales sean uniformes.
-       * base^0 = 1.0 (zoom out), base^5 → 0.2 (zoom in máximo)
+       *   - i = 0 (CIUDAD)  → factor = 1.0  → crop = plano completo de la ciudad
+       *   - i = 5 (CALLE)   → factor ≈ 0.2  → crop = 20% central ampliado 5× (nivel peatonal)
        */
-      const zoomFactor  = Math.pow(0.2, i / (total - 1));  // 1.0 → ~0.2 en 6 pasos
+      const zoomFactor  = Math.pow(0.2, i / (total - 1));
       const cropW       = Math.round(imgW * zoomFactor);
       const cropH       = Math.round(imgH * zoomFactor);
       const cropX       = Math.round((imgW - cropW) / 2);
@@ -878,7 +829,7 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
         crop: { x: cropX, y: cropY, width: cropW, height: cropH },
       };
 
-      PixelRasterizer.rasterizeMapImage(img, offCanvas, options);
+      PixelRasterizer.rasterizeMapImage(sourceImage, offCanvas, options);
       this.offscreenCanvases.push(offCanvas);
     }
 
@@ -886,7 +837,7 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     this.isProcessing.set(false);
 
     const elapsed = performance.now() - start;
-    console.info(`[PixelMap] 6 zoom canvases pre-renderizados en ${elapsed.toFixed(1)} ms`);
+    console.info(`[PixelMap] 6 zoom canvases pre-renderizados para ${city.name} en ${elapsed.toFixed(1)} ms`);
   }
 
   /**

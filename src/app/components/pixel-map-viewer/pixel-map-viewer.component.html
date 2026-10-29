@@ -8,6 +8,37 @@
     (load)="onImageLoaded()" />
 
   <!-- ============================================================
+       0. BARRA DE SELECCIÓN DE CIUDAD Y UBICACIÓN REAL
+       ============================================================ -->
+  <div class="city-selector-bar">
+    <div class="city-selector-lead">
+      <span class="city-lead-icon">📍</span>
+      <span class="city-lead-title">CIUDAD / ZONA:</span>
+      <span class="city-lead-badge">{{ currentCity().name | uppercase }}</span>
+    </div>
+
+    <!-- Píldoras de ciudades del Perú -->
+    <div class="city-pills-list">
+      @for (city of availableCities; track city.id) {
+        <button
+          type="button"
+          class="city-pill-btn"
+          [class.city-pill-active]="currentCity().id === city.id"
+          (click)="selectCity(city.id)"
+          [title]="'Explorar ' + city.name + ' (' + city.region + ')'">
+          <span class="city-pill-icon">{{ city.icon }}</span>
+          <span class="city-pill-label">{{ city.name | uppercase }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="city-selector-status">
+      <span class="city-gps-tag">🛰️ GPS:</span>
+      <span class="city-gps-region">{{ currentCity().region }}</span>
+    </div>
+  </div>
+
+  <!-- ============================================================
        1. HUD DE TELEMETRÍA EN VIVO DE LA EXPEDICIÓN
        ============================================================ -->
   <div class="expedition-metrics-dashboard">
@@ -415,7 +446,8 @@
       <div class="gps-coords-panel">
         <div class="gps-coords-header">
           <span class="gps-coords-icon">📍</span>
-          <span class="gps-coords-title">MI UBICACIÓN REAL</span>
+          <span class="gps-coords-title">{{ currentCity().name | uppercase }}</span>
+          <span class="gps-coords-city-tag">REAL</span>
           <button
             type="button"
             class="gps-coords-copy-btn"
