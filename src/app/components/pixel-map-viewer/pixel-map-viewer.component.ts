@@ -42,6 +42,7 @@ import {
   detectCityByCoords,
   generateCityBaseCanvas,
 } from '../../canvas-pixel-engine/cities-catalog.js';
+import { fetchStitchedMapCanvas } from '../../canvas-pixel-engine/real-map-tile-engine.js';
 
 /** Modo de renderizado activo del mapa. */
 export type RenderMode = 'google-maps-raster' | 'geometric-primitives';
@@ -755,25 +756,22 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
   /**
    * Pre-renderiza los 6 niveles de zoom en off-screen canvases independientes.
    *
-   * Cada nivel aplica un recorte (crop) proporcional a la imagen fuente, centrado en el
-   * centro de la imagen, que se escala al tamaño de salida del canvas. Esto produce
-   * el efecto visual de zoom-in: a menor área de recorte → imagen más ampliada.
+   * Propósito: Descarga y ensambla las teselas geográficas reales correspondientes
+   * a la ubicación actual del usuario (Huancayo, Lima o cualquier coordenada GPS en el mundo).
+   * Al utilizar teselas cartográficas de alta fidelidad, la representación pixelada conserva
+   * todas las calles, curvas, avenidas, manzanas y parques reales idénticos a Google Maps.
    *
-   * Para ciudades con imagen propia (ej. Lima), usa la imagen de referencia.
-   * Para ciudades procedurales (ej. Huancayo, Cusco, Arequipa), genera un plano base
-   * vectorizado auténtico con sus avenidas y parques característicos antes del recorte.
+   * Aplica los 6 factores de recorte proporcional exponencial sobre el mapa real para
+   * permitir el intercambio instantáneo (O(1)) entre vistas de CIUDAD, BARRIO y CALLE.
    *
-   * @returns void
+   * @returns Promise<void>
    */
-  private buildOffscreenZoomCanvases(): void {
+  private async buildOffscreenZoomCanvases(): Promise<void> {
     const visibleCanvas = this.pixelCanvasRef?.nativeElement;
     if (!visibleCanvas) return;
 
     this.isProcessing.set(true);
     const start = performance.now();
-
-    // Limpiar canvases anteriores
-    this.offscreenCanvases = [];
 
     // Tamaño de salida: usar dimensiones reales del canvas DOM (o fallback)
     const outW  = visibleCanvas.clientWidth  || 600;
@@ -789,24 +787,27 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
       showLabels     : false,
     };
 
-    // Determinar la fuente de imagen para la ciudad activa
     const city = this.currentCity();
     let sourceImage: CanvasImageSource;
-    let imgW = 1200;
-    let imgH = 800;
 
-    const img = this.refImgRef?.nativeElement;
-    if (city.imageSourceUrl && img && img.complete && img.naturalWidth > 0) {
-      sourceImage = img;
-      imgW = img.naturalWidth;
-      imgH = img.naturalHeight;
-    } else {
-      // Generar plano urbanístico auténtico para Huancayo / ciudades andinas
-      const baseCanvas = generateCityBaseCanvas(city, 1200, 800);
-      sourceImage = baseCanvas;
-      imgW = baseCanvas.width;
-      imgH = baseCanvas.height;
+    try {
+      // Descargar y ensamblar el mapa real con teselas limpias de la ubicación exacta
+      const stitchedCanvas = await fetchStitchedMapCanvas(
+        this.mapCenter.lat,
+        this.mapCenter.lng,
+        { zoom: 16, width: 1400, height: 900 }
+      );
+      sourceImage = stitchedCanvas;
+    } catch (err) {
+      console.warn('[PixelMap] Error al descargar teselas reales en vivo, aplicando respaldo procedural:', err);
+      sourceImage = generateCityBaseCanvas(city, 1200, 800);
     }
+
+    const imgW = (sourceImage as any).naturalWidth || (sourceImage as any).width || 1200;
+    const imgH = (sourceImage as any).naturalHeight || (sourceImage as any).height || 800;
+
+    // Limpiar canvases anteriores
+    this.offscreenCanvases = [];
 
     for (let i = 0; i < total; i++) {
       const offCanvas    = document.createElement('canvas');
@@ -815,8 +816,9 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
 
       /**
        * Factor de recorte:
-       *   - i = 0 (CIUDAD)  → factor = 1.0  → crop = plano completo de la ciudad
-       *   - i = 5 (CALLE)   → factor ≈ 0.2  → crop = 20% central ampliado 5× (nivel peatonal)
+       *   - i = 0 (CIUDAD)  → factor = 1.0  → muestra el plano amplio completo
+       *   - i = 2 (BARRIO)  → factor ≈ 0.44 → zoom medio del vecindario
+       *   - i = 5 (CALLE)   → factor ≈ 0.20 → zoom cercano a nivel peatonal (5× ampliado)
        */
       const zoomFactor  = Math.pow(0.2, i / (total - 1));
       const cropW       = Math.round(imgW * zoomFactor);
@@ -836,8 +838,11 @@ export class PixelMapViewerComponent implements OnInit, AfterViewInit, OnDestroy
     this.zoomCanvasesReady = true;
     this.isProcessing.set(false);
 
+    // Aplicar de inmediato el zoom activo al canvas visible
+    this.applyZoomCanvas();
+
     const elapsed = performance.now() - start;
-    console.info(`[PixelMap] 6 zoom canvases pre-renderizados para ${city.name} en ${elapsed.toFixed(1)} ms`);
+    console.info(`[PixelMap] 6 zoom canvases de alta fidelidad pre-renderizados para ${city.name} en ${elapsed.toFixed(1)} ms`);
   }
 
   /**
