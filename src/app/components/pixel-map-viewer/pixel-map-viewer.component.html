@@ -191,6 +191,88 @@
     <!-- Capa A: Canvas 2D rasterizado a 5px -->
     <canvas #pixelCanvas class="full-pixel-canvas"></canvas>
 
+    <!-- ─── OVERLAY: Esperando primer fix GPS ─────────────────────── -->
+    @if (awaitingGpsFix()) {
+      <div class="gps-overlay gps-overlay--waiting">
+        <div class="gps-overlay-card">
+          <div class="gps-overlay-satellite">🛰️</div>
+          <div class="gps-overlay-pulse-ring"></div>
+          <span class="gps-overlay-title">BUSCANDO SEÑAL GPS</span>
+          <span class="gps-overlay-subtitle">
+            Apunta tu dispositivo al cielo despejado.<br>
+            El mapa se centrará en tu ubicación real.
+          </span>
+          <div class="gps-overlay-dots">
+            <span class="gps-dot"></span>
+            <span class="gps-dot"></span>
+            <span class="gps-dot"></span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ─── OVERLAY: Permiso GPS denegado ────────────────────────── -->
+    @if (gpsPermissionDenied()) {
+      <div class="gps-overlay gps-overlay--denied">
+        <div class="gps-overlay-card">
+          <div class="gps-overlay-satellite">📡</div>
+          <span class="gps-overlay-title gps-overlay-title--error">GPS DENEGADO</span>
+          <span class="gps-overlay-subtitle">
+            Activa los permisos de ubicación en tu navegador<br>
+            para que el aventurero pueda desplazarse.
+          </span>
+          <button
+            type="button"
+            class="gps-retry-btn"
+            (click)="retryGpsRequest()">
+            <span>🔄</span>
+            <span>REINTENTAR GPS</span>
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ─── CONTROLES DE ZOOM (3 vistas usuario) ──────────────────── -->
+    <div class="zoom-controls-panel">
+      <span class="zoom-controls-label">ZOOM</span>
+
+      <!-- Vista: CIUDAD (más alejada) — Zoom interno índice 0 -->
+      <button
+        type="button"
+        class="zoom-btn"
+        [class.zoom-btn--active]="isUserZoomActive(0)"
+        (click)="setUserZoom(0)"
+        [title]="ZOOM_LEVELS[0].description">
+        <span class="zoom-btn-icon">{{ ZOOM_LEVELS[0].icon }}</span>
+        <span class="zoom-btn-label">{{ ZOOM_LEVELS[0].label }}</span>
+      </button>
+
+      <!-- Vista: BARRIO (media) — Zoom interno índice 2 -->
+      <button
+        type="button"
+        class="zoom-btn"
+        [class.zoom-btn--active]="isUserZoomActive(1)"
+        (click)="setUserZoom(1)"
+        [title]="ZOOM_LEVELS[2].description">
+        <span class="zoom-btn-icon">{{ ZOOM_LEVELS[2].icon }}</span>
+        <span class="zoom-btn-label">{{ ZOOM_LEVELS[2].label }}</span>
+      </button>
+
+      <!-- Vista: CALLE (más cercana) — Zoom interno índice 5 -->
+      <button
+        type="button"
+        class="zoom-btn"
+        [class.zoom-btn--active]="isUserZoomActive(2)"
+        (click)="setUserZoom(2)"
+        [title]="ZOOM_LEVELS[5].description">
+        <span class="zoom-btn-icon">{{ ZOOM_LEVELS[5].icon }}</span>
+        <span class="zoom-btn-label">{{ ZOOM_LEVELS[5].label }}</span>
+      </button>
+
+      <!-- Indicador del zoom activo -->
+      <span class="zoom-current-desc">{{ currentZoomConfig().description }}</span>
+    </div>
+
     <!-- Capa B: SVG del sendero recorrido (líneas amarillas) + línea al destino -->
     <svg class="trail-svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
 
