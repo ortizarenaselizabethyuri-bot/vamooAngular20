@@ -179,34 +179,34 @@
                 </google-map>
               </div>
 
-              <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados -->
+              <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados (Z15 Amplia a Z19 Jugador) -->
               <div class="map-overlay-zoom-presets" role="toolbar" aria-label="Niveles de Zoom">
                 <button 
                   type="button" 
                   class="zoom-preset-btn" 
-                  [class.active]="mapZoom() <= 9" 
-                  (click)="setZoomPreset(7)" 
-                  title="Vista Panorámica Amplia (Macro Z7)">
+                  [class.active]="mapZoom() === 15" 
+                  (click)="setZoomPreset(15)" 
+                  title="Vista Más Amplia (Zoom 15 - Donde se renderiza la textura 2D)">
                   <span class="preset-icon">🌍</span>
-                  <span>PANORÁMICA (Z7)</span>
+                  <span>AMPLIA (Z15)</span>
                 </button>
                 <button 
                   type="button" 
                   class="zoom-preset-btn" 
-                  [class.active]="mapZoom() >= 10 && mapZoom() <= 14" 
-                  (click)="setZoomPreset(12)" 
-                  title="Vista Intermedia de Barrio (Z12)">
+                  [class.active]="mapZoom() >= 16 && mapZoom() <= 18" 
+                  (click)="setZoomPreset(17)" 
+                  title="Vista Intermedia de Barrio (Z17)">
                   <span class="preset-icon">🏘️</span>
-                  <span>BARRIO (Z12)</span>
+                  <span>BARRIO (Z17)</span>
                 </button>
                 <button 
                   type="button" 
                   class="zoom-preset-btn" 
-                  [class.active]="mapZoom() >= 15" 
-                  (click)="setZoomPreset(16)" 
-                  title="Vista Detallada de Calles y Manzanas (Z16)">
+                  [class.active]="mapZoom() === 19" 
+                  (click)="setZoomPreset(19)" 
+                  title="Vista Principal del Jugador (Z19 - Ubicación habitual)">
                   <span class="preset-icon">📍</span>
-                  <span>CALLES (Z16)</span>
+                  <span>JUGADOR (Z19)</span>
                 </button>
               </div>
 
@@ -227,7 +227,7 @@
                   type="button" 
                   class="stepper-btn" 
                   (click)="stepZoom(-1)" 
-                  [disabled]="mapZoom() <= 6" 
+                  [disabled]="mapZoom() <= 15" 
                   title="Alejar vista (-)">
                   <span>-</span>
                 </button>

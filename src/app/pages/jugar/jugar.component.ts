@@ -78,8 +78,8 @@ export class JugarComponent implements OnInit {
     lng: -75.2100,
   });
 
-  /** Nivel de zoom inicial del mapa (Zoom 7: vista panorámica amplia / macro) */
-  readonly mapZoom = signal<number>(7);
+  /** Nivel de zoom inicial del mapa (Zoom 19: vista principal donde el aventurero siempre estará) */
+  readonly mapZoom = signal<number>(19);
 
   /** Estado de arrastre manual del mapa con el cursor de manito */
   readonly isDragging = signal<boolean>(false);
@@ -106,7 +106,7 @@ export class JugarComponent implements OnInit {
     });
   }
 
-  /** Opciones de personalización de Google Maps con el tema Pixar Aventura y buffer de desplazamiento con manito */
+  /** Opciones de personalización de Google Maps con el tema Pixar Aventura y límites calibrados (Z15 a Z19) */
   readonly mapOptions: google.maps.MapOptions = {
     styles: PIXAR_MAP_THEME,
     disableDefaultUI: false,
@@ -119,7 +119,7 @@ export class JugarComponent implements OnInit {
     draggableCursor: 'grab',
     draggingCursor: 'grabbing',
     maxZoom: 19,
-    minZoom: 6,
+    minZoom: 15,
   };
 
   /** Opciones de estilo para el sendero de expedición (Polyline Pixar) */
@@ -329,27 +329,27 @@ export class JugarComponent implements OnInit {
 
   /**
    * Incrementa o decrementa el nivel de zoom en un paso (+1 o -1),
-   * manteniéndose dentro de los límites calibrados (6 a 19).
+   * manteniéndose dentro del rango calibrado (Z15 a Z19).
    *
    * @param delta - Variación de nivel (+1 para acercar, -1 para alejar).
    * @returns void
    */
   stepZoom(delta: number): void {
-    const next = Math.min(19, Math.max(6, this.mapZoom() + delta));
+    const next = Math.min(19, Math.max(15, this.mapZoom() + delta));
     this.mapZoom.set(next);
   }
 
   /**
    * Establece directamente uno de los niveles de zoom precalibrados:
-   * - 7: Vista Macro / Panorámica regional amplia
-   * - 12: Vista Intermedia de distrito y vías principales
-   * - 16: Vista Detallada de calles y manzanas
+   * - 15: Vista Más Amplia (donde se renderizará la textura 2D internamente)
+   * - 17: Vista Intermedia de barrio y manzanas
+   * - 19: Vista Principal del Jugador (donde el usuario siempre estará por defecto)
    *
-   * @param level - Nivel de zoom objetivo.
+   * @param level - Nivel de zoom objetivo (15 a 19).
    * @returns void
    */
   setZoomPreset(level: number): void {
-    const target = Math.min(19, Math.max(6, level));
+    const target = Math.min(19, Math.max(15, level));
     this.mapZoom.set(target);
   }
 
@@ -401,7 +401,7 @@ export class JugarComponent implements OnInit {
 
   /**
    * Centra la cámara del mapa en la ubicación satelital en tiempo real del aventurero
-   * y reactiva el seguimiento automático de cámara, respetando la escala actual de zoom.
+   * y reactiva el seguimiento automático de cámara en la escala del jugador (Zoom 19).
    *
    * @returns void
    */
@@ -410,6 +410,7 @@ export class JugarComponent implements OnInit {
     const userPos = this.geoService.currentPosition();
     if (userPos) {
       this.mapCenter.set(userPos);
+      this.mapZoom.set(19);
     } else {
       this.geoService.startTracking();
     }
