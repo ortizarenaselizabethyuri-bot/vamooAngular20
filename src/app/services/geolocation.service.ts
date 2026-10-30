@@ -149,8 +149,10 @@ export class GeolocationService {
   /**
    * Inicia el rastreo continuo de la ubicación del aventurero en tiempo real (GPS).
    *
-   * Propósito: Activar navigator.geolocation.watchPosition con máxima precisión satelital,
-   * actualizar currentPosition y alimentar el rastro del sendero.
+   * Propósito: Solicitar un fix inmediato de máxima precisión sin caché previa
+   * (navigator.geolocation.getCurrentPosition) y activar el observador continuo
+   * (navigator.geolocation.watchPosition) para mantener la posición satelital del usuario
+   * actualizada en tiempo real sin requerir acciones manuales ni centrado tardío.
    *
    * @returns void
    */
@@ -167,6 +169,33 @@ export class GeolocationService {
     this.isTracking.set(true);
     this.statusMessage.set('Buscando señal satelital GPS...');
 
+    // 1. Solicitar fix inmediato con máxima precisión y sin caché previa (tiempo real)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const freshCoords: GeoCoordinates = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        this.currentPosition.set(freshCoords);
+        if (this.pathHistory().length === 0) {
+          this.pathHistory.set([freshCoords]);
+        }
+        this.statusMessage.set(
+          `GPS activo en tiempo real: [${freshCoords.lat.toFixed(5)}, ${freshCoords.lng.toFixed(5)}]`,
+        );
+      },
+      (error) => {
+        console.warn('Aviso al solicitar posición inicial inmediata:', error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+
+    // 2. Observación continua para alimentar el sendero y registrar movimiento
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
         const newCoords: GeoCoordinates = {
@@ -188,7 +217,7 @@ export class GeolocationService {
 
         this.currentPosition.set(newCoords);
         this.statusMessage.set(
-          `GPS activo. Coordenadas: [${newCoords.lat.toFixed(5)}, ${newCoords.lng.toFixed(5)}]`,
+          `GPS activo en tiempo real: [${newCoords.lat.toFixed(5)}, ${newCoords.lng.toFixed(5)}]`,
         );
       },
       (error) => {
@@ -211,7 +240,7 @@ export class GeolocationService {
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 5000,
+        maximumAge: 2000,
       },
     );
   }
@@ -268,7 +297,7 @@ export class GeolocationService {
    * @returns void
    */
   simulateWalkStep(): void {
-    const current = this.currentPosition() || { lat: -12.1217, lng: -77.0305 };
+    const current = this.currentPosition() || { lat: -12.0681, lng: -75.2100 };
     // Pequeño desplazamiento en diagonal hacia el este/norte (~35 metros)
     const stepLat = current.lat + (Math.random() * 0.0003 - 0.0001);
     const stepLng = current.lng + 0.0003;

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GoogleMap, MapMarker, MapPolyline, MapCircle } from '@angular/google-maps';
@@ -72,10 +72,10 @@ export class JugarComponent implements OnInit {
   /** Pestaña activa en la interfaz ('mapa' interactivo o 'modos' de expedición) */
   readonly activeTab = signal<'mapa' | 'modos'>('mapa');
 
-  /** Coordenadas centrales del mapa (por defecto Parque Kennedy, Miraflores - Lima) */
+  /** Coordenadas centrales del mapa (por defecto Huancayo mientras conecta el GPS satelital) */
   readonly mapCenter = signal<GeoCoordinates>({
-    lat: -12.1217,
-    lng: -77.0305,
+    lat: -12.0681,
+    lng: -75.2100,
   });
 
   /** Nivel de zoom de aventura del mapa */
@@ -86,6 +86,19 @@ export class JugarComponent implements OnInit {
 
   /** Control para seguimiento automático de cámara al caminar */
   readonly autoFollow = signal<boolean>(true);
+
+  /**
+   * Constructor del componente.
+   * Inicializa el efecto reactivo que sincroniza en tiempo real el centro del mapa con la posición satelital del aventurero.
+   */
+  constructor() {
+    effect(() => {
+      const userPos = this.geoService.currentPosition();
+      if (userPos && this.autoFollow()) {
+        this.mapCenter.set(userPos);
+      }
+    });
+  }
 
   /** Opciones de personalización de Google Maps con el tema Pixar Aventura */
   readonly mapOptions: google.maps.MapOptions = {
@@ -240,23 +253,35 @@ export class JugarComponent implements OnInit {
   /**
    * Ciclo de inicialización del componente.
    *
-   * Propósito: Cargar la API de Google Maps Platform y comenzar rastreo si el usuario lo desea.
+   * Propósito: Solicitar permisos e iniciar inmediatamente el rastreo satelital GPS
+   * en tiempo real para centrar el mapa en la ubicación auténtica del usuario (ej. Huancayo, Lima),
+   * y cargar el SDK de Google Maps Platform con estética visual Pixar Aventura.
    *
    * @returns void
    */
   ngOnInit(): void {
+    // 1. Iniciar inmediatamente el rastreo GPS en tiempo real
+    this.geoService.startTracking();
+
+    // 2. Cargar la API de Google Maps Platform
     this.geoService
       .loadGoogleMapsApi()
       .then(() => {
         this.isMapReady.set(true);
-        // Si no hay coordenadas previas, fijar coordenadas iniciales en Lima
-        if (!this.geoService.currentPosition()) {
-          this.geoService.recordLocation({ lat: -12.1217, lng: -77.0305 });
-        }
       })
       .catch(() => {
         this.isMapReady.set(false);
       });
+  }
+
+  /**
+   * Se ejecuta cuando el usuario arrastra manualmente el mapa con el ratón o touch.
+   * Pausa temporalmente el auto-seguimiento de cámara para permitir explorar otras áreas libremente.
+   *
+   * @returns void
+   */
+  onMapDrag(): void {
+    this.autoFollow.set(false);
   }
 
   /**
@@ -308,16 +333,17 @@ export class JugarComponent implements OnInit {
 
 
   /**
-   * Centra la cámara del mapa en la ubicación satelital del aventurero.
+   * Centra la cámara del mapa en la ubicación satelital en tiempo real del aventurero
+   * y reactiva el seguimiento automático de cámara.
    *
    * @returns void
    */
   centerOnUser(): void {
+    this.autoFollow.set(true);
     const userPos = this.geoService.currentPosition();
     if (userPos) {
       this.mapCenter.set(userPos);
       this.mapZoom.set(16);
-      this.autoFollow.set(true);
     } else {
       this.geoService.startTracking();
     }

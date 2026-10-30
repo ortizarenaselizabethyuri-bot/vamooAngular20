@@ -144,6 +144,7 @@
                 [center]="mapCenter()" 
                 [zoom]="mapZoom()" 
                 [options]="mapOptions" 
+                (mapDrag)="onMapDrag()"
                 width="100%" 
                 height="540px">
 
@@ -266,13 +267,15 @@
         </div>
       }
 
-      <!-- Pie informativo -->
-      <div class="footer-callout">
-        <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
-        <button type="button" class="btn-login-link" (click)="goToLogin()">
-          INICIAR SESIÓN
-        </button>
-      </div>
+      <!-- Pie informativo (Solo visible si el usuario no ha iniciado sesión) -->
+      @if (!authService.isAuthenticated()) {
+        <div class="footer-callout">
+          <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
+          <button type="button" class="btn-login-link" (click)="goToLogin()">
+            INICIAR SESIÓN
+          </button>
+        </div>
+      }
 
     </div>
 
