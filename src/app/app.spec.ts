@@ -18,6 +18,7 @@ describe('App', () => {
 
   it('should render brand title in header', async () => {
     const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.pixel-logo-vamoo')?.textContent).toContain('VAMOO');
