@@ -361,6 +361,21 @@
   cursor: inherit !important;
 }
 
+/* Capa de Texturizado Pixelado Orgánico 2D sobre la cartografía viva de Google Maps */
+.map-pixel-texture-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image: 
+    radial-gradient(rgba(15, 23, 42, 0.08) 1.2px, transparent 1.2px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 8px 8px, 8px 8px, 8px 8px;
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
+
 /* --------------------------------------------------------
    HUD FLOTANTE DENTRO DEL MAPA (Presets de Zoom & Manito)
    -------------------------------------------------------- */
