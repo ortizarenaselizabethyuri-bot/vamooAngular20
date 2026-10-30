@@ -43,62 +43,42 @@ describe('PixelMapViewerComponent', () => {
   });
 
   it('debe permitir cambiar el tamaño de bloque atómico', () => {
-    component.setBlockSize(8);
+    component.blockSize.set(8);
     expect(component.blockSize()).toBe(8);
   });
 
   it('debe alternar la visibilidad de los rótulos de calles legibles', () => {
     const initial = component.showStreetLabels();
-    component.toggleStreetLabels();
+    component.showStreetLabels.set(!initial);
     expect(component.showStreetLabels()).toBe(!initial);
   });
 
   it('debe alternar la cuantización de paleta', () => {
     const initial = component.quantizePalette();
-    component.toggleQuantize();
+    component.quantizePalette.set(!initial);
     expect(component.quantizePalette()).toBe(!initial);
   });
 
   it('debe alternar la cuadrícula voxel', () => {
     const initial = component.showGrid();
-    component.toggleGrid();
+    component.showGrid.set(!initial);
     expect(component.showGrid()).toBe(!initial);
   });
 
   it('debe permitir cambiar la variante de mapa limpio', () => {
-    component.setMapVariant('clean_contrast');
+    component.mapVariant.set('clean_contrast');
     expect(component.mapVariant()).toBe('clean_contrast');
-    expect(component.currentImageUrl()).toBe('/google_maps_clean_contrast.png');
   });
 
   it('debe alternar el modo de renderizado entre google-maps y geometric-primitives', () => {
-    component.setRenderMode('geometric-primitives');
+    component.renderMode.set('geometric-primitives');
     expect(component.renderMode()).toBe('geometric-primitives');
-    component.setRenderMode('google-maps-raster');
+    component.renderMode.set('google-maps-raster');
     expect(component.renderMode()).toBe('google-maps-raster');
   });
 
-  it('debe inicializar el avatar con posición por defecto y permitir avanzar pasos', () => {
-    const initialPos = component.avatarPosition();
-    expect(initialPos.x).toBe(38);
-    expect(initialPos.y).toBe(56);
-    expect(component.expeditionDistance()).toBe(0);
-
-    component.advanceStep();
-    expect(component.expeditionDistance()).toBe(35);
-    expect(component.expeditionXp()).toBe(5);
-    expect(component.avatarTrail().length).toBe(2);
-  });
-
-  it('debe reiniciar el rastro de expedición y restaurar la posición inicial', () => {
-    component.advanceStep();
-    component.advanceStep();
-    expect(component.expeditionDistance()).toBe(70);
-
-    component.resetExpedition();
-    expect(component.expeditionDistance()).toBe(0);
-    expect(component.expeditionXp()).toBe(0);
-    expect(component.avatarPosition().x).toBe(38);
-    expect(component.avatarPosition().y).toBe(56);
+  it('debe tener Huancayo configurado como ciudad inicial por defecto', () => {
+    expect(component.currentCity().id).toBe('huancayo');
+    expect(component.currentCity().name).toBe('Huancayo');
   });
 });

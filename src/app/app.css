@@ -1,8 +1,235 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ========================================================
+   FONDO COMPLETO DE LA PÁGINA (Escenario Retro Pixel Art)
+   ======================================================== */
+.page-background-scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  image-rendering: pixelated;
+}
+
+/* 1. Degradado del cielo diurno fluido */
+.bg-sky-backdrop {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #7eccff 0%,
+    #aee3ff 25%,
+    #dbeafe 55%,
+    #bfdbfe 80%,
+    #93c5fd 100%
+  );
+}
+
+/* 2. Nubes flotantes animadas */
+.bg-clouds-layer {
+  position: absolute;
+  top: 15%;
+  left: 0;
+  width: 100%;
+  height: 25%;
+}
+
+.bg-pixel-cloud {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 4px 0 #cbd5e1;
+  opacity: 0.75;
+  animation: driftCloud 45s linear infinite;
+}
+
+.cloud-a {
+  top: 10px;
+  left: 5%;
+  width: 90px;
+  height: 22px;
+  animation-duration: 55s;
+}
+.cloud-a::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  width: 44px;
+  height: 14px;
+  background: #ffffff;
+}
+
+.cloud-b {
+  top: 60px;
+  left: 55%;
+  width: 120px;
+  height: 26px;
+  animation-duration: 65s;
+  animation-delay: -20s;
+}
+.cloud-b::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  width: 60px;
+  height: 16px;
+  background: #ffffff;
+}
+
+.cloud-c {
+  top: 35px;
+  left: 82%;
+  width: 75px;
+  height: 18px;
+  animation-duration: 50s;
+  animation-delay: -35s;
+}
+.cloud-c::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  width: 36px;
+  height: 12px;
+  background: #ffffff;
+}
+
+@keyframes driftCloud {
+  0% { transform: translateX(-150px); }
+  100% { transform: translateX(calc(100vw + 150px)); }
+}
+
+/* 3. Montañas lejanas */
+.bg-mountains-backdrop {
+  position: absolute;
+  bottom: 75px;
+  left: 0;
+  width: 100%;
+  height: 160px;
+}
+
+/* 4. Colinas medias con pinos */
+.bg-hills-mid {
+  position: absolute;
+  bottom: 50px;
+  left: 0;
+  width: 100%;
+  height: 130px;
+}
+
+/* 5. Colinas frontales de hierba */
+.bg-hills-fore {
+  position: absolute;
+  bottom: 35px;
+  left: 0;
+  width: 100%;
+  height: 100px;
+}
+
+.bg-scene-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 6. Franja de suelo pixel-art (césped y tierra) */
+.bg-ground-strip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ground-grass-top {
+  height: 12px;
+  background: repeating-linear-gradient(
+    90deg,
+    #22c55e 0px,
+    #22c55e 6px,
+    #16a34a 6px,
+    #16a34a 12px,
+    #4ade80 12px,
+    #4ade80 16px
+  );
+  border-top: 3px solid #14532d;
+  box-shadow: 0 3px 0 #15803d;
+}
+
+.ground-dirt-body {
+  flex: 1;
+  background: repeating-linear-gradient(
+    90deg,
+    #78350f 0px,
+    #78350f 8px,
+    #642b09 8px,
+    #642b09 16px,
+    #854d0e 16px,
+    #854d0e 24px
+  );
+  border-top: 3px solid #451a03;
+}
+
+/* 7. Partículas ambientales */
+.bg-particles-container {
+  position: absolute;
+  inset: 0;
+}
+
+.bg-particle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #facc15;
+  box-shadow: 0 0 6px #fde047;
+  opacity: 0.5;
+  animation: floatParticle 5s ease-in-out infinite alternate;
+}
+
+.p-1 { top: 25%; left: 15%; animation-delay: 0s; }
+.p-2 { top: 45%; right: 18%; animation-delay: 1.2s; background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
+.p-3 { top: 65%; left: 22%; animation-delay: 2.1s; }
+.p-4 { top: 35%; right: 35%; animation-delay: 3s; width: 6px; height: 6px; }
+.p-5 { top: 75%; right: 12%; animation-delay: 1.8s; }
+.p-6 { top: 55%; left: 8%; animation-delay: 2.7s; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+
+@keyframes floatParticle {
+  0% { transform: translateY(0px) scale(1); opacity: 0.3; }
+  100% { transform: translateY(-18px) scale(1.3); opacity: 0.85; }
+}
+
+/* 8. Textura de cuadrícula pixel art */
+.bg-pixel-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+/* ========================================================
+   CONTENEDOR DE PÁGINAS (Contenido sobre el fondo)
+   ======================================================== */
 .page-container {
-  min-height: calc(100vh - 200px);
+  position: relative;
+  z-index: 10;
+  min-height: calc(100vh - 180px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem 4rem 1rem;
 }

@@ -1,5 +1,66 @@
 <app-header></app-header>
 
+<!-- ESCENARIO COMPLETO DE FONDO DE LA PÁGINA (Retro Pixel-Art World) -->
+<div class="page-background-scene" aria-hidden="true">
+  <!-- Capa 1: Cielo diurno con degradado atmosférico fluido -->
+  <div class="bg-sky-backdrop"></div>
+
+  <!-- Capa 2: Nubes pixeladas animadas a media altura -->
+  <div class="bg-clouds-layer">
+    <div class="bg-pixel-cloud cloud-a"></div>
+    <div class="bg-pixel-cloud cloud-b"></div>
+    <div class="bg-pixel-cloud cloud-c"></div>
+  </div>
+
+  <!-- Capa 3: Cordillera montañosa lejana pixel-art con cumbres nevadas -->
+  <div class="bg-mountains-backdrop">
+    <svg viewBox="0 0 1200 160" preserveAspectRatio="none" class="bg-scene-svg">
+      <polygon points="0,160 80,70 140,160 220,50 310,160 420,60 520,160 620,40 730,160 840,65 940,160 1060,45 1160,160 1200,160" fill="#334155" opacity="0.6" />
+      <polygon points="220,50 200,75 215,70 225,78 240,72" fill="#f8fafc" opacity="0.75" />
+      <polygon points="620,40 600,68 615,64 625,72 640,66" fill="#f8fafc" opacity="0.75" />
+      <polygon points="1060,45 1040,70 1055,66 1065,74 1080,68" fill="#f8fafc" opacity="0.75" />
+    </svg>
+  </div>
+
+  <!-- Capa 4: Colinas verdes intermedias con siluetas de pinos -->
+  <div class="bg-hills-mid">
+    <svg viewBox="0 0 1200 130" preserveAspectRatio="none" class="bg-scene-svg">
+      <path d="M0,130 Q160,50 340,95 T700,55 T1060,85 T1200,75 L1200,130 Z" fill="#15803d" opacity="0.75" />
+      <polygon points="110,105 115,85 120,105" fill="#14532d" />
+      <polygon points="122,108 126,90 130,108" fill="#14532d" />
+      <polygon points="460,90 466,70 472,90" fill="#14532d" />
+      <polygon points="780,85 786,65 792,85" fill="#14532d" />
+      <polygon points="980,100 985,82 990,100" fill="#14532d" />
+    </svg>
+  </div>
+
+  <!-- Capa 5: Colinas frontales de césped esmeralda -->
+  <div class="bg-hills-fore">
+    <svg viewBox="0 0 1200 100" preserveAspectRatio="none" class="bg-scene-svg">
+      <path d="M0,100 Q180,30 380,70 T820,35 T1200,55 L1200,100 Z" fill="#16a34a" opacity="0.85" />
+    </svg>
+  </div>
+
+  <!-- Capa 6: Franja de suelo pixel-art al pie de página (césped + tierra fértil) -->
+  <div class="bg-ground-strip">
+    <div class="ground-grass-top"></div>
+    <div class="ground-dirt-body"></div>
+  </div>
+
+  <!-- Capa 7: Partículas ambientales doradas y celestes (esporas/luciérnagas) -->
+  <div class="bg-particles-container">
+    <div class="bg-particle p-1"></div>
+    <div class="bg-particle p-2"></div>
+    <div class="bg-particle p-3"></div>
+    <div class="bg-particle p-4"></div>
+    <div class="bg-particle p-5"></div>
+    <div class="bg-particle p-6"></div>
+  </div>
+
+  <!-- Capa 8: Cuadrícula sutil de textura pixel art -->
+  <div class="bg-pixel-grid-overlay"></div>
+</div>
+
 <main class="page-container">
   <router-outlet></router-outlet>
 </main>
