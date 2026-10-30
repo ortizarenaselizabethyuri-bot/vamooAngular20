@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GoogleMap, MapMarker, MapPolyline, MapCircle } from '@angular/google-maps';
@@ -78,8 +78,14 @@ export class JugarComponent implements OnInit {
     lng: -75.2100,
   });
 
-  /** Nivel de zoom de aventura del mapa */
-  readonly mapZoom = signal<number>(16);
+  /** Nivel de zoom inicial del mapa (Zoom 7: vista panorámica amplia / macro) */
+  readonly mapZoom = signal<number>(7);
+
+  /** Estado de arrastre manual del mapa con el cursor de manito */
+  readonly isDragging = signal<boolean>(false);
+
+  /** Referencia al componente del mapa de Google Maps para sincronización de vista */
+  @ViewChild(GoogleMap) googleMap?: GoogleMap;
 
   /** Estado de inicialización del mapa */
   readonly isMapReady = signal<boolean>(false);
@@ -100,18 +106,20 @@ export class JugarComponent implements OnInit {
     });
   }
 
-  /** Opciones de personalización de Google Maps con el tema Pixar Aventura */
+  /** Opciones de personalización de Google Maps con el tema Pixar Aventura y buffer de desplazamiento con manito */
   readonly mapOptions: google.maps.MapOptions = {
     styles: PIXAR_MAP_THEME,
     disableDefaultUI: false,
     mapTypeControl: false,
     streetViewControl: false,
-    fullscreenControl: true,
-    zoomControl: true,
+    fullscreenControl: false,
+    zoomControl: false,
     clickableIcons: false,
     gestureHandling: 'greedy',
+    draggableCursor: 'grab',
+    draggingCursor: 'grabbing',
     maxZoom: 19,
-    minZoom: 12,
+    minZoom: 6,
   };
 
   /** Opciones de estilo para el sendero de expedición (Polyline Pixar) */
@@ -275,13 +283,74 @@ export class JugarComponent implements OnInit {
   }
 
   /**
+   * Se ejecuta al iniciar el arrastre del mapa con el ratón o gesto táctil.
+   * Activa el estado visual de manito cerrada y pausa temporalmente el auto-centrado.
+   *
+   * @returns void
+   */
+  onMapDragStart(): void {
+    this.isDragging.set(true);
+    this.autoFollow.set(false);
+  }
+
+  /**
    * Se ejecuta cuando el usuario arrastra manualmente el mapa con el ratón o touch.
-   * Pausa temporalmente el auto-seguimiento de cámara para permitir explorar otras áreas libremente.
+   * Garantiza que la cámara responda fluidamente y mantenga la exploración manual.
    *
    * @returns void
    */
   onMapDrag(): void {
     this.autoFollow.set(false);
+  }
+
+  /**
+   * Se ejecuta al soltar el clic tras arrastrar el mapa.
+   * Restablece el cursor de manito abierta.
+   *
+   * @returns void
+   */
+  onMapDragEnd(): void {
+    this.isDragging.set(false);
+  }
+
+  /**
+   * Sincroniza el signal `mapZoom` cuando el usuario modifica el zoom con la rueda del ratón o doble clic.
+   *
+   * @returns void
+   */
+  onZoomChanged(): void {
+    if (this.googleMap) {
+      const current = this.googleMap.getZoom();
+      if (current !== undefined && current !== this.mapZoom()) {
+        this.mapZoom.set(current);
+      }
+    }
+  }
+
+  /**
+   * Incrementa o decrementa el nivel de zoom en un paso (+1 o -1),
+   * manteniéndose dentro de los límites calibrados (6 a 19).
+   *
+   * @param delta - Variación de nivel (+1 para acercar, -1 para alejar).
+   * @returns void
+   */
+  stepZoom(delta: number): void {
+    const next = Math.min(19, Math.max(6, this.mapZoom() + delta));
+    this.mapZoom.set(next);
+  }
+
+  /**
+   * Establece directamente uno de los niveles de zoom precalibrados:
+   * - 7: Vista Macro / Panorámica regional amplia
+   * - 12: Vista Intermedia de distrito y vías principales
+   * - 16: Vista Detallada de calles y manzanas
+   *
+   * @param level - Nivel de zoom objetivo.
+   * @returns void
+   */
+  setZoomPreset(level: number): void {
+    const target = Math.min(19, Math.max(6, level));
+    this.mapZoom.set(target);
   }
 
   /**
@@ -330,11 +399,9 @@ export class JugarComponent implements OnInit {
     this.geoService.resetPath();
   }
 
-
-
   /**
    * Centra la cámara del mapa en la ubicación satelital en tiempo real del aventurero
-   * y reactiva el seguimiento automático de cámara.
+   * y reactiva el seguimiento automático de cámara, respetando la escala actual de zoom.
    *
    * @returns void
    */
@@ -343,7 +410,6 @@ export class JugarComponent implements OnInit {
     const userPos = this.geoService.currentPosition();
     if (userPos) {
       this.mapCenter.set(userPos);
-      this.mapZoom.set(16);
     } else {
       this.geoService.startTracking();
     }
