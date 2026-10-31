@@ -361,19 +361,24 @@
   cursor: inherit !important;
 }
 
-/* Capa de Texturizado Pixelado Orgánico 2D sobre la cartografía viva de Google Maps */
+/* Capa de Texturizado Pixelado Orgánico 2D:
+   Combina micro-trama de tejas andinas (hilera de arcilla) y dithering de césped (verde bosque + esmeralda) */
 .map-pixel-texture-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
   background-image: 
-    radial-gradient(rgba(15, 23, 42, 0.08) 1.2px, transparent 1.2px),
-    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-  background-size: 8px 8px, 8px 8px, 8px 8px;
+    /* 1. Malla horizontal desplazada: relieve de hileras de tejas andinas */
+    linear-gradient(to right, rgba(154, 52, 18, 0.09) 1px, transparent 1px),
+    /* 2. Dithering de césped pixelado: micro-puntos verde bosque oscuro sobre el verde esmeralda */
+    radial-gradient(rgba(6, 95, 70, 0.16) 1.2px, transparent 1.2px),
+    /* 3. Cuadrícula base de cuantización de bloques Minecraft 2D (8x8px) */
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+  background-size: 8px 4px, 8px 8px, 8px 8px;
+  background-position: 0 0, 4px 4px, 0 0;
   mix-blend-mode: multiply;
-  opacity: 0.65;
+  opacity: 0.72;
 }
 
 /* --------------------------------------------------------
@@ -623,9 +628,10 @@
   border: 1px solid #000;
 }
 
-.dot-water { background: #38bdf8; }
-.dot-park { background: #4ade80; }
-.dot-road { background: #facc15; }
+.dot-water { background: #06b6d4; border-color: #0891b2; }
+.dot-park { background: #10b981; border-color: #065f46; }
+.dot-house { background: #f97316; border-color: #9a3412; }
+.dot-road { background: #facc15; border-color: #a16207; }
 
 .legend-step-badge {
   font-family: var(--font-pixel), monospace;
