@@ -49,7 +49,7 @@ describe('JugarComponent', () => {
   it('debe inicializarse en la pestaña de mapa interactivo y con estilos Pixar', () => {
     expect(component.activeTab()).toBe('mapa');
     expect(component.mapOptions.styles).toBeDefined();
-    expect(component.mapCenter().lat).toBeCloseTo(-12.1217, 2);
+    expect(component.mapCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
   it('debe alternar entre pestañas de mapa y modalidades', () => {
@@ -98,10 +98,14 @@ describe('JugarComponent', () => {
   });
 
   it('debe gestionar el inicio, pausa y simulación de pasos en la expedición (Etapa 2)', () => {
-    // Inicialmente no está rastreando
+    // Al inicializarse con ngOnInit() ya inicia el rastreo GPS en vivo
+    expect(component.geoService.isTracking()).toBe(true);
+
+    // Pausar expedición
+    component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(false);
 
-    // Iniciar expedición
+    // Reanudar expedición
     component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(true);
 
@@ -110,7 +114,7 @@ describe('JugarComponent', () => {
     expect(component.polylinePath().length).toBeGreaterThan(0);
     expect(component.geoService.totalDistanceMeters()).toBeGreaterThanOrEqual(0);
 
-    // Pausar expedición
+    // Pausar expedición nuevamente
     component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(false);
 

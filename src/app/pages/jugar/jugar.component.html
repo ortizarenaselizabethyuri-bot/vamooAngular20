@@ -137,40 +137,123 @@
             }
           </div>
 
-          <!-- Marco del Mapa Interactivo -->
-          <div class="map-frame-container">
+          <!-- Marco del Mapa Interactivo con Soporte de Desplazamiento por Manito y Buffer Interno -->
+          <div class="map-frame-container" [class.is-dragging]="isDragging()">
             @if (isMapReady()) {
-              <google-map 
-                [center]="mapCenter()" 
-                [zoom]="mapZoom()" 
-                [options]="mapOptions" 
-                width="100%" 
-                height="540px">
+              <!-- Buffer de renderizado ampliado: precarga los bordes en memoria para evitar pop-in al arrastrar -->
+              <div class="map-canvas-overscan">
+                <google-map 
+                  [center]="mapCenter()" 
+                  [zoom]="mapZoom()" 
+                  [options]="mapOptions" 
+                  (mapDragstart)="onMapDragStart()"
+                  (mapDrag)="onMapDrag()"
+                  (mapDragend)="onMapDragEnd()"
+                  (zoomChanged)="onZoomChanged()"
+                  width="100%" 
+                  height="100%">
 
-                <!-- 1. Halo satelital de precisión alrededor del usuario -->
-                @if (userCoords()) {
-                  <map-circle 
-                    [center]="userCoords()!" 
-                    [options]="accuracyCircleOptions">
-                  </map-circle>
+                  <!-- 1. Halo satelital de precisión alrededor del usuario -->
+                  @if (userCoords()) {
+                    <map-circle 
+                      [center]="userCoords()!" 
+                      [options]="accuracyCircleOptions">
+                    </map-circle>
+                  }
+
+                  <!-- 2. Marcador del Aventurero con avatar de fauna silvestre -->
+                  @if (adventurerMarkerOptions()) {
+                    <map-marker 
+                      [options]="adventurerMarkerOptions()!">
+                    </map-marker>
+                  }
+
+                  <!-- 3. Trazado del Sendero de Expedición (Polyline Pixar Aventura) -->
+                  @if (polylinePath().length > 1) {
+                    <map-polyline 
+                      [path]="polylinePath()" 
+                      [options]="polylineOptions">
+                    </map-polyline>
+                  }
+
+                </google-map>
+
+                <!-- Capa de Texturizado Pixelado Orgánico 2D (Etapa 2: realce táctil sobre colores vivos) -->
+                <div class="map-pixel-texture-overlay" aria-hidden="true"></div>
+              </div>
+
+              <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados (Z15 Amplia a Z19 Jugador) -->
+              <div class="map-overlay-zoom-presets" role="toolbar" aria-label="Niveles de Zoom">
+                <button 
+                  type="button" 
+                  class="zoom-preset-btn" 
+                  [class.active]="mapZoom() === 15" 
+                  (click)="setZoomPreset(15)" 
+                  title="Vista Más Amplia (Zoom 15 - Donde se renderiza la textura 2D)">
+                  <span class="preset-icon">🌍</span>
+                  <span>AMPLIA (Z15)</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="zoom-preset-btn" 
+                  [class.active]="mapZoom() >= 16 && mapZoom() <= 18" 
+                  (click)="setZoomPreset(17)" 
+                  title="Vista Intermedia de Barrio (Z17)">
+                  <span class="preset-icon">🏘️</span>
+                  <span>BARRIO (Z17)</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="zoom-preset-btn" 
+                  [class.active]="mapZoom() === 19" 
+                  (click)="setZoomPreset(19)" 
+                  title="Vista Principal del Jugador (Z19 - Ubicación habitual)">
+                  <span class="preset-icon">📍</span>
+                  <span>JUGADOR (Z19)</span>
+                </button>
+              </div>
+
+              <!-- HUD LATERAL: Ajuste Fino (+ / - / Nivel) -->
+              <div class="map-overlay-stepper" role="group" aria-label="Ajuste fino de Zoom">
+                <button 
+                  type="button" 
+                  class="stepper-btn" 
+                  (click)="stepZoom(1)" 
+                  [disabled]="mapZoom() >= 19" 
+                  title="Acercar vista (+)">
+                  <span>+</span>
+                </button>
+                <div class="stepper-badge" title="Nivel de zoom actual">
+                  <span>Z{{ mapZoom() }}</span>
+                </div>
+                <button 
+                  type="button" 
+                  class="stepper-btn" 
+                  (click)="stepZoom(-1)" 
+                  [disabled]="mapZoom() <= 15" 
+                  title="Alejar vista (-)">
+                  <span>-</span>
+                </button>
+              </div>
+
+              <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
+              <div class="map-overlay-drag-hint">
+                <div class="drag-indicator-pill">
+                  <span class="drag-hand-icon">{{ isDragging() ? '✊' : '✋' }}</span>
+                  <span class="drag-status-label">{{ isDragging() ? 'DESPLAZANDO MAPA...' : 'DESPLAZAMIENTO LIBRE' }}</span>
+                </div>
+                @if (!autoFollow()) {
+                  <button 
+                    type="button" 
+                    class="btn-floating-recenter" 
+                    (click)="centerOnUser()" 
+                    title="Volver a enfocar en tu GPS">
+                    <span class="recenter-icon">🎯</span>
+                    <span>VOLVER A CENTRAR</span>
+                  </button>
                 }
+              </div>
 
-                <!-- 2. Marcador del Aventurero con avatar de fauna silvestre -->
-                @if (adventurerMarkerOptions()) {
-                  <map-marker 
-                    [options]="adventurerMarkerOptions()!">
-                  </map-marker>
-                }
-
-                <!-- 3. Trazado del Sendero de Expedición (Polyline Pixar Aventura) -->
-                @if (polylinePath().length > 1) {
-                  <map-polyline 
-                    [path]="polylinePath()" 
-                    [options]="polylineOptions">
-                  </map-polyline>
-                }
-
-              </google-map>
             } @else {
               <!-- Pantalla de carga animada -->
               <div class="map-loading-placeholder">
@@ -192,7 +275,7 @@
               <span>PARQUES Y RESERVAS ECOLÓGICAS</span>
             </div>
             <div class="legend-item legend-step-badge">
-              <span>🛰️ ETAPA 2: GPS EN VIVO & MAPA PIXAR</span>
+              <span>🎨 ETAPA 2: COLORES VIVOS & TEXTURA 2D (BASE Z15)</span>
             </div>
           </div>
 
@@ -266,13 +349,15 @@
         </div>
       }
 
-      <!-- Pie informativo -->
-      <div class="footer-callout">
-        <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
-        <button type="button" class="btn-login-link" (click)="goToLogin()">
-          INICIAR SESIÓN
-        </button>
-      </div>
+      <!-- Pie informativo (Solo visible si el usuario no ha iniciado sesión) -->
+      @if (!authService.isAuthenticated()) {
+        <div class="footer-callout">
+          <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
+          <button type="button" class="btn-login-link" (click)="goToLogin()">
+            INICIAR SESIÓN
+          </button>
+        </div>
+      }
 
     </div>
 
