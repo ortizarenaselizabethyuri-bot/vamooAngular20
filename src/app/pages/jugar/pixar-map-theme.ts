@@ -1,17 +1,16 @@
-import { VAMOO_MAP_PALETTE } from './map-palette.config.js';
+import { VAMOO_MAP_PALETTE, VamooMapPalette } from './map-palette.config.js';
 
 /**
  * Función fábrica que genera el array de estilos vectoriales para Google Maps Platform,
- * derivado directamente de la configuración centralizada VAMOO_MAP_PALETTE.
+ * derivado directamente de una paleta especificada o de VAMOO_MAP_PALETTE por defecto.
  *
- * Propósito: Mapear todas las capas de Google Maps (incluyendo las dos tonalidades de áreas verdes:
- * parques urbanos '#a8e7be' y vegetación natural '#c1efd1', manzanas '#FDD7AA' y vías '#FFF7EE')
- * hacia la paleta centralizada sin código duro disperso.
+ * Propósito: Mapear todas las capas de Google Maps hacia la paleta activa en tiempo real.
  *
+ * @param palette - Paleta opcional a utilizar (por defecto VAMOO_MAP_PALETTE).
  * @returns google.maps.MapTypeStyle[] Arreglo con la configuración de estilizado oficial de Google Maps.
  */
-export function buildVamooMapTheme(): google.maps.MapTypeStyle[] {
-  const p = VAMOO_MAP_PALETTE;
+export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTypeStyle[] {
+  const p = palette || VAMOO_MAP_PALETTE;
 
   return [
     // 1. Fondo general del terreno neutro
@@ -134,7 +133,7 @@ export function buildVamooMapTheme(): google.maps.MapTypeStyle[] {
     },
 
     // ------------------------------------------------------------------------
-    // 6. MANZANAS URBANAS / BLOQUES DE LA CIUDAD (#FDD7AA)
+    // 6. MANZANAS URBANAS Y EDIFICACIONES
     // ------------------------------------------------------------------------
     {
       featureType: 'landscape.man_made',
@@ -149,21 +148,12 @@ export function buildVamooMapTheme(): google.maps.MapTypeStyle[] {
         { weight: p.manzanasUrbanas.strokeWeight },
       ],
     },
-
-    // ------------------------------------------------------------------------
-    // 7. EDIFICACIONES Y CASAS (TEJAS ANDINAS: solo sobre huellas de casas reales)
-    // ------------------------------------------------------------------------
     {
-      featureType: 'landscape.man_made.building',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
-    },
-    {
-      featureType: 'landscape.man_made.building',
+      featureType: 'administrative.land_parcel',
       elementType: 'geometry.stroke',
       stylers: [
         { color: p.edificacionesCasas.stroke },
-        { weight: p.edificacionesCasas.strokeWeight },
+        { weight: 1.0 },
       ],
     },
 

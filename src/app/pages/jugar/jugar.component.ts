@@ -1,10 +1,11 @@
-import { Component, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GoogleMap, MapMarker, MapPolyline, MapCircle } from '@angular/google-maps';
 import { GeolocationService, GeoCoordinates } from '../../services/geolocation.service.js';
 import { AuthService } from '../../services/auth.service.js';
-import { PIXAR_MAP_THEME } from './pixar-map-theme.js';
+import { PALETAS_PREDEFINIDAS, PALETA_SELECCIONADA, VamooMapPalette } from './map-palette.config.js';
+import { PIXAR_MAP_THEME, buildVamooMapTheme } from './pixar-map-theme.js';
 
 /**
  * Interfaz que define un modo de expedición o juego en Vamoo,
@@ -59,7 +60,7 @@ export interface RouteSimulationState {
   templateUrl: './jugar.component.html',
   styleUrl: './jugar.component.css',
 })
-export class JugarComponent implements OnInit {
+export class JugarComponent implements OnInit, AfterViewInit {
   /** Servicio de enrutamiento y navegación */
   private readonly router = inject(Router);
 
@@ -93,9 +94,40 @@ export class JugarComponent implements OnInit {
   /** Control para seguimiento automático de cámara al caminar */
   readonly autoFollow = signal<boolean>(true);
 
+  /** Identificador de la paleta cartográfica activa actualmente */
+  readonly selectedPaletteId = signal<keyof typeof PALETAS_PREDEFINIDAS>(PALETA_SELECCIONADA);
+
+  /** Catálogo de paletas predefinidas para conmutación interactiva */
+  readonly availablePalettes = PALETAS_PREDEFINIDAS;
+
+  /** Opciones reactivas de Google Maps sincronizadas con la paleta activa */
+  readonly currentMapOptions = computed<google.maps.MapOptions>(() => {
+    const paleta = this.availablePalettes[this.selectedPaletteId()];
+    const styles = buildVamooMapTheme(paleta);
+    return {
+      styles,
+      disableDefaultUI: false,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: false,
+      clickableIcons: false,
+      gestureHandling: 'greedy',
+      draggableCursor: 'grab',
+      draggingCursor: 'grabbing',
+      maxZoom: 19,
+      minZoom: 15,
+    };
+  });
+
+  /** Getter de compatibilidad con pruebas unitarias y componentes hijos */
+  get mapOptions(): google.maps.MapOptions {
+    return this.currentMapOptions();
+  }
+
   /**
    * Constructor del componente.
-   * Inicializa el efecto reactivo que sincroniza en tiempo real el centro del mapa con la posición satelital del aventurero.
+   * Inicializa efectos reactivos para auto-centrado GPS y sincronización de estilos de Google Maps.
    */
   constructor() {
     effect(() => {
@@ -104,23 +136,15 @@ export class JugarComponent implements OnInit {
         this.mapCenter.set(userPos);
       }
     });
-  }
 
-  /** Opciones de personalización de Google Maps con el tema Pixar Aventura y límites calibrados (Z15 a Z19) */
-  readonly mapOptions: google.maps.MapOptions = {
-    styles: PIXAR_MAP_THEME,
-    disableDefaultUI: false,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    zoomControl: false,
-    clickableIcons: false,
-    gestureHandling: 'greedy',
-    draggableCursor: 'grab',
-    draggingCursor: 'grabbing',
-    maxZoom: 19,
-    minZoom: 15,
-  };
+    // Sincroniza dinámicamente los estilos vectoriales en la instancia viva de Google Maps
+    effect(() => {
+      const opts = this.currentMapOptions();
+      if (this.googleMap?.googleMap && opts.styles) {
+        this.googleMap.googleMap.setOptions({ styles: opts.styles });
+      }
+    });
+  }
 
   /** Opciones de estilo para el sendero de expedición (Polyline Pixar) */
   readonly polylineOptions: google.maps.PolylineOptions = {
@@ -283,6 +307,18 @@ export class JugarComponent implements OnInit {
   }
 
   /**
+   * Ciclo posterior al renderizado de la vista.
+   * Aplica inmediatamente la configuración de estilos de la paleta activa sobre la instancia viva de Google Maps.
+   *
+   * @returns void
+   */
+  ngAfterViewInit(): void {
+    if (this.googleMap?.googleMap) {
+      this.googleMap.googleMap.setOptions(this.currentMapOptions());
+    }
+  }
+
+  /**
    * Se ejecuta al iniciar el arrastre del mapa con el ratón o gesto táctil.
    * Activa el estado visual de manito cerrada y pausa temporalmente el auto-centrado.
    *
@@ -351,6 +387,21 @@ export class JugarComponent implements OnInit {
   setZoomPreset(level: number): void {
     const target = Math.min(19, Math.max(15, level));
     this.mapZoom.set(target);
+  }
+
+  /**
+   * Cambia la paleta activa en tiempo real y fuerza a Google Maps a actualizar sus estilos inmediatamente.
+   *
+   * @param paletteId - Identificador de la paleta predefinida a activar.
+   * @returns void
+   */
+  changePalette(paletteId: keyof typeof PALETAS_PREDEFINIDAS): void {
+    this.selectedPaletteId.set(paletteId);
+    const paleta = this.availablePalettes[paletteId];
+    const newStyles = buildVamooMapTheme(paleta);
+    if (this.googleMap?.googleMap) {
+      this.googleMap.googleMap.setOptions({ styles: newStyles });
+    }
   }
 
   /**

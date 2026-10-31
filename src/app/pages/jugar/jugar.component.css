@@ -436,6 +436,54 @@
   font-size: 0.75rem;
 }
 
+/* Barra de Selección Rápida de Paletas en Vivo */
+.map-overlay-palette-bar {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(9, 14, 23, 0.92);
+  backdrop-filter: blur(6px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1.5px solid #334155;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 90%;
+}
+
+.palette-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 3px;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.palette-btn:hover {
+  color: #f8fafc;
+  background: #334155;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.palette-btn.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  border-color: #fde68a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6), inset 1px 1px 0 #fef08a;
+}
+
 /* 2. Control Lateral Stepper (+ / Z / -) */
 .map-overlay-stepper {
   position: absolute;

@@ -145,7 +145,7 @@
                 <google-map 
                   [center]="mapCenter()" 
                   [zoom]="mapZoom()" 
-                  [options]="mapOptions" 
+                  [options]="currentMapOptions()" 
                   (mapDragstart)="onMapDragStart()"
                   (mapDrag)="onMapDrag()"
                   (mapDragend)="onMapDragEnd()"
@@ -210,6 +210,50 @@
                   title="Vista Principal del Jugador (Z19 - Ubicación habitual)">
                   <span class="preset-icon">📍</span>
                   <span>JUGADOR (Z19)</span>
+                </button>
+              </div>
+
+              <!-- HUD SUPERIOR 2: Selector Rápido de Paletas de Color en Vivo -->
+              <div class="map-overlay-palette-bar" role="toolbar" aria-label="Selector de Paletas">
+                <button 
+                  type="button" 
+                  class="palette-btn" 
+                  [class.active]="selectedPaletteId() === 'tierraLino'" 
+                  (click)="changePalette('tierraLino')" 
+                  title="Paleta Tierra y Lino (Eco-Pueblo Artesanal)">
+                  <span>🌾 Tierra & Lino</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="palette-btn" 
+                  [class.active]="selectedPaletteId() === 'valleAndino'" 
+                  (click)="changePalette('valleAndino')" 
+                  title="Paleta Valle Andino (Tejas Andinas y Melocotón)">
+                  <span>🏔️ Valle Andino</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="palette-btn" 
+                  [class.active]="selectedPaletteId() === 'esmeraldaPixar'" 
+                  (click)="changePalette('esmeraldaPixar')" 
+                  title="Paleta Esmeralda Pixar (Luminosa y Alegre)">
+                  <span>🌿 Esmeralda Pixar</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="palette-btn" 
+                  [class.active]="selectedPaletteId() === 'retroRPG'" 
+                  (click)="changePalette('retroRPG')" 
+                  title="Paleta Retro RPG (16-Bits Clásico)">
+                  <span>🎮 Retro RPG</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="palette-btn" 
+                  [class.active]="selectedPaletteId() === 'crepuscular'" 
+                  (click)="changePalette('crepuscular')" 
+                  title="Paleta Aventura Crepuscular (Noche Mágica)">
+                  <span>🌌 Crepuscular</span>
                 </button>
               </div>
 
