@@ -628,11 +628,11 @@
   border: 1px solid #000;
 }
 
-.dot-water { background: #06b6d4; border-color: #0891b2; }
-.dot-park { background: #10b981; border-color: #065f46; }
-.dot-house { background: #f97316; border-color: #9a3412; }
-.dot-block { background: #FDD7AA; border-color: #fbc28b; }
-.dot-road { background: #FFF7EE; border-color: #94a3b8; }
+.dot-water { background: #64b5f6; border-color: #1e88e5; }
+.dot-park { background: #588157; border-color: #344e41; }
+.dot-house { background: #D4A373; border-color: #8c5a3c; }
+.dot-block { background: #F5EBE0; border-color: #e6ccb2; }
+.dot-road { background: #FAEDCD; border-color: #b7b7a4; }
 
 .legend-step-badge {
   font-family: var(--font-pixel), monospace;
