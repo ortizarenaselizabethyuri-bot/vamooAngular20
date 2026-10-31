@@ -4,7 +4,8 @@ import { VAMOO_MAP_PALETTE, VamooMapPalette } from './map-palette.config.js';
  * Función fábrica que genera el array de estilos vectoriales para Google Maps Platform,
  * derivado directamente de una paleta especificada o de VAMOO_MAP_PALETTE por defecto.
  *
- * Propósito: Mapear todas las capas de Google Maps hacia la paleta activa en tiempo real.
+ * Propósito: Mapear estrictamente las capas oficiales soportadas por Google Maps JavaScript API
+ * para evitar errores de serialización "Custom style string" y garantizar renderizado visual instantáneo.
  *
  * @param palette - Paleta opcional a utilizar (por defecto VAMOO_MAP_PALETTE).
  * @returns google.maps.MapTypeStyle[] Arreglo con la configuración de estilizado oficial de Google Maps.
@@ -13,7 +14,7 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
   const p = palette || VAMOO_MAP_PALETTE;
 
   return [
-    // 1. Fondo general del terreno neutro
+    // 1. Fondo general del terreno
     {
       elementType: 'geometry',
       stylers: [{ color: p.terrenoBase.fondo }],
@@ -24,23 +25,17 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       featureType: 'poi.business',
       stylers: [{ visibility: 'off' }],
     },
+    {
+      featureType: 'poi.attraction',
+      elementType: 'geometry',
+      stylers: [{ color: p.areasVerdesParques.fill }],
+    },
 
-    // ------------------------------------------------------------------------
-    // 3. ÁREAS VERDES TIPO 1: PARQUES URBANOS, PLAZAS Y COMPLEJOS DEPORTIVOS
-    // (En Google Maps nativo: #a8e7be)
-    // ------------------------------------------------------------------------
+    // 3. Áreas verdes tipo 1: Parques, jardines y áreas verdes destacadas (Google Maps: #a8e7be)
     {
       featureType: 'poi.park',
       elementType: 'geometry.fill',
       stylers: [{ color: p.areasVerdesParques.fill }],
-    },
-    {
-      featureType: 'poi.park',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.areasVerdesParques.stroke },
-        { weight: p.areasVerdesParques.strokeWeight },
-      ],
     },
     {
       featureType: 'poi.park',
@@ -55,68 +50,12 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
         { weight: p.areasVerdesParques.textStrokeWeight },
       ],
     },
-    {
-      featureType: 'poi.sports_complex',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.areasVerdesParques.fill }],
-    },
-    {
-      featureType: 'poi.sports_complex',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.areasVerdesParques.stroke },
-        { weight: p.areasVerdesParques.strokeWeight },
-      ],
-    },
-    {
-      featureType: 'poi.attraction',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.areasVerdesParques.fill }],
-    },
 
-    // ------------------------------------------------------------------------
-    // 4. ÁREAS VERDES TIPO 2: PRADERAS, CUBIERTA VEGETAL Y TERRENO NATURAL
-    // (En Google Maps nativo: #c1efd1)
-    // ------------------------------------------------------------------------
-    {
-      featureType: 'landscape.natural',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.areasVerdesVegetacion.fill }],
-    },
-    {
-      featureType: 'landscape.natural.landcover',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.areasVerdesVegetacion.fill }],
-    },
-    {
-      featureType: 'landscape.natural.landcover',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.areasVerdesVegetacion.stroke },
-        { weight: p.areasVerdesVegetacion.strokeWeight },
-      ],
-    },
-    {
-      featureType: 'landscape.natural.terrain',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.areasVerdesVegetacion.fill }],
-    },
-
-    // ------------------------------------------------------------------------
-    // 5. MASAS DE AGUA Y RÍOS
-    // ------------------------------------------------------------------------
+    // 4. Masas de agua cristalinas (Ríos, lagos, mar turquesa)
     {
       featureType: 'water',
       elementType: 'geometry.fill',
       stylers: [{ color: p.hidrografia.fill }],
-    },
-    {
-      featureType: 'water',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.hidrografia.stroke },
-        { weight: p.hidrografia.strokeWeight },
-      ],
     },
     {
       featureType: 'water',
@@ -132,34 +71,21 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       ],
     },
 
-    // ------------------------------------------------------------------------
-    // 6. MANZANAS URBANAS Y EDIFICACIONES
-    // ------------------------------------------------------------------------
+    // 5. Áreas verdes tipo 2: Paisaje natural, praderas y cubierta vegetal (Google Maps: #c1efd1)
+    {
+      featureType: 'landscape.natural',
+      elementType: 'geometry',
+      stylers: [{ color: p.areasVerdesVegetacion.fill }],
+    },
+
+    // 6. Manzanas urbanas / Terreno edificado
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.fill',
       stylers: [{ color: p.manzanasUrbanas.fill }],
     },
-    {
-      featureType: 'landscape.man_made',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.manzanasUrbanas.stroke },
-        { weight: p.manzanasUrbanas.strokeWeight },
-      ],
-    },
-    {
-      featureType: 'administrative.land_parcel',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.edificacionesCasas.stroke },
-        { weight: 1.0 },
-      ],
-    },
 
-    // ------------------------------------------------------------------------
-    // 8. RED VIAL Y CARRETERAS DE EXPLORACIÓN (#FFF7EE)
-    // ------------------------------------------------------------------------
+    // 7. Carreteras y caminos locales
     {
       featureType: 'road',
       elementType: 'geometry.fill',
@@ -167,19 +93,6 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
     },
     {
       featureType: 'road',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.redVial.callesLocales.stroke },
-        { weight: p.redVial.callesLocales.strokeWeight },
-      ],
-    },
-    {
-      featureType: 'road.local',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.redVial.callesLocales.fill }],
-    },
-    {
-      featureType: 'road.local',
       elementType: 'geometry.stroke',
       stylers: [
         { color: p.redVial.callesLocales.stroke },
@@ -205,13 +118,12 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       stylers: [{ color: p.redVial.avenidas.fill }],
     },
     {
-      featureType: 'road.arterial',
-      elementType: 'geometry.stroke',
-      stylers: [
-        { color: p.redVial.avenidas.stroke },
-        { weight: p.redVial.avenidas.strokeWeight },
-      ],
+      featureType: 'road.local',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.redVial.callesLocales.fill }],
     },
+
+    // 8. Tipografía de calles y etiquetas
     {
       featureType: 'road',
       elementType: 'labels.text.fill',
@@ -230,15 +142,15 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
     {
       featureType: 'administrative',
       elementType: 'geometry.stroke',
-      stylers: [{ color: '#94a3b8' }, { weight: 1.2 }],
+      stylers: [{ color: '#cbd5e1' }, { weight: 1.2 }],
     },
     {
       featureType: 'administrative.locality',
       elementType: 'labels.text.fill',
-      stylers: [{ color: '#0f172a' }],
+      stylers: [{ color: '#1e293b' }],
     },
 
-    // 10. Transporte y estaciones sutiles
+    // 10. Transporte y tránsito sutil
     {
       featureType: 'transit',
       elementType: 'geometry',
