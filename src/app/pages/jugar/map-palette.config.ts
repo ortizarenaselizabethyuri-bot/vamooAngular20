@@ -89,8 +89,8 @@ export const VAMOO_MAP_PALETTE: VamooMapPalette = {
   terreno: {
     fondo: '#f8fafc',
     praderaNatural: '#e2f5ea',
-    bloqueUrbanoFondo: '#f1f5f9',    // Color suave original del bloque urbano/manzana
-    bloqueUrbanoBorde: '#e2e8f0',    // Borde suave delimitador de la manzana
+    bloqueUrbanoFondo: '#FDD7AA',    // Fondo cálido de las manzanas urbanas solicitado
+    bloqueUrbanoBorde: '#fbc28b',    // Borde delimitador sutil de la manzana
   },
 
   // 1. Tejas Andinas (Terracota cálido de arcilla cocida con bisel de sombra de alero)
@@ -133,8 +133,8 @@ export const VAMOO_MAP_PALETTE: VamooMapPalette = {
       strokeWeight: 2.0,
     },
     callesLocales: {
-      fill: '#ffffff',        // Blanco asfalto puro
-      stroke: '#475569',      // Gris pizarra de alto contraste
+      fill: '#FFF7EE',        // Marfil cálido suave para carreteras y vías solicitado
+      stroke: '#94a3b8',      // Contorno pizarra suave para contraste con #FDD7AA
       strokeWeight: 1.6,
     },
     etiquetas: {

@@ -631,7 +631,8 @@
 .dot-water { background: #06b6d4; border-color: #0891b2; }
 .dot-park { background: #10b981; border-color: #065f46; }
 .dot-house { background: #f97316; border-color: #9a3412; }
-.dot-road { background: #facc15; border-color: #a16207; }
+.dot-block { background: #FDD7AA; border-color: #fbc28b; }
+.dot-road { background: #FFF7EE; border-color: #94a3b8; }
 
 .legend-step-badge {
   font-family: var(--font-pixel), monospace;
