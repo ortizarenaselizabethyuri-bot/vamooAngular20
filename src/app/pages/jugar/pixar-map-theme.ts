@@ -93,14 +93,29 @@ export function buildVamooMapTheme(): google.maps.MapTypeStyle[] {
       stylers: [{ color: p.terreno.praderaNatural }],
     },
 
-    // 6. Edificaciones y Manzanas Urbanas (Estilo Tejas Andinas: solo en huellas reales de Google Maps)
+    // 6. Fondo suave de las manzanas / bloques urbanos (Tono suave original)
     {
       featureType: 'landscape.man_made',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.terreno.bloqueUrbanoFondo }],
+    },
+    {
+      featureType: 'landscape.man_made',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.terreno.bloqueUrbanoBorde },
+        { weight: 1.0 },
+      ],
+    },
+
+    // 7. Edificaciones y Casas dentro de la manzana (Estilo Tejas Andinas en huellas reales)
+    {
+      featureType: 'landscape.man_made.building',
       elementType: 'geometry.fill',
       stylers: [{ color: p.edificacionesTejasAndinas.fill }],
     },
     {
-      featureType: 'landscape.man_made',
+      featureType: 'landscape.man_made.building',
       elementType: 'geometry.stroke',
       stylers: [
         { color: p.edificacionesTejasAndinas.stroke },

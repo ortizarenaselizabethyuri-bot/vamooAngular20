@@ -36,10 +36,14 @@ export interface MapLabelStyle {
  * Estructura completa de la paleta cartográfica de expediciones Vamoo.
  */
 export interface VamooMapPalette {
-  /** Fondo y terreno natural */
+  /** Fondo, pradera y manzanas urbanas */
   readonly terreno: {
     readonly fondo: string;
     readonly praderaNatural: string;
+    /** Color suave original de las manzanas/bloques urbanos */
+    readonly bloqueUrbanoFondo: string;
+    /** Borde suave de la manzana urbana */
+    readonly bloqueUrbanoBorde: string;
   };
   /**
    * Edificaciones y casas con estilo de Tejas Andinas:
@@ -83,8 +87,10 @@ export interface VamooMapPalette {
  */
 export const VAMOO_MAP_PALETTE: VamooMapPalette = {
   terreno: {
-    fondo: '#f0fdf4',
-    praderaNatural: '#dcfce7',
+    fondo: '#f8fafc',
+    praderaNatural: '#e2f5ea',
+    bloqueUrbanoFondo: '#f1f5f9',    // Color suave original del bloque urbano/manzana
+    bloqueUrbanoBorde: '#e2e8f0',    // Borde suave delimitador de la manzana
   },
 
   // 1. Tejas Andinas (Terracota cálido de arcilla cocida con bisel de sombra de alero)
