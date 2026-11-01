@@ -71,5 +71,53 @@ describe('RpgMapEngine', () => {
     expect(engine.getZoom()).toBe(19);
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
+
+  it('debe calcular el factor de escala dinámico por nivel de zoom (Z15 a Z19) para optimización y fidelidad', () => {
+    // Z15: Vista macro más amplia -> escala 0 (evita sobrecarga y saturación)
+    expect(engine.getZoomScaleFactor(15)).toBe(0);
+
+    // Z16: Vista panorámica ligera -> escala 0.50
+    expect(engine.getZoomScaleFactor(16)).toBe(0.50);
+
+    // Z17: Vista intermedia de barrio -> escala 0.70
+    expect(engine.getZoomScaleFactor(17)).toBe(0.70);
+
+    // Z18: Vista suburbana detallada -> escala 0.85
+    expect(engine.getZoomScaleFactor(18)).toBe(0.85);
+
+    // Z19: Vista principal del jugador -> escala 1.00 (máximo detalle)
+    expect(engine.getZoomScaleFactor(19)).toBe(1.00);
+  });
+
+  it('debe clasificar con precisión los colores RGB en parques, carreteras, manzanas y agua', () => {
+    // 1. Áreas verdes / parques (verde dominante característico de ESRI / OSM)
+    expect(engine.classifyColorTerrain(204, 235, 206)).toBe('park');
+    expect(engine.classifyColorTerrain(180, 220, 170)).toBe('park');
+    expect(engine.classifyColorTerrain(115, 175, 120)).toBe('park');
+
+    // 2. Carreteras y asfalto (blanco puro, gris neutro claro, avenidas arteriales)
+    expect(engine.classifyColorTerrain(255, 255, 255)).toBe('road');
+    expect(engine.classifyColorTerrain(240, 240, 240)).toBe('road');
+    expect(engine.classifyColorTerrain(235, 195, 150)).toBe('road'); // Arteria amarilla
+    expect(engine.classifyColorTerrain(200, 200, 200)).toBe('road'); // Borde neutro de calzada
+
+    // 3. Manzanas urbanas / residencial (adobe, beige, marfil andino)
+    expect(engine.classifyColorTerrain(247, 241, 223)).toBe('block');
+    expect(engine.classifyColorTerrain(245, 230, 205)).toBe('block');
+
+    // 4. Ríos y cuerpos de agua
+    expect(engine.classifyColorTerrain(130, 180, 235)).toBe('water');
+  });
+
+  it('debe muestrear el terreno en coordenadas de tesela de forma determinista y segura', () => {
+    const terrain = engine.sampleTileTerrain('19_1234_5678', 64, 64);
+    expect(['park', 'road', 'block', 'water']).toContain(terrain);
+
+    // Muestreo en los bordes de la tesela sin generar errores de índice fuera de rango
+    const edgeTerrain1 = engine.sampleTileTerrain('19_1234_5678', 0, 0);
+    const edgeTerrain2 = engine.sampleTileTerrain('19_1234_5678', 255, 255);
+    expect(['park', 'road', 'block', 'water']).toContain(edgeTerrain1);
+    expect(['park', 'road', 'block', 'water']).toContain(edgeTerrain2);
+  });
 });
 

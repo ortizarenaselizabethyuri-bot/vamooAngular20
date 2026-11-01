@@ -3,6 +3,11 @@ import { GeoCoordinates } from '../../services/geolocation.service.js';
 import { VamooMapPalette } from './map-palette.config.js';
 
 /**
+ * Tipo representativo de la clasificación de terreno geográfico sobre una tesela.
+ */
+export type TerrainType = 'park' | 'road' | 'block' | 'water' | 'unknown';
+
+/**
  * Opciones de configuración para la inicialización del motor gráfico RPG.
  */
 export interface RpgMapEngineOptions {
@@ -97,6 +102,9 @@ export class RpgMapEngine {
 
   /** Caché en memoria de texturas ya descargadas para evitar descargas duplicadas */
   private readonly textureCache = new Map<string, Texture>();
+
+  /** Caché en memoria de datos de píxeles (ImageData) para análisis y muestreo de terreno */
+  private readonly tilePixelDataCache = new Map<string, ImageData>();
 
   /** Mapa de teselas actualmente activas en el escenario (clave: 'z_x_y') */
   private readonly activeTileSprites = new Map<string, Sprite>();
@@ -453,8 +461,9 @@ export class RpgMapEngine {
   }
 
   /**
-   * Renderiza árboles clásicos de Pokémon, casitas andinas y parches de flores sobre los bloques
-   * urbanos manteniendo fielmente el trazado y nombres de las calles.
+   * Renderiza árboles clásicos de Pokémon, arboledas densas en parques y casitas andinas sobre los bloques
+   * urbanos, detectando automáticamente el terreno por muestreo de píxeles y manteniendo las carreteras
+   * totalmente limpias y libres de obstáculos. Escala el tamaño y densidad proporcionalmente al zoom [Z15 - Z19].
    *
    * @returns void
    */
@@ -462,8 +471,10 @@ export class RpgMapEngine {
     if (!this.decorationsGraphics || !this.app) return;
     this.decorationsGraphics.clear();
 
-    // Solo mostrar elementos individuales en vistas de barrio y jugador (Z17 - Z19)
-    if (this.zoom < 17) return;
+    const scaleFactor = this.getZoomScaleFactor(this.zoom);
+
+    // En Zoom 15 (o menor) no se renderizan decoraciones individuales para maximizar rendimiento y evitar saturación
+    if (scaleFactor <= 0) return;
 
     const width = this.app.screen.width;
     const height = this.app.screen.height;
@@ -479,35 +490,57 @@ export class RpgMapEngine {
     const minTileY = Math.floor(minWorldY / 256);
     const maxTileY = Math.floor(maxWorldY / 256);
 
+    // Paso de muestreo en la cuadrícula local (256x256 px por tesela) adaptado al nivel de zoom
+    // Z16: paso 56px (baja densidad, micro-elementos)
+    // Z17: paso 42px (densidad media)
+    // Z18: paso 34px (densidad alta)
+    // Z19: paso 28px (máximo detalle y arboledas frondosas)
+    const gridStep = this.zoom === 16 ? 56 : this.zoom === 17 ? 42 : this.zoom === 18 ? 34 : 28;
+
     for (let tx = minTileX; tx <= maxTileX; tx++) {
       for (let ty = minTileY; ty <= maxTileY; ty++) {
-        // Generador pseudo-aleatorio determinista basado en índices de tesela
-        const seed = Math.abs(Math.sin(tx * 12.9898 + ty * 78.233 + this.zoom * 37.719) * 43758.5453) % 1;
-
+        const key = `${this.zoom}_${tx}_${ty}`;
         const tileScreenX = tx * 256 - centerPixels.x + width / 2;
         const tileScreenY = ty * 256 - centerPixels.y + height / 2;
 
-        // 1. Árboles Pokémon redondeados en las esquinas de los bloques
-        const treeX1 = tileScreenX + 38;
-        const treeY1 = tileScreenY + 42;
-        this.drawPokemonTree(this.decorationsGraphics, treeX1, treeY1);
+        for (let localX = gridStep / 2; localX < 256; localX += gridStep) {
+          for (let localY = gridStep / 2; localY < 256; localY += gridStep) {
+            // Muestreo del tipo de terreno en esta coordenada
+            const terrain = this.sampleTileTerrain(key, localX, localY);
 
-        if (seed > 0.4) {
-          const treeX2 = tileScreenX + 218;
-          const treeY2 = tileScreenY + 214;
-          this.drawPokemonTree(this.decorationsGraphics, treeX2, treeY2);
-        }
+            // REGLA CRÍTICA: Las carreteras y pistas se mantienen 100% limpias y transitables
+            if (terrain === 'road' || terrain === 'water') {
+              continue;
+            }
 
-        // 2. Casitas estilo Pokémon / Valle Andino en parcelas seleccionadas
-        if (seed > 0.35 && seed < 0.85) {
-          const houseX = tileScreenX + 128;
-          const houseY = tileScreenY + 115;
-          this.drawPokemonHouse(this.decorationsGraphics, houseX, houseY);
-        }
+            // Pseudo-aleatoriedad determinista vinculada a la posición espacial exacta
+            const seed = Math.abs(
+              Math.sin((tx * 256 + localX) * 12.9898 + (ty * 256 + localY) * 78.233 + this.zoom * 37.719) * 43758.5453
+            ) % 1;
 
-        // 3. Parches de flores silvestres Pokémon (hierba de ruta)
-        if (seed > 0.5) {
-          this.drawWildflowerPatch(this.decorationsGraphics, tileScreenX + 75, tileScreenY + 180);
+            const posX = tileScreenX + localX;
+            const posY = tileScreenY + localY;
+
+            if (terrain === 'park') {
+              // 1. ZONA VERDE / PARQUE: Generar arboledas densas de árboles Pokémon
+              if (seed > 0.3) {
+                this.drawPokemonGrove(this.decorationsGraphics, posX, posY, scaleFactor, seed);
+              } else {
+                this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, scaleFactor);
+              }
+            } else if (terrain === 'block') {
+              // 2. MANZANA URBANA / RESIDENCIAL: Casitas andinas y árboles aislados de jardín
+              if (seed > 0.45 && seed < 0.85) {
+                this.drawPokemonHouse(this.decorationsGraphics, posX, posY, scaleFactor);
+              } else if (seed >= 0.85) {
+                // Árbol decorativo de jardín urbano
+                this.drawPokemonTree(this.decorationsGraphics, posX, posY, scaleFactor * 0.85);
+              } else if (seed < 0.22) {
+                // Pequeño parche de flores en la vereda
+                this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, scaleFactor);
+              }
+            }
+          }
         }
       }
     }
@@ -604,93 +637,354 @@ export class RpgMapEngine {
   }
 
   /**
+   * Obtiene el factor de escala visual para decoraciones según el nivel de zoom actual.
+   * Respeta la cota [Z15 - Z19]:
+   * - Z15: 0 (omisión de decoraciones pesadas para optimizar rendimiento)
+   * - Z16: 0.50 (micro-elementos panorámicos ligeros)
+   * - Z17: 0.70 (vista intermedia de barrio)
+   * - Z18: 0.85 (vista suburbana detallada)
+   * - Z19: 1.00 (vista principal del jugador a escala completa)
+   *
+   * @param zoom - Nivel de zoom actual (15 a 19).
+   * @returns number - Factor multiplicador de tamaño [0, 1.0].
+   */
+  public getZoomScaleFactor(zoom: number): number {
+    switch (zoom) {
+      case 15:
+        return 0; // Sin sobrecarga en la vista macro más amplia
+      case 16:
+        return 0.50;
+      case 17:
+        return 0.70;
+      case 18:
+        return 0.85;
+      case 19:
+      default:
+        return 1.00;
+    }
+  }
+
+  /**
+   * Clasifica el tipo de terreno a partir de una muestra de color RGB.
+   *
+   * @param r - Componente rojo (0 - 255).
+   * @param g - Componente verde (0 - 255).
+   * @param b - Componente azul (0 - 255).
+   * @returns TerrainType - 'park' si es vegetación/parque, 'road' si es asfalto/carretera, 'block' si es manzana urbana.
+   */
+  public classifyColorTerrain(r: number, g: number, b: number): TerrainType {
+    // 1. Detección de agua (ríos, lagunas, riachuelos andinos)
+    if (b > 185 && b > r + 20 && b > g + 5) {
+      return 'water';
+    }
+
+    // 2. Detección de parques / áreas verdes / plazas / vegetación
+    // En teselas cartográficas ESRI / OSM, las zonas verdes tienen G claramente dominante
+    const isPaleGreenPark = g >= 165 && g - r >= 10 && g - b >= 10;
+    const isForestDarkGreen = g >= 110 && g > r * 1.06 && g > b * 1.06 && (g - r >= 8 || g - b >= 8);
+    if (isPaleGreenPark || isForestDarkGreen) {
+      return 'park';
+    }
+
+    // 3. Detección de carreteras / autopistas / calles transitables
+    // Vías principales blancas o gris claro con neutralidad de canal
+    const isWhiteAsphalt = r >= 225 && g >= 225 && b >= 225 && Math.abs(r - g) <= 14 && Math.abs(g - b) <= 14;
+    // Autopistas y arterias con tinte amarillo / anaranjado
+    const isArterialRoad = r >= 220 && g >= 190 && b <= 170 && r - b >= 40;
+    // Bordes o demarcaciones de calzada (gris neutro medio)
+    const isRoadBorder = r >= 180 && r <= 220 && Math.abs(r - g) <= 8 && Math.abs(g - b) <= 8;
+    if (isWhiteAsphalt || isArterialRoad || isRoadBorder) {
+      return 'road';
+    }
+
+    // 4. Manzana urbana / zona residencial por defecto (tonos tierra, beige, marfil, adobe)
+    return 'block';
+  }
+
+  /**
+   * Obtiene la clasificación de terreno de un punto local (localX, localY) dentro de una tesela.
+   * Utiliza el muestreo de píxeles del ImageData de la tesela si está disponible en memoria.
+   * Si la tesela no ha cargado aún o el entorno no soporta lectura de píxeles (headless / tests),
+   * aplica un modelo heurístico determinista espacial para garantizar estabilidad y continuidad.
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param localX - Coordenada horizontal local dentro de la tesela (0 a 255).
+   * @param localY - Coordenada vertical local dentro de la tesela (0 a 255).
+   * @returns TerrainType - Clasificación del terreno en dicho punto.
+   */
+  public sampleTileTerrain(key: string, localX: number, localY: number): TerrainType {
+    const clampedX = Math.max(0, Math.min(255, Math.floor(localX)));
+    const clampedY = Math.max(0, Math.min(255, Math.floor(localY)));
+
+    const imgData = this.tilePixelDataCache.get(key);
+    if (imgData && imgData.data && imgData.data.length >= 256 * 256 * 4) {
+      const index = (clampedY * 256 + clampedX) * 4;
+      const r = imgData.data[index];
+      const g = imgData.data[index + 1];
+      const b = imgData.data[index + 2];
+      return this.classifyColorTerrain(r, g, b);
+    }
+
+    // Heurística de respaldo cuando los píxeles no están disponibles en el DOM / tests
+    return this.fallbackDeterministicTerrain(key, clampedX, clampedY);
+  }
+
+  /**
+   * Heurística determinista para clasificar el terreno cuando los píxeles reales no están disponibles
+   * (p. ej., durante pruebas unitarias automatizadas o retrasos de red).
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param x - Coordenada horizontal local (0 - 255).
+   * @param y - Coordenada vertical local (0 - 255).
+   * @returns TerrainType - Clasificación simulada determinista.
+   */
+  private fallbackDeterministicTerrain(key: string, x: number, y: number): TerrainType {
+    // Cuadrícula simulada de calles cada 64px
+    const nearRoadX = (x % 64) < 12;
+    const nearRoadY = (y % 64) < 12;
+    if (nearRoadX || nearRoadY) {
+      return 'road';
+    }
+
+    // Generación matemática determinista pseudo-aleatoria para áreas verdes
+    const hash = Math.sin(x * 12.9898 + y * 78.233 + key.length * 43.123) * 43758.5453;
+    const value = Math.abs(hash - Math.floor(hash));
+
+    if (value > 0.68) {
+      return 'park';
+    }
+
+    return 'block';
+  }
+
+  /**
+   * Extrae los datos de píxeles brutos (ImageData) de una imagen de tesela mediante un lienzo offscreen
+   * y los almacena en caché en memoria para muestreo instantáneo de terreno.
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param img - Elemento HTMLImageElement cargado con la textura de la tesela.
+   * @returns void
+   */
+  private extractAndStoreTilePixels(key: string, img: HTMLImageElement): void {
+    try {
+      if (typeof document === 'undefined') return;
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, 256, 256);
+      const imgData = ctx.getImageData(0, 0, 256, 256);
+      this.tilePixelDataCache.set(key, imgData);
+
+      // Limitar tamaño de caché a 48 teselas activas para mantener memoria baja (< 12MB)
+      if (this.tilePixelDataCache.size > 48) {
+        const oldestKey = this.tilePixelDataCache.keys().next().value;
+        if (oldestKey) {
+          this.tilePixelDataCache.delete(oldestKey);
+        }
+      }
+    } catch (e) {
+      // Ignorar de forma segura si el lienzo está protegido por CORS o entorno headless
+    }
+  }
+
+  /**
+   * Dibuja una arboleda densa de árboles clásicos de Pokémon en áreas clasificadas como parque o reserva natural.
+   * Agrupa entre 4 y 7 árboles con copas superpuestas, sombras envolventes y parches de flores silvestres.
+   *
+   * @param g - Objeto Graphics sobre el cual pintar la arboleda.
+   * @param centerX - Coordenada horizontal central del bosque en la pantalla.
+   * @param centerY - Coordenada vertical central del bosque en la pantalla.
+   * @param scale - Factor de escala visual dependiente del nivel de zoom actual.
+   * @param seed - Semilla pseudo-aleatoria para variar sutilmente la disposición de copas.
+   * @returns void
+   */
+  private drawPokemonGrove(g: Graphics, centerX: number, centerY: number, scale: number, seed: number): void {
+    if (scale <= 0) return;
+
+    // Sombra colectiva de base del bosque
+    g.ellipse(centerX, centerY + 12 * scale, 34 * scale, 14 * scale)
+      .fill({ color: 0x000000, alpha: 0.28 });
+
+    // Configuración de offsets relativos para generar la masa vegetal densa
+    const treeOffsets: Array<[number, number, number]> = [
+      [-14 * scale, -6 * scale, 0],
+      [14 * scale, -5 * scale, 1],
+      [-7 * scale, 8 * scale, 0],
+      [10 * scale, 7 * scale, 2],
+      [0, -12 * scale, 1],
+    ];
+
+    if (seed > 0.35) {
+      treeOffsets.push([-22 * scale, 2 * scale, 0]);
+    }
+    if (seed > 0.65) {
+      treeOffsets.push([22 * scale, 2 * scale, 2]);
+    }
+
+    // Dibujar cada árbol de la arboleda en orden de profundidad (Y ascendente)
+    treeOffsets.sort((a, b) => a[1] - b[1]);
+
+    for (const [ox, oy, variant] of treeOffsets) {
+      this.drawPokemonTree(g, centerX + ox, centerY + oy, scale * 0.95, variant);
+    }
+
+    // Flores silvestres en los bordes del claro del parque
+    this.drawWildflowerPatch(g, centerX - 18 * scale, centerY + 14 * scale, scale);
+    if (seed > 0.5) {
+      this.drawWildflowerPatch(g, centerX + 16 * scale, centerY + 12 * scale, scale);
+    }
+  }
+
+  /**
    * Dibuja un árbol esférico clásico al estilo de los juegos de Pokémon de GameBoy Advance / SNES.
+   * Escala dinámicamente sus dimensiones proporcionales a partir del nivel de zoom activo.
    *
    * @param g - Objeto Graphics sobre el cual pintar el árbol.
    * @param x - Posición horizontal sobre la pantalla.
    * @param y - Posición vertical sobre la pantalla.
+   * @param scale - Factor de escala proporcional por nivel de zoom (por defecto 1.0).
+   * @param variant - Variante botánica (0: esférico clásico, 1: copa alta, 2: pino andino).
    * @returns void
    */
-  private drawPokemonTree(g: Graphics, x: number, y: number): void {
-    // Sombra en el suelo
-    g.ellipse(x, y + 15, 14, 5).fill({ color: 0x000000, alpha: 0.25 });
+  private drawPokemonTree(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
+    if (scale <= 0) return;
 
-    // Tronco de madera
-    g.rect(x - 3, y + 8, 6, 8)
+    // 1. Sombra ovalada en el suelo
+    g.ellipse(x, y + 15 * scale, 14 * scale, 5 * scale)
+      .fill({ color: 0x000000, alpha: 0.25 });
+
+    // 2. Tronco de madera leñosa
+    g.rect(x - 3 * scale, y + 7 * scale, 6 * scale, 9 * scale)
       .fill({ color: 0x78350f })
-      .stroke({ color: 0x451a03, width: 1 });
+      .stroke({ color: 0x451a03, width: Math.max(1, 1 * scale) });
 
-    // Copa esférica Pokémon en 4 tonos de verde
-    g.circle(x, y, 14).fill({ color: 0x064e3b });       // Contorno oscuro
-    g.circle(x, y - 1, 12).fill({ color: 0x166534 });   // Sombra inferior
-    g.circle(x, y - 3, 9).fill({ color: 0x15803d });    // Verde follaje medio
-    g.circle(x - 2, y - 5, 5).fill({ color: 0x4ade80 });// Brillo de luz superior
+    if (variant === 2) {
+      // Variante Pino Andino (conífera clásica de valle de altura)
+      g.poly([
+        x - 13 * scale, y + 8 * scale,
+        x, y - 18 * scale,
+        x + 13 * scale, y + 8 * scale,
+      ]).fill({ color: 0x064e3b });
+
+      g.poly([
+        x - 11 * scale, y + 6 * scale,
+        x, y - 16 * scale,
+        x + 11 * scale, y + 6 * scale,
+      ]).fill({ color: 0x166534 });
+
+      g.poly([
+        x - 8 * scale, y + 3 * scale,
+        x, y - 13 * scale,
+        x + 8 * scale, y + 3 * scale,
+      ]).fill({ color: 0x15803d });
+
+      g.poly([
+        x - 5 * scale, y,
+        x, y - 10 * scale,
+        x + 5 * scale, y,
+      ]).fill({ color: 0x4ade80 });
+      return;
+    }
+
+    // 3. Copa esférica Pokémon en 4 niveles de sombreado pixel-art
+    const r = (variant === 1 ? 16 : 14) * scale;
+    g.circle(x, y, r).fill({ color: 0x064e3b });                         // Contorno oscuro profundo
+    g.circle(x, y - 1 * scale, r * 0.86).fill({ color: 0x166534 });      // Sombra inferior follaje
+    g.circle(x, y - 3 * scale, r * 0.65).fill({ color: 0x15803d });      // Verde medio follaje
+    g.circle(x - 2 * scale, y - 5 * scale, r * 0.36).fill({ color: 0x4ade80 }); // Destello de luz superior
+
+    // Brillo adicional pixel estilo GBA
+    if (scale >= 0.7) {
+      g.rect(x - 3 * scale, y - 6 * scale, 2 * scale, 2 * scale).fill({ color: 0x86efac });
+    }
   }
 
   /**
    * Dibuja una casita andina con tejado terracota al estilo de los edificios de pueblos Pokémon.
+   * Escala sus dimensiones de muros, ventanas, puerta y chimenea según el factor de zoom.
    *
    * @param g - Objeto Graphics sobre el cual pintar la casita.
    * @param x - Posición horizontal sobre la pantalla.
    * @param y - Posición vertical sobre la pantalla.
+   * @param scale - Factor de escala proporcional por nivel de zoom (por defecto 1.0).
    * @returns void
    */
-  private drawPokemonHouse(g: Graphics, x: number, y: number): void {
+  private drawPokemonHouse(g: Graphics, x: number, y: number, scale: number = 1.0): void {
+    if (scale <= 0) return;
+
     // Sombra proyectada
-    g.rect(x - 20, y + 17, 40, 7).fill({ color: 0x000000, alpha: 0.2 });
+    g.rect(x - 20 * scale, y + 17 * scale, 40 * scale, 7 * scale)
+      .fill({ color: 0x000000, alpha: 0.2 });
 
     // Paredes de adobe / marfil cálido
-    g.rect(x - 18, y - 2, 36, 22)
+    g.rect(x - 18 * scale, y - 2 * scale, 36 * scale, 22 * scale)
       .fill({ color: 0xffedd5 })
-      .stroke({ color: 0x7c2d12, width: 1.5 });
+      .stroke({ color: 0x7c2d12, width: Math.max(1, 1.5 * scale) });
 
     // Puerta de madera
-    g.rect(x - 4, y + 6, 8, 14)
+    g.rect(x - 4 * scale, y + 6 * scale, 8 * scale, 14 * scale)
       .fill({ color: 0x854d0e })
-      .stroke({ color: 0x451a03, width: 1 });
-    g.circle(x + 2, y + 13, 1).fill({ color: 0xfacc15 });
+      .stroke({ color: 0x451a03, width: Math.max(0.8, 1 * scale) });
+    g.circle(x + 2 * scale, y + 13 * scale, Math.max(0.8, 1 * scale)).fill({ color: 0xfacc15 });
 
     // Ventanas con marco azul y reflejo
-    g.rect(x - 13, y + 3, 6, 6)
+    g.rect(x - 13 * scale, y + 3 * scale, 6 * scale, 6 * scale)
       .fill({ color: 0x60a5fa })
-      .stroke({ color: 0x1e3a8a, width: 1 });
-    g.rect(x + 7, y + 3, 6, 6)
+      .stroke({ color: 0x1e3a8a, width: Math.max(0.8, 1 * scale) });
+    g.rect(x + 7 * scale, y + 3 * scale, 6 * scale, 6 * scale)
       .fill({ color: 0x60a5fa })
-      .stroke({ color: 0x1e3a8a, width: 1 });
+      .stroke({ color: 0x1e3a8a, width: Math.max(0.8, 1 * scale) });
 
     // Techo a dos aguas de teja andina viva (#f97316)
-    g.poly([x - 22, y - 2, x, y - 18, x + 22, y - 2])
+    g.poly([
+      x - 22 * scale, y - 2 * scale,
+      x, y - 18 * scale,
+      x + 22 * scale, y - 2 * scale,
+    ])
       .fill({ color: 0xf97316 })
-      .stroke({ color: 0x7c2d12, width: 2 });
+      .stroke({ color: 0x7c2d12, width: Math.max(1.2, 2 * scale) });
 
     // Chimenea con hilera de ladrillo
-    g.rect(x + 10, y - 20, 5, 8)
+    g.rect(x + 10 * scale, y - 20 * scale, 5 * scale, 8 * scale)
       .fill({ color: 0x9a3412 })
-      .stroke({ color: 0x431407, width: 1 });
+      .stroke({ color: 0x431407, width: Math.max(0.8, 1 * scale) });
+
+    // Voluta de humo animada/decorativa si la escala es suficiente
+    if (scale >= 0.8) {
+      g.circle(x + 12 * scale, y - 23 * scale, 2 * scale).fill({ color: 0xffffff, alpha: 0.7 });
+      g.circle(x + 14 * scale, y - 27 * scale, 2.5 * scale).fill({ color: 0xffffff, alpha: 0.45 });
+    }
   }
 
   /**
    * Dibuja un parche de hierba alta y flores silvestres estilo Pokémon.
+   * Escala sus tallos y pétalos según el factor de zoom activo.
    *
    * @param g - Objeto Graphics sobre el cual pintar el parche.
    * @param x - Posición horizontal sobre la pantalla.
    * @param y - Posición vertical sobre la pantalla.
+   * @param scale - Factor de escala proporcional por nivel de zoom (por defecto 1.0).
    * @returns void
    */
-  private drawWildflowerPatch(g: Graphics, x: number, y: number): void {
+  private drawWildflowerPatch(g: Graphics, x: number, y: number, scale: number = 1.0): void {
+    if (scale <= 0) return;
+
     // Puntas de hierba alta Pokémon
-    g.rect(x - 6, y - 2, 2, 6).fill({ color: 0x15803d });
-    g.rect(x - 2, y - 4, 2, 8).fill({ color: 0x16a34a });
-    g.rect(x + 2, y - 3, 2, 7).fill({ color: 0x15803d });
-    g.rect(x + 6, y - 1, 2, 5).fill({ color: 0x22c55e });
+    g.rect(x - 6 * scale, y - 2 * scale, 2 * scale, 6 * scale).fill({ color: 0x15803d });
+    g.rect(x - 2 * scale, y - 4 * scale, 2 * scale, 8 * scale).fill({ color: 0x16a34a });
+    g.rect(x + 2 * scale, y - 3 * scale, 2 * scale, 7 * scale).fill({ color: 0x15803d });
+    g.rect(x + 6 * scale, y - 1 * scale, 2 * scale, 5 * scale).fill({ color: 0x22c55e });
 
     // Flor silvestre roja
-    g.rect(x - 5, y - 3, 2, 2).fill({ color: 0xef4444 });
-    g.rect(x - 4, y - 2, 1, 1).fill({ color: 0xfacc15 });
+    g.rect(x - 5 * scale, y - 3 * scale, 2 * scale, 2 * scale).fill({ color: 0xef4444 });
+    g.rect(x - 4 * scale, y - 2 * scale, 1 * scale, 1 * scale).fill({ color: 0xfacc15 });
 
     // Flor silvestre amarilla
-    g.rect(x + 3, y - 4, 2, 2).fill({ color: 0xfacc15 });
-    g.rect(x + 4, y - 3, 1, 1).fill({ color: 0xf97316 });
+    g.rect(x + 3 * scale, y - 4 * scale, 2 * scale, 2 * scale).fill({ color: 0xfacc15 });
+    g.rect(x + 4 * scale, y - 3 * scale, 1 * scale, 1 * scale).fill({ color: 0xf97316 });
   }
 
   /**
@@ -746,12 +1040,43 @@ export class RpgMapEngine {
   }
 
   /**
-   * Carga la textura de una tesela mediante Pixi Assets o alternativamente mediante un elemento HTMLImageElement nativo.
+   * Carga la textura de una tesela mediante HTMLImageElement nativo con crossOrigin anónimo para permitir
+   * lectura y muestreo de píxeles, o Pixi Assets en entornos compatibles.
    *
    * @param url - URL de la imagen de la tesela con extensión (.jpg / .png).
+   * @param key - Clave única de la tesela ('z_x_y') para análisis de terreno.
    * @returns Promise<Texture> Textura WebGL lista para asociarse a un Sprite.
    */
-  private async loadTileTexture(url: string): Promise<Texture> {
+  private async loadTileTexture(url: string, key?: string): Promise<Texture> {
+    if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
+      return new Promise<Texture>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            if (key) {
+              this.extractAndStoreTilePixels(key, img);
+            }
+            const texture = Texture.from(img);
+            resolve(texture);
+          } catch (err) {
+            Assets.load<Texture>({ src: url, loadParser: 'loadTextures' })
+              .then((t) => resolve(t))
+              .catch((e) => reject(e));
+          }
+        };
+        img.onerror = async () => {
+          try {
+            const texture = await Assets.load<Texture>({ src: url, loadParser: 'loadTextures' });
+            resolve(texture);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.src = url;
+      });
+    }
+
     try {
       const texture = await Assets.load<Texture>({
         src: url,
@@ -759,27 +1084,10 @@ export class RpgMapEngine {
       });
       if (texture) return texture;
     } catch (e) {
-      // Continuar al método nativo
+      // Ignorar fallo en entorno headless
     }
 
-    return new Promise<Texture>((resolve, reject) => {
-      if (typeof Image === 'undefined') {
-        reject(new Error('Image is not defined in this environment'));
-        return;
-      }
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const texture = Texture.from(img);
-          resolve(texture);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      img.onerror = (e) => reject(e);
-      img.src = url;
-    });
+    throw new Error(`No se pudo cargar la tesela en la URL: ${url}`);
   }
 
   /**
@@ -816,14 +1124,14 @@ export class RpgMapEngine {
         texture = this.textureCache.get(key)!;
       } else {
         try {
-          texture = await this.loadTileTexture(tileUrl);
+          texture = await this.loadTileTexture(tileUrl, key);
         } catch (e) {
           // Intentar con el proveedor de respaldo en caso de fallo
           const fallbackUrl = this.fallbackTileUrlTemplate
             .replace('{z}', z.toString())
             .replace('{y}', y.toString())
             .replace('{x}', x.toString());
-          texture = await this.loadTileTexture(fallbackUrl);
+          texture = await this.loadTileTexture(fallbackUrl, key);
         }
 
         // Configuración de filtrado de píxel más cercano para estética 16-bits nítida
@@ -845,6 +1153,9 @@ export class RpgMapEngine {
 
         this.tileContainer.addChild(sprite);
         this.activeTileSprites.set(key, sprite);
+
+        // Refrescar decoraciones de terreno tan pronto se integra la nueva tesela
+        this.renderDecorations();
       }
     } catch (err) {
       // Si la tesela no pudo ser cargada (ej. desconexión), se ignora silenciosamente
@@ -985,6 +1296,14 @@ export class RpgMapEngine {
       this.zoom = target;
       // Limpiar teselas del nivel anterior para evitar colisiones visuales
       this.clearActiveTiles();
+
+      // Purgar entradas de caché de píxeles no coincidentes con el nuevo zoom
+      for (const cachedKey of this.tilePixelDataCache.keys()) {
+        if (!cachedKey.startsWith(`${this.zoom}_`)) {
+          this.tilePixelDataCache.delete(cachedKey);
+        }
+      }
+
       this.refreshMap();
 
       if (this.onCameraChangeCallback) {
@@ -1102,6 +1421,7 @@ export class RpgMapEngine {
 
     this.clearActiveTiles();
     this.textureCache.clear();
+    this.tilePixelDataCache.clear();
 
     if (this.decorationsGraphics) {
       try {
