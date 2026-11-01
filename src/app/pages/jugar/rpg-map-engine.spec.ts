@@ -135,17 +135,20 @@ describe('RpgMapEngine', () => {
     expect(engine.isRoadPixel(134, 135, 130)).toBe(true);
     expect(engine.isRoadPixel(110, 110, 110)).toBe(true);
 
-    // 3. Avenidas y carreteras arteriales amarillas
+    // 3. Avenidas y carreteras arteriales amarillas y autopistas anaranjadas / corales (#FE9460 / #F7915E)
     expect(engine.isRoadPixel(225, 185, 140)).toBe(true);
+    expect(engine.isRoadPixel(254, 148, 96)).toBe(true);  // Carretera arterial anaranjada
+    expect(engine.isRoadPixel(247, 145, 94)).toBe(true);  // Vía 2099 coral oscuro
 
     // 4. No debe clasificar como carretera a zonas residenciales, parques ni agua
     expect(engine.isRoadPixel(243, 240, 207)).toBe(false); // Manzana beige
     expect(engine.isRoadPixel(200, 235, 205)).toBe(false); // Parque verde
     expect(engine.isRoadPixel(130, 180, 235)).toBe(false); // Río / agua
+    expect(engine.isRoadPixel(248, 227, 166)).toBe(false); // Zona otoño #F8E3A6
 
     // 5. Regla de despeje de calzada (isAreaClearOfRoad)
     const key = '19_152611_279850';
-    const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 12);
+    const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 14);
     expect(typeof roadCheck).toBe('boolean');
   });
 

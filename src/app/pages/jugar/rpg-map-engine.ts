@@ -779,12 +779,13 @@ export class RpgMapEngine {
 
   /**
    * Determina con rigor si un color RGB corresponde a calzadas, asfalto, bordes/casings de calle,
-   * textos con nombres de calles o avenidas vehiculares, evitando que casas o árboles se superpongan.
+   * calles principales, avenidas arteriales (anaranjadas / corales / amarillas) o textos viales,
+   * garantizando que JAMÁS se ubiquen casas ni árboles sobre vías vehiculares.
    *
    * @param r - Componente rojo (0 - 255).
    * @param g - Componente verde (0 - 255).
    * @param b - Componente azul (0 - 255).
-   * @returns boolean - true si el píxel corresponde a carretera, calzada o texto vial.
+   * @returns boolean - true si el píxel corresponde a carretera, calzada, vía arterial o texto vial.
    */
   public isRoadPixel(r: number, g: number, b: number): boolean {
     const diffRG = Math.abs(r - g);
@@ -793,7 +794,7 @@ export class RpgMapEngine {
     const maxDiff = Math.max(diffRG, Math.max(diffGB, diffRB));
 
     // 1. Asfalto blanco, blanco marfil o gris claro (calzadas vehiculares principales)
-    if (r >= 205 && g >= 205 && b >= 195 && maxDiff <= 20) {
+    if (r >= 205 && g >= 205 && b >= 195 && maxDiff <= 18) {
       return true;
     }
 
@@ -802,12 +803,18 @@ export class RpgMapEngine {
       return true;
     }
 
-    // 3. Textos y etiquetas con nombres de calles sobre calzadas (ej. "Pasaje Montevideo", "Avenida Chávez")
-    if (r >= 70 && r < 180 && maxDiff <= 14) {
+    // 3. Textos y etiquetas con nombres de calles sobre calzadas (ej. "Pasaje Montevideo", "Avenida Primavera")
+    if (r >= 70 && r <= 180 && maxDiff <= 14) {
       return true;
     }
 
-    // 4. Autopistas y avenidas arteriales amarillas / anaranjadas (ej. vías principales de penetración)
+    // 4. Carreteras arteriales y autopistas anaranjadas / corales (ej. Vía 2099 / Panamericana / carreteras primarias)
+    // R: 215-255, G: 120-185, B: 50-145, R - G >= 40, R - B >= 75
+    if (r >= 215 && g >= 120 && g <= 185 && b >= 50 && b <= 145 && (r - g) >= 40 && (r - b) >= 75) {
+      return true;
+    }
+
+    // 5. Autopistas y avenidas arteriales amarillas / doradas (ej. vías principales de penetración)
     // El componente rojo domina o empata con el verde (r >= g - 4) y es muy superior al azul (r - b >= 38)
     if (r >= 215 && g >= 160 && b <= 165 && r >= g - 4 && (r - b) >= 38) {
       return true;
@@ -1169,7 +1176,7 @@ export class RpgMapEngine {
           // - Árboles de otoño (variante 3) en mayor cantidad y predominancia.
           // - Vegetación abundante andina.
           // =========================================================================
-          if (this.isAreaClearOfRoad(key, localX, localY, 9 * scaleFactor)) {
+          if (this.isAreaClearOfRoad(key, localX, localY, 11 * scaleFactor)) {
             // Alta densidad de árboles en zona #F8E3A6
             if (seed > 0.15) {
               // Predominan los árboles de otoño (variante 3) en más del 70% de las instancias
@@ -1188,7 +1195,7 @@ export class RpgMapEngine {
             if (seed > 0.38 && seed < 0.90) {
               const secondX = Math.max(10, Math.min(245, localX + 15 * scaleFactor));
               const secondY = Math.max(10, Math.min(245, localY - 12 * scaleFactor));
-              if (this.isAreaClearOfRoad(key, secondX, secondY, 9 * scaleFactor)) {
+              if (this.isAreaClearOfRoad(key, secondX, secondY, 11 * scaleFactor)) {
                 items.push({
                   type: 'tree',
                   localX: secondX,
@@ -1231,7 +1238,7 @@ export class RpgMapEngine {
           // - Aumento sustancial de árboles (3 variantes) y vegetación (3 variantes).
           // =========================================================================
           // 1. Árbol principal del descampado / parque (no invade carreteras ni pistas)
-          if (this.isAreaClearOfRoad(key, localX, localY, 9 * scaleFactor)) {
+          if (this.isAreaClearOfRoad(key, localX, localY, 11 * scaleFactor)) {
             if (seed > 0.20) {
               const treeVariant = Math.floor(seed * 7) % 3;
               items.push({
@@ -1248,7 +1255,7 @@ export class RpgMapEngine {
             if (seed > 0.42 && seed < 0.88) {
               const secondX = Math.max(10, Math.min(245, localX + 16 * scaleFactor));
               const secondY = Math.max(10, Math.min(245, localY - 12 * scaleFactor));
-              if (this.isAreaClearOfRoad(key, secondX, secondY, 9 * scaleFactor)) {
+              if (this.isAreaClearOfRoad(key, secondX, secondY, 11 * scaleFactor)) {
                 items.push({
                   type: 'tree',
                   localX: secondX,
@@ -1285,34 +1292,52 @@ export class RpgMapEngine {
               variant: Math.floor(seed * 19) % 4,
             });
           }
+        } else if (terrain === 'road') {
+          // =========================================================================
+          // REGLA 3: CALLES PRINCIPALES, AVENIDAS, AUTOPISTAS Y CALZADAS VEHICULARES
+          // - NI CASAS NI ÁRBOLES: Prohibidos estrictamente sobre vías vehiculares principales.
+          // - SOLO VEGETACIÓN: Puede generarse vegetación discreta (hierba, flores, arbustos)
+          //   en bermas centrales, aceras, parterres y bordes de la calzada.
+          // =========================================================================
+          if (seed > 0.40 && seed < 0.68) {
+            const vegVariant = Math.floor(seed * 13) % 4;
+            items.push({
+              type: 'vegetation',
+              localX,
+              localY,
+              scale: scaleFactor * 0.85,
+              seed,
+              variant: vegVariant,
+            });
+          }
         } else if (terrain === 'block') {
           // =========================================================================
           // REGLA 2: MANZANA URBANA / RESIDENCIAL
-          // - REGLA ESTRICTA DE CARRETERAS: NI CASAS NI ÁRBOLES en carreteras.
+          // - REGLA ESTRICTA DE CARRETERAS: NI CASAS NI ÁRBOLES en carreteras ni calles principales.
           // - REGLA ESTRICTA DE ÁREAS VERDES: Casas 100% libres de parques/descampados.
-          // - Casas cuadradas de 20x20 con 3 variantes arquitectónicas.
+          // - Casas cuadradas con 3 variantes arquitectónicas Pokémon.
           // - Árboles individuales de jardín residencial con 3 variantes botánicas.
           // - Vegetación en aceras y bordes (la vegetación sí puede aparecer normal).
           // =========================================================================
 
-          // Seguridad estricta para casas: libre de carreteras Y libre de áreas verdes/descampados
+          // Seguridad estricta para casas: libre de carreteras (14x escala) Y libre de áreas verdes/descampados
           let houseX = localX;
           let houseY = localY;
           let isClearForHouse =
-            this.isAreaClearOfRoad(key, houseX, houseY, 12 * scaleFactor) &&
+            this.isAreaClearOfRoad(key, houseX, houseY, 14 * scaleFactor) &&
             this.isAreaClearOfPark(key, houseX, houseY, 10 * scaleFactor);
 
           // Si el centro de la celda colisiona con una calle, intentar un pequeño desplazamiento determinista en la manzana
           if (!isClearForHouse) {
             const offsets = [
-              [10, 0], [-10, 0], [0, 10], [0, -10],
-              [8, 8], [-8, 8], [8, -8], [-8, -8],
+              [12, 0], [-12, 0], [0, 12], [0, -12],
+              [10, 10], [-10, 10], [10, -10], [-10, -10],
             ];
             for (const [ox, oy] of offsets) {
               const candX = Math.max(16, Math.min(240, localX + ox));
               const candY = Math.max(16, Math.min(240, localY + oy));
               if (
-                this.isAreaClearOfRoad(key, candX, candY, 12 * scaleFactor) &&
+                this.isAreaClearOfRoad(key, candX, candY, 14 * scaleFactor) &&
                 this.isAreaClearOfPark(key, candX, candY, 10 * scaleFactor)
               ) {
                 houseX = candX;
@@ -1336,16 +1361,16 @@ export class RpgMapEngine {
                 variant: houseVariant,
               });
             } else if (seed >= 0.85) {
-              // Árbol individual de jardín residencial (debe estar libre de carretera)
+              // Árbol individual de jardín residencial (debe estar 100% libre de carreteras y calles principales)
               let treeX = localX;
               let treeY = localY;
-              let isClearForTree = this.isAreaClearOfRoad(key, treeX, treeY, 10 * scaleFactor);
+              let isClearForTree = this.isAreaClearOfRoad(key, treeX, treeY, 11 * scaleFactor);
               if (!isClearForTree) {
-                const treeOffsets = [[-8, 8], [8, -8], [8, 8], [-8, -8]];
+                const treeOffsets = [[-10, 10], [10, -10], [10, 10], [-10, -10]];
                 for (const [ox, oy] of treeOffsets) {
                   const candX = Math.max(14, Math.min(242, localX + ox));
                   const candY = Math.max(14, Math.min(242, localY + oy));
-                  if (this.isAreaClearOfRoad(key, candX, candY, 10 * scaleFactor)) {
+                  if (this.isAreaClearOfRoad(key, candX, candY, 11 * scaleFactor)) {
                     treeX = candX;
                     treeY = candY;
                     isClearForTree = true;
