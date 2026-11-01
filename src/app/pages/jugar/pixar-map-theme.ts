@@ -20,9 +20,15 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       stylers: [{ color: p.terrenoBase.fondo }],
     },
 
-    // 2. Ocultar comercios para priorizar la exploración ecológica
+    // 2. Ocultar iconos y textos comerciales invasivos para mantener el mapa limpio estilo aventura
     {
       featureType: 'poi.business',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi',
+      elementType: 'labels.icon',
       stylers: [{ visibility: 'off' }],
     },
     {
@@ -71,67 +77,108 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       ],
     },
 
-    // 5. Fondo de Manzanas Urbanas y Suelo de la Ciudad (#FDD7AA)
-    // La capa 'landscape' establece el color base de los bloques urbanos sobre el cual descansan las casas
-    {
-      featureType: 'landscape',
-      elementType: 'geometry',
-      stylers: [{ color: p.manzanasUrbanas.fill }],
-    },
-
-    // 6. Áreas Verdes Tipo 2: Paisaje natural, praderas y cubierta vegetal (#34d399 / nativo #c1efd1)
+    // 5. Áreas Verdes Tipo 2: Paisaje natural, praderas y cubierta vegetal (#34d399 / nativo #c1efd1)
     {
       featureType: 'landscape.natural',
       elementType: 'geometry',
       stylers: [{ color: p.areasVerdesVegetacion.fill }],
     },
 
-    // 7. Edificaciones y Casas: Estilo Tejas Andinas (#f97316 con sombra #9a3412)
-    // 'landscape.man_made' sobrescribe el fondo de la manzana coloreando exclusivamente las edificaciones
+    // 6. Manzanas Urbanas y Áreas Urbanas (#FDD7AA)
+    // 'landscape.man_made' y 'landscape' delimitan el suelo base suave de los bloques de la ciudad
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.fill',
-      stylers: [
-        { visibility: 'on' },
-        { color: p.edificacionesCasas.fill },
-      ],
+      stylers: [{ color: p.manzanasUrbanas.fill }],
     },
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.stroke',
       stylers: [
-        { visibility: 'on' },
-        { color: p.edificacionesCasas.stroke },
-        { weight: p.edificacionesCasas.strokeWeight },
+        { color: p.manzanasUrbanas.stroke },
+        { weight: p.manzanasUrbanas.strokeWeight },
       ],
+    },
+    {
+      featureType: 'landscape',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.manzanasUrbanas.fill }],
+    },
+
+    // 7. Casas: Viviendas y Lotes Residenciales (Estilo Tejas Andinas #f97316)
+    // 'administrative.land_parcel' colorea las parcelas y huellas residenciales con tejas de arcilla
+    {
+      featureType: 'administrative.land_parcel',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.casasResidenciales.fill }],
     },
     {
       featureType: 'administrative.land_parcel',
       elementType: 'geometry.stroke',
       stylers: [
-        { color: p.edificacionesCasas.stroke },
-        { weight: 1.0 },
+        { color: p.casasResidenciales.stroke },
+        { weight: p.casasResidenciales.strokeWeight },
       ],
+    },
+
+    // 8. Edificios: Estructuras cívicas, comerciales y equipamientos urbanos (#854d0e adobe tostado / sillar)
+    // Permite que colegios, comercios, hospitales, iglesias y edificios públicos destaquen con su propio color
+    {
+      featureType: 'poi.business',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificiosEstructuras.fill }],
     },
     {
       featureType: 'poi.school',
       elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
+      stylers: [{ color: p.edificiosEstructuras.fill }],
+    },
+    {
+      featureType: 'poi.school',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.edificiosEstructuras.stroke },
+        { weight: p.edificiosEstructuras.strokeWeight },
+      ],
     },
     {
       featureType: 'poi.government',
       elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
+      stylers: [{ color: p.edificiosEstructuras.fill }],
     },
     {
-      featureType: 'poi.place_of_worship',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
+      featureType: 'poi.government',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.edificiosEstructuras.stroke },
+        { weight: p.edificiosEstructuras.strokeWeight },
+      ],
     },
     {
       featureType: 'poi.medical',
       elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
+      stylers: [{ color: p.edificiosEstructuras.fill }],
+    },
+    {
+      featureType: 'poi.medical',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.edificiosEstructuras.stroke },
+        { weight: p.edificiosEstructuras.strokeWeight },
+      ],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificiosEstructuras.fill }],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.edificiosEstructuras.stroke },
+        { weight: p.edificiosEstructuras.strokeWeight },
+      ],
     },
 
     // 7. Carreteras y caminos locales

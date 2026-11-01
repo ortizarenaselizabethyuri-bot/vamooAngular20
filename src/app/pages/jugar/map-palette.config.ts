@@ -59,15 +59,21 @@ export interface VamooMapPalette {
   /** Áreas verdes tipo 2: Praderas, cubierta vegetal y laderas (Google Maps: #c1efd1) */
   readonly areasVerdesVegetacion: MapFeatureColor;
 
-  /** Manzanas urbanas: Fondo de los bloques residenciales */
+  /** Manzanas urbanas o áreas urbanas: Fondo suave de los bloques de la ciudad (#FDD7AA) */
   readonly manzanasUrbanas: {
     readonly fill: string;
     readonly stroke: string;
     readonly strokeWeight: number;
   };
 
-  /** Edificaciones y casas: Huellas de viviendas reales de Google Maps */
-  readonly edificacionesCasas: MapFeatureColor;
+  /** Casas: Viviendas residenciales con estilo de tejas andinas (#f97316) */
+  readonly casasResidenciales: MapFeatureColor;
+
+  /** Edificios: Estructuras cívicas, comerciales y equipamientos urbanos diferenciados (#854d0e) */
+  readonly edificiosEstructuras: MapFeatureColor;
+
+  /** Edificaciones y casas (compatibilidad hacia atrás) */
+  readonly edificacionesCasas?: MapFeatureColor;
 
   /** Red vial y carreteras de exploración */
   readonly redVial: {
@@ -120,14 +126,24 @@ export const PALETAS_PREDEFINIDAS = {
       strokeWeight: 1.5,
     },
     manzanasUrbanas: {
-      fill: '#FDD7AA',                  // Melocotón cálido suave
+      fill: '#FDD7AA',                  // 1. Manzanas o áreas urbanas: Melocotón cálido suave de fondo
       stroke: '#fbc28b',
       strokeWeight: 1.0,
     },
-    edificacionesCasas: {
-      fill: '#f97316',                  // Terracota vivo (teja andina de arcilla)
-      stroke: '#9a3412',                // Sombra y alero de pared
+    casasResidenciales: {
+      fill: '#f97316',                  // 2. Casas: Terracota vivo (estilo teja andina de arcilla)
+      stroke: '#9a3412',                // Sombra y alero de teja andina
+      strokeWeight: 1.4,
+    },
+    edificiosEstructuras: {
+      fill: '#854d0e',                  // 3. Edificios: Adobe tostado / sillar colonial andino diferenciado
+      stroke: '#451a03',                // Contorno estructural y cornisa
       strokeWeight: 1.6,
+    },
+    edificacionesCasas: {
+      fill: '#f97316',
+      stroke: '#9a3412',
+      strokeWeight: 1.4,
     },
     redVial: {
       callesLocales: {
@@ -192,14 +208,24 @@ export const PALETAS_PREDEFINIDAS = {
       strokeWeight: 1.5,
     },
     manzanasUrbanas: {
-      fill: '#FEF3C7',                  // Marfil dorado suave
+      fill: '#FEF3C7',                  // 1. Manzanas o áreas urbanas: Marfil dorado suave
       stroke: '#fde68a',
       strokeWeight: 1.0,
     },
-    edificacionesCasas: {
-      fill: '#fb923c',                  // Naranja calabaza alegre Pixar
+    casasResidenciales: {
+      fill: '#fb923c',                  // 2. Casas: Naranja calabaza alegre Pixar
       stroke: '#c2410c',
+      strokeWeight: 1.4,
+    },
+    edificiosEstructuras: {
+      fill: '#38bdf8',                  // 3. Edificios: Azul cielo futurista Pixar
+      stroke: '#0284c7',
       strokeWeight: 1.6,
+    },
+    edificacionesCasas: {
+      fill: '#fb923c',
+      stroke: '#c2410c',
+      strokeWeight: 1.4,
     },
     redVial: {
       callesLocales: {
@@ -264,14 +290,24 @@ export const PALETAS_PREDEFINIDAS = {
       strokeWeight: 1.6,
     },
     manzanasUrbanas: {
-      fill: '#FDE68A',                  // Amarillo ocre suave de villa RPG
+      fill: '#FDE68A',                  // 1. Manzanas o áreas urbanas: Amarillo ocre suave de villa RPG
       stroke: '#fcd34d',
       strokeWeight: 1.0,
     },
+    casasResidenciales: {
+      fill: '#ef4444',                  // 2. Casas: Tejado rojo carmesí de casitas RPG
+      stroke: '#991b1b',
+      strokeWeight: 1.4,
+    },
+    edificiosEstructuras: {
+      fill: '#7c3aed',                  // 3. Edificios: Torre mágica / castillo púrpura RPG
+      stroke: '#4c1d95',
+      strokeWeight: 1.6,
+    },
     edificacionesCasas: {
-      fill: '#ef4444',                  // Tejado rojo carmesí de casitas RPG
-      stroke: '#991b1b',                // Sombra oscura de tejado
-      strokeWeight: 1.8,
+      fill: '#ef4444',
+      stroke: '#991b1b',
+      strokeWeight: 1.4,
     },
     redVial: {
       callesLocales: {
@@ -336,14 +372,24 @@ export const PALETAS_PREDEFINIDAS = {
       strokeWeight: 1.4,
     },
     manzanasUrbanas: {
-      fill: '#F5EBE0',                  // Lino / arena suave descansado
+      fill: '#F5EBE0',                  // 1. Manzanas o áreas urbanas: Lino / arena suave descansado
       stroke: '#e6ccb2',
       strokeWeight: 1.0,
     },
-    edificacionesCasas: {
-      fill: '#D4A373',                  // Adobe tostado / terracota suave
+    casasResidenciales: {
+      fill: '#D4A373',                  // 2. Casas: Adobe tostado / terracota suave
       stroke: '#8c5a3c',
-      strokeWeight: 1.5,
+      strokeWeight: 1.4,
+    },
+    edificiosEstructuras: {
+      fill: '#6b705c',                  // 3. Edificios: Piedra rústica salvia
+      stroke: '#3f4238',
+      strokeWeight: 1.6,
+    },
+    edificacionesCasas: {
+      fill: '#D4A373',
+      stroke: '#8c5a3c',
+      strokeWeight: 1.4,
     },
     redVial: {
       callesLocales: {
@@ -408,14 +454,24 @@ export const PALETAS_PREDEFINIDAS = {
       strokeWeight: 1.5,
     },
     manzanasUrbanas: {
-      fill: '#1E293B',                  // Pizarra azulada oscura
+      fill: '#1E293B',                  // 1. Manzanas o áreas urbanas: Pizarra azulada oscura
       stroke: '#334155',
       strokeWeight: 1.0,
     },
-    edificacionesCasas: {
-      fill: '#f59e0b',                  // Ámbar luminoso de ventana/tejado
+    casasResidenciales: {
+      fill: '#f59e0b',                  // 2. Casas: Ámbar luminoso de ventana/tejado
       stroke: '#b45309',
+      strokeWeight: 1.4,
+    },
+    edificiosEstructuras: {
+      fill: '#a855f7',                  // 3. Edificios: Púrpura cósmico neón
+      stroke: '#6b21a8',
       strokeWeight: 1.6,
+    },
+    edificacionesCasas: {
+      fill: '#f59e0b',
+      stroke: '#b45309',
+      strokeWeight: 1.4,
     },
     redVial: {
       callesLocales: {
