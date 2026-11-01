@@ -675,7 +675,8 @@ export class RpgMapEngine {
     }
 
     // 4. Autopistas y avenidas arteriales amarillas / anaranjadas (ej. vías principales de penetración)
-    if (r >= 215 && g >= 170 && b <= 165 && (r - b) >= 35 && (g - b) >= 12) {
+    // El componente rojo domina o empata con el verde (r >= g - 4) y es muy superior al azul (r - b >= 38)
+    if (r >= 215 && g >= 160 && b <= 165 && r >= g - 4 && (r - b) >= 38) {
       return true;
     }
 
@@ -683,19 +684,31 @@ export class RpgMapEngine {
   }
 
   /**
-   * Determina con rigor si un píxel RGB corresponde genuinamente a vegetación o parque verde.
-   * Excluye deliberadamente el terreno andino beige/oliva de fondo para que solo los parques reales tengan arboledas densas.
+   * Determina con rigor si un píxel RGB corresponde a áreas verdes, parques, reservas naturales,
+   * campos abiertos o zonas descampadas (praderas y terrenos abiertos de tono verde/oliva).
    *
    * @param r - Componente rojo (0 - 255).
    * @param g - Componente verde (0 - 255).
    * @param b - Componente azul (0 - 255).
-   * @returns boolean - true si es área verde de parque o jardín público.
+   * @returns boolean - true si es área verde, parque, jardín público o descampado vegetal.
    */
   public isParkPixel(r: number, g: number, b: number): boolean {
-    // Parques y jardines en ESRI/OSM: Verde dominante destacado sobre el fondo
-    const isBrightPark = g >= 140 && (g - r) >= 12 && (g - b) >= 16;
-    const isDeepFoliage = g >= 110 && g > r * 1.10 && g > b * 1.10 && (g - r) >= 10;
-    return isBrightPark || isDeepFoliage;
+    // 1. Zonas descampadas, campos abiertos y praderas verdes/oliva claros (ej. 216, 225, 164 o 218, 224, 178)
+    if (g > r && (g - r) >= 2 && (g - b) >= 25) {
+      return true;
+    }
+
+    // 2. Parques urbanos, plazas y jardines públicos de verde vivo
+    if (g >= 125 && (g - r) >= 8 && (g - b) >= 15) {
+      return true;
+    }
+
+    // 3. Follaje profundo / vegetación densa de arboledas
+    if (g >= 90 && g > r * 1.04 && g > b * 1.04 && (g - r) >= 5) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -776,6 +789,63 @@ export class RpgMapEngine {
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
 
+      if (checkPoint(localX + clearanceRadius * cosA, localY + clearanceRadius * sinA)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Comprueba si una zona está completamente libre de áreas verdes, parques y descampados.
+   * Garantiza que ninguna casita se ubique dentro o en el borde de un área verde o descampado.
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param localX - Coordenada horizontal central (0 - 255).
+   * @param localY - Coordenada vertical central (0 - 255).
+   * @param clearanceRadius - Radio de seguridad en píxeles.
+   * @returns boolean - true si la zona está libre de áreas verdes; false si colisiona con vegetación/descampado.
+   */
+  public isAreaClearOfPark(key: string, localX: number, localY: number, clearanceRadius: number): boolean {
+    const imgData = this.tilePixelDataCache.get(key);
+    if (!imgData || !imgData.data || imgData.data.length < 256 * 256 * 4) {
+      return this.sampleTileTerrain(key, localX, localY) !== 'park';
+    }
+
+    const data = imgData.data;
+
+    const checkPoint = (px: number, py: number): boolean => {
+      const cx = Math.max(0, Math.min(255, Math.round(px)));
+      const cy = Math.max(0, Math.min(255, Math.round(py)));
+      const idx = (cy * 256 + cx) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      return this.isParkPixel(r, g, b);
+    };
+
+    // 1. Verificar punto central
+    if (checkPoint(localX, localY)) {
+      return false;
+    }
+
+    // 2. Muestreo de cuadrícula densa en la huella de la casa
+    const step = Math.max(3, Math.round(clearanceRadius / 2));
+    for (let dx = -clearanceRadius; dx <= clearanceRadius; dx += step) {
+      for (let dy = -clearanceRadius; dy <= clearanceRadius; dy += step) {
+        if (checkPoint(localX + dx, localY + dy)) {
+          return false;
+        }
+      }
+    }
+
+    // 3. Muestreo radial periférico
+    const numAngles = 8;
+    for (let i = 0; i < numAngles; i++) {
+      const angle = (i * 2 * Math.PI) / numAngles;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
       if (checkPoint(localX + clearanceRadius * cosA, localY + clearanceRadius * sinA)) {
         return false;
       }
@@ -911,14 +981,13 @@ export class RpgMapEngine {
 
         if (terrain === 'park') {
           // =========================================================================
-          // REGLA 1: ÁREAS VERDES / PARQUES
-          // - CERO CASAS (prohibido que se generen casas aquí).
-          // - Mayor cantidad y densidad de árboles (3 variantes) y vegetación (3 variantes).
+          // REGLA 1: ÁREAS VERDES, PARQUES Y DESCAMPADOS
+          // - CERO CASAS (prohibido que se generen casas aquí bajo cualquier circunstancia).
+          // - Aumento sustancial de árboles (3 variantes) y vegetación (3 variantes).
           // =========================================================================
-          // Árboles en parques: no invaden senderos ni carreteras
-          if (this.isAreaClearOfRoad(key, localX, localY, 10 * scaleFactor)) {
-            // Alta densidad en parques: el 75% de las posiciones válidas tienen árboles
-            if (seed > 0.25) {
+          // 1. Árbol principal del descampado / parque (no invade carreteras ni pistas)
+          if (this.isAreaClearOfRoad(key, localX, localY, 9 * scaleFactor)) {
+            if (seed > 0.20) {
               const treeVariant = Math.floor(seed * 7) % 3;
               items.push({
                 type: 'tree',
@@ -929,9 +998,25 @@ export class RpgMapEngine {
                 variant: treeVariant,
               });
             }
+
+            // En zonas descampadas amplias, generar un segundo árbol agrupado para mayor densidad
+            if (seed > 0.42 && seed < 0.88) {
+              const secondX = Math.max(10, Math.min(245, localX + 16 * scaleFactor));
+              const secondY = Math.max(10, Math.min(245, localY - 12 * scaleFactor));
+              if (this.isAreaClearOfRoad(key, secondX, secondY, 9 * scaleFactor)) {
+                items.push({
+                  type: 'tree',
+                  localX: secondX,
+                  localY: secondY,
+                  scale: scaleFactor * 0.95,
+                  seed: (seed * 1.618) % 1,
+                  variant: Math.floor(seed * 13) % 3,
+                });
+              }
+            }
           }
 
-          // Abundante vegetación en parques (puede aparecer normal)
+          // 2. Vegetación abundante en descampados y parques (puede aparecer normal)
           const vegVariant = Math.floor(seed * 11) % 3;
           items.push({
             type: 'vegetation',
@@ -941,17 +1026,34 @@ export class RpgMapEngine {
             seed,
             variant: vegVariant,
           });
+
+          // Vegetación secundaria para poblar y dar frondosidad al descampado
+          if (seed > 0.30) {
+            const extraX = Math.max(8, Math.min(248, localX + (seed > 0.65 ? -14 : 14) * scaleFactor));
+            const extraY = Math.max(8, Math.min(248, localY + (seed > 0.65 ? 12 : -12) * scaleFactor));
+            items.push({
+              type: 'vegetation',
+              localX: extraX,
+              localY: extraY,
+              scale: scaleFactor,
+              seed: (seed * 2.3) % 1,
+              variant: Math.floor(seed * 19) % 3,
+            });
+          }
         } else if (terrain === 'block') {
           // =========================================================================
           // REGLA 2: MANZANA URBANA / RESIDENCIAL
           // - REGLA ESTRICTA DE CARRETERAS: NI CASAS NI ÁRBOLES en carreteras.
+          // - REGLA ESTRICTA DE ÁREAS VERDES: Casas 100% libres de parques/descampados.
           // - Casas cuadradas de 20x20 con 3 variantes arquitectónicas.
           // - Árboles individuales de jardín residencial con 3 variantes botánicas.
           // - Vegetación en aceras y bordes (la vegetación sí puede aparecer normal).
           // =========================================================================
 
-          // Radio de seguridad estricto de 12px para casas cuadradas de 20x20 (área libre de 24x24 px)
-          const isClearForHouse = this.isAreaClearOfRoad(key, localX, localY, 12 * scaleFactor);
+          // Seguridad estricta para casas: libre de carreteras Y libre de áreas verdes/descampados
+          const isClearForHouse =
+            this.isAreaClearOfRoad(key, localX, localY, 12 * scaleFactor) &&
+            this.isAreaClearOfPark(key, localX, localY, 10 * scaleFactor);
 
           if (isClearForHouse) {
             if (seed > 0.35 && seed < 0.85) {

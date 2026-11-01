@@ -149,20 +149,22 @@ describe('RpgMapEngine', () => {
     expect(typeof roadCheck).toBe('boolean');
   });
 
-  it('debe confinar arboledas densas exclusivamente a parques reales y excluir el fondo andino beige/oliva', () => {
+  it('debe clasificar áreas verdes, parques y descampados vegetales y excluir manzanas urbanas y carreteras', () => {
     // Parques reales con verde vivo destacado
     expect(engine.isParkPixel(180, 235, 190)).toBe(true);
     expect(engine.isParkPixel(110, 175, 115)).toBe(true);
 
-    // Terreno andino oliva/beige del valle (218, 224, 178) NO debe ser tratado como parque denso
-    expect(engine.isParkPixel(218, 224, 178)).toBe(false);
+    // Descampados y campos verdes/oliva del valle (218, 224, 178) y (216, 225, 164)
+    expect(engine.isParkPixel(218, 224, 178)).toBe(true);
+    expect(engine.isParkPixel(216, 225, 164)).toBe(true);
 
-    // Carreteras y manzanas urbanas NO son parques
+    // Carreteras y manzanas urbanas residenciales NO son parques ni descampados
     expect(engine.isParkPixel(255, 255, 255)).toBe(false);
     expect(engine.isParkPixel(243, 240, 207)).toBe(false);
+    expect(engine.isParkPixel(248, 244, 199)).toBe(false);
   });
 
-  it('debe precalcular y almacenar en caché decoraciones fijas respetando las reglas de parques y carreteras', () => {
+  it('debe precalcular y almacenar en caché decoraciones fijas respetando las reglas de parques, descampados y carreteras', () => {
     const key = '19_152611_279850';
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
@@ -170,12 +172,16 @@ describe('RpgMapEngine', () => {
     expect(engine.getZoomScaleFactor(19)).toBe(1.0);
   });
 
-  it('debe respetar la regla de áreas verdes: CERO casas en parques y asignación de 3 variantes', () => {
-    // Clasificación de color verde de parque
+  it('debe respetar la regla de áreas verdes y descampados: CERO casas, mayor densidad de árboles/vegetación y verificación de márgenes', () => {
+    // Clasificación de color verde de parque y descampado
     expect(engine.classifyColorTerrain(115, 175, 120)).toBe('park');
+    expect(engine.classifyColorTerrain(216, 225, 164)).toBe('park');
+
+    // Despeje de parques para evitar que las casas se ubiquen en bordes de áreas verdes
+    const key = '19_152611_279850';
+    expect(typeof engine.isAreaClearOfPark(key, 0, 0, 10)).toBe('boolean');
 
     // Muestreo determinista simulando zona de parque
-    const key = '19_152611_279850';
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
     // Detección estricta de carreteras cubre asfalto, bordes y textos sobre calzada
