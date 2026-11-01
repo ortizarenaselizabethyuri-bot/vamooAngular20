@@ -177,60 +177,6 @@
                 <span class="compass-needle-label">N</span>
               </div>
 
-              <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados (Z15 Amplia a Z19 Jugador) -->
-              <div class="map-overlay-zoom-presets" role="toolbar" aria-label="Niveles de Zoom">
-                <button 
-                  type="button" 
-                  class="zoom-preset-btn" 
-                  [class.active]="mapZoom() === 15" 
-                  (click)="setZoomPreset(15)" 
-                  title="Vista Más Amplia (Zoom 15 - Ciudad y laderas)">
-                  <span class="preset-icon">🌍</span>
-                  <span>AMPLIA (Z15)</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="zoom-preset-btn" 
-                  [class.active]="mapZoom() >= 16 && mapZoom() <= 18" 
-                  (click)="setZoomPreset(17)" 
-                  title="Vista Intermedia de Barrio (Zoom 17 - Manzanas y calles)">
-                  <span class="preset-icon">🏘️</span>
-                  <span>BARRIO (Z17)</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="zoom-preset-btn" 
-                  [class.active]="mapZoom() === 19" 
-                  (click)="setZoomPreset(19)" 
-                  title="Vista Principal del Jugador (Zoom 19 - Ubicación habitual)">
-                  <span class="preset-icon">📍</span>
-                  <span>JUGADOR (Z19)</span>
-                </button>
-              </div>
-
-              <!-- HUD LATERAL: Ajuste Fino (+ / - / Nivel) -->
-              <div class="map-overlay-stepper" role="group" aria-label="Ajuste fino de Zoom">
-                <button 
-                  type="button" 
-                  class="stepper-btn" 
-                  (click)="stepZoom(1)" 
-                  [disabled]="mapZoom() >= 19" 
-                  title="Acercar vista (+)">
-                  <span>+</span>
-                </button>
-                <div class="stepper-badge" title="Nivel de zoom actual">
-                  <span>Z{{ mapZoom() }}</span>
-                </div>
-                <button 
-                  type="button" 
-                  class="stepper-btn" 
-                  (click)="stepZoom(-1)" 
-                  [disabled]="mapZoom() <= 15" 
-                  title="Alejar vista (-)">
-                  <span>-</span>
-                </button>
-              </div>
-
               <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
               <div class="map-overlay-drag-hint">
                 <div class="drag-indicator-pill">

@@ -72,21 +72,25 @@ describe('RpgMapEngine', () => {
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
-  it('debe calcular el factor de escala dinámico por nivel de zoom (Z15 a Z19) para optimización y fidelidad', () => {
-    // Z15: Vista macro más amplia -> escala 0 (evita sobrecarga y saturación)
+  it('debe calcular el factor de escala visual: vista en Z19 con tamaño compacto de Z15 (0.45x)', () => {
+    // Z15 o menor: Vista macro -> escala 0 (evita sobrecarga y saturación)
     expect(engine.getZoomScaleFactor(15)).toBe(0);
 
-    // Z16: Vista panorámica ligera -> escala 0.50
-    expect(engine.getZoomScaleFactor(16)).toBe(0.50);
+    // Z19: Vista principal del jugador calibrada al tamaño compacto de Z15 (0.45x)
+    expect(engine.getZoomScaleFactor(19)).toBe(0.45);
+  });
 
-    // Z17: Vista intermedia de barrio -> escala 0.70
-    expect(engine.getZoomScaleFactor(17)).toBe(0.70);
+  it('debe ordenar las teselas en secuencia radial progresiva desde el centro del jugador hacia los costados', () => {
+    const center = engine.latLngToWorldPixels(-12.0681, -75.2100, 19);
+    const tiles = engine.getVisibleTilesRadialOrder(center, 800, 600);
 
-    // Z18: Vista suburbana detallada -> escala 0.85
-    expect(engine.getZoomScaleFactor(18)).toBe(0.85);
-
-    // Z19: Vista principal del jugador -> escala 1.00 (máximo detalle)
-    expect(engine.getZoomScaleFactor(19)).toBe(1.00);
+    expect(tiles.length).toBeGreaterThan(0);
+    // La primera tesela debe ser la más cercana al centro del jugador
+    expect(tiles[0].dist).toBeLessThanOrEqual(tiles[tiles.length - 1].dist);
+    // Cada tesela sucesiva debe estar a distancia igual o mayor que la anterior
+    for (let i = 1; i < tiles.length; i++) {
+      expect(tiles[i].dist).toBeGreaterThanOrEqual(tiles[i - 1].dist);
+    }
   });
 
   it('debe clasificar con precisión los colores RGB en parques, carreteras, manzanas y agua', () => {
@@ -157,7 +161,7 @@ describe('RpgMapEngine', () => {
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
     // Al volver a invocar sobre la misma tesela o consultar el zoom, la respuesta es estable
-    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
+    expect(engine.getZoomScaleFactor(19)).toBe(0.45);
   });
 });
 

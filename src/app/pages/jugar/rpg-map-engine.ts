@@ -401,11 +401,10 @@ export class RpgMapEngine {
     window.addEventListener('pointerup', stopDragging);
     window.addEventListener('pointercancel', stopDragging);
 
-    // Zoom con rueda del ratón
+    // Desactivar zoom manual con rueda del ratón: el jugador solo tiene vista de Z19 fija
     canvas.addEventListener('wheel', (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 1 : -1;
-      this.stepZoom(delta);
+      // La vista permanece fija en Z19; el renderizado interno gestiona la escena
     }, { passive: false });
   }
 
@@ -483,8 +482,8 @@ export class RpgMapEngine {
 
   /**
    * Renderiza los elementos decorativos precalculados y fijados a las teselas visibles,
-   * garantizando que no se generen ni muten elementos durante el desplazamiento de cámara,
-   * manteniendo carreteras 100% libres y confinando las arboledas densas a parques.
+   * ejecutando el renderizado de forma progresiva desde el centro del jugador hacia los costados,
+   * calibrado a vista de Z19 con tamaño compacto de Z15 (0.45x) y carreteras 100% despejadas.
    *
    * @returns void
    */
@@ -499,53 +498,42 @@ export class RpgMapEngine {
     const height = this.app.screen.height;
     const centerPixels = this.latLngToWorldPixels(this.center.lat, this.center.lng, this.zoom);
 
-    const minWorldX = centerPixels.x - width / 2 - 256;
-    const maxWorldX = centerPixels.x + width / 2 + 256;
-    const minWorldY = centerPixels.y - height / 2 - 256;
-    const maxWorldY = centerPixels.y + height / 2 + 256;
+    // Renderizado progresivo: del centro del jugador hacia sus costados
+    const radialTiles = this.getVisibleTilesRadialOrder(centerPixels, width, height);
 
-    const minTileX = Math.floor(minWorldX / 256);
-    const maxTileX = Math.floor(maxWorldX / 256);
-    const minTileY = Math.floor(minWorldY / 256);
-    const maxTileY = Math.floor(maxWorldY / 256);
-
-    for (let tx = minTileX; tx <= maxTileX; tx++) {
-      for (let ty = minTileY; ty <= maxTileY; ty++) {
-        const key = `${this.zoom}_${tx}_${ty}`;
-
-        // Obtener decoraciones fijas de la caché o generarlas si los datos de la tesela ya están listos
-        let decorations = this.tileDecorationsCache.get(key);
-        if (!decorations) {
-          if (this.tilePixelDataCache.has(key)) {
-            this.analyzeAndCacheTileDecorations(key, tx, ty, this.zoom);
-            decorations = this.tileDecorationsCache.get(key);
-          }
+    for (const tile of radialTiles) {
+      // Obtener decoraciones fijas de la caché o generarlas si los datos de la tesela ya están listos
+      let decorations = this.tileDecorationsCache.get(tile.key);
+      if (!decorations) {
+        if (this.tilePixelDataCache.has(tile.key)) {
+          this.analyzeAndCacheTileDecorations(tile.key, tile.tx, tile.ty, this.zoom);
+          decorations = this.tileDecorationsCache.get(tile.key);
         }
+      }
 
-        // Si la tesela aún está descargando, no pintar elementos transitorios para evitar parpadeos
-        if (!decorations || decorations.length === 0) continue;
+      // Si la tesela aún está descargando, no pintar elementos transitorios para evitar parpadeos
+      if (!decorations || decorations.length === 0) continue;
 
-        const tileScreenX = tx * 256 - centerPixels.x + width / 2;
-        const tileScreenY = ty * 256 - centerPixels.y + height / 2;
+      const tileScreenX = tile.tx * 256 - centerPixels.x + width / 2;
+      const tileScreenY = tile.ty * 256 - centerPixels.y + height / 2;
 
-        for (const item of decorations) {
-          const posX = tileScreenX + item.localX;
-          const posY = tileScreenY + item.localY;
+      for (const item of decorations) {
+        const posX = tileScreenX + item.localX;
+        const posY = tileScreenY + item.localY;
 
-          switch (item.type) {
-            case 'grove':
-              this.drawPokemonGrove(this.decorationsGraphics, posX, posY, item.scale, item.seed);
-              break;
-            case 'house':
-              this.drawPokemonHouse(this.decorationsGraphics, posX, posY, item.scale);
-              break;
-            case 'tree':
-              this.drawPokemonTree(this.decorationsGraphics, posX, posY, item.scale, item.variant || 0);
-              break;
-            case 'flowers':
-              this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, item.scale);
-              break;
-          }
+        switch (item.type) {
+          case 'grove':
+            this.drawPokemonGrove(this.decorationsGraphics, posX, posY, item.scale, item.seed);
+            break;
+          case 'house':
+            this.drawPokemonHouse(this.decorationsGraphics, posX, posY, item.scale);
+            break;
+          case 'tree':
+            this.drawPokemonTree(this.decorationsGraphics, posX, posY, item.scale, item.variant || 0);
+            break;
+          case 'flowers':
+            this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, item.scale);
+            break;
         }
       }
     }
@@ -642,31 +630,17 @@ export class RpgMapEngine {
   }
 
   /**
-   * Obtiene el factor de escala visual para decoraciones según el nivel de zoom actual.
-   * Respeta la cota [Z15 - Z19]:
-   * - Z15: 0 (omisión de decoraciones pesadas para optimizar rendimiento)
-   * - Z16: 0.50 (micro-elementos panorámicos ligeros)
-   * - Z17: 0.70 (vista intermedia de barrio)
-   * - Z18: 0.85 (vista suburbana detallada)
-   * - Z19: 1.00 (vista principal del jugador a escala completa)
+   * Obtiene el factor de escala visual para decoraciones según la regla de diseño:
+   * Vista fijada en Z19 para el jugador con renderizado calibrado al tamaño compacto de Z15 (0.45x)
+   * para evitar saturación de parcelas, dejar calles despejadas y lograr estética retro Pokémon.
    *
-   * @param zoom - Nivel de zoom actual (15 a 19).
-   * @returns number - Factor multiplicador de tamaño [0, 1.0].
+   * @param zoom - Nivel de zoom (fijado en Z19 para el aventurero).
+   * @returns number - Factor de escala visual (0.45 para tamaño compacto Z15, 0 para vista macro <= 15).
    */
-  public getZoomScaleFactor(zoom: number): number {
-    switch (zoom) {
-      case 15:
-        return 0; // Sin sobrecarga en la vista macro más amplia
-      case 16:
-        return 0.50;
-      case 17:
-        return 0.70;
-      case 18:
-        return 0.85;
-      case 19:
-      default:
-        return 1.00;
-    }
+  public getZoomScaleFactor(zoom: number = 19): number {
+    if (zoom <= 15) return 0;
+    // Renderizado a vista de Z19 pero al tamaño compacto de Z15
+    return 0.45;
   }
 
   /**
@@ -1171,7 +1145,52 @@ export class RpgMapEngine {
   }
 
   /**
-   * Determina la ventana de visualización en píxeles y descarga/posiciona las teselas necesarias.
+   * Obtiene la lista de teselas visibles ordenadas progresivamente en anillos concéntricos
+   * radiales desde el centro del aventurero hacia los costados de la pantalla.
+   *
+   * @param centerPixels - Coordenadas del centro en píxeles de mundo Web Mercator.
+   * @param width - Ancho en píxeles del viewport de pantalla.
+   * @param height - Alto en píxeles del viewport de pantalla.
+   * @returns Array<{ tx: number; ty: number; dist: number; key: string }> Teselas ordenadas del centro hacia afuera.
+   */
+  public getVisibleTilesRadialOrder(
+    centerPixels: { x: number; y: number },
+    width: number,
+    height: number,
+  ): Array<{ tx: number; ty: number; dist: number; key: string }> {
+    const centerTileX = centerPixels.x / 256;
+    const centerTileY = centerPixels.y / 256;
+
+    const minWorldX = centerPixels.x - width / 2 - 256;
+    const maxWorldX = centerPixels.x + width / 2 + 256;
+    const minWorldY = centerPixels.y - height / 2 - 256;
+    const maxWorldY = centerPixels.y + height / 2 + 256;
+
+    const minTileX = Math.floor(minWorldX / 256);
+    const maxTileX = Math.floor(maxWorldX / 256);
+    const minTileY = Math.floor(minWorldY / 256);
+    const maxTileY = Math.floor(maxWorldY / 256);
+
+    const tiles: Array<{ tx: number; ty: number; dist: number; key: string }> = [];
+
+    for (let tx = minTileX; tx <= maxTileX; tx++) {
+      for (let ty = minTileY; ty <= maxTileY; ty++) {
+        const key = `${this.zoom}_${tx}_${ty}`;
+        // Distancia euclídea normalizada al centro de la cámara del aventurero
+        const dist = Math.hypot((tx + 0.5) - centerTileX, (ty + 0.5) - centerTileY);
+        tiles.push({ tx, ty, dist, key });
+      }
+    }
+
+    // Ordenamiento progresivo: el centro del jugador primero, expandiéndose hacia los costados
+    tiles.sort((a, b) => a.dist - b.dist);
+
+    return tiles;
+  }
+
+  /**
+   * Determina la ventana de visualización en píxeles y descarga/posiciona las teselas necesarias
+   * en orden progresivo radial desde el centro del aventurero hacia los costados.
    *
    * @returns void
    */
@@ -1183,37 +1202,26 @@ export class RpgMapEngine {
 
     const centerPixels = this.latLngToWorldPixels(this.center.lat, this.center.lng, this.zoom);
 
-    // Calcular límites en coordenadas de teselas (con margen de seguridad de 1 tesela)
-    const minWorldX = centerPixels.x - width / 2 - 256;
-    const maxWorldX = centerPixels.x + width / 2 + 256;
-    const minWorldY = centerPixels.y - height / 2 - 256;
-    const maxWorldY = centerPixels.y + height / 2 + 256;
-
-    const minTileX = Math.floor(minWorldX / 256);
-    const maxTileX = Math.floor(maxWorldX / 256);
-    const minTileY = Math.floor(minWorldY / 256);
-    const maxTileY = Math.floor(maxWorldY / 256);
-
+    // Obtener teselas ordenadas progresivamente del centro del jugador hacia los bordes
+    const radialTiles = this.getVisibleTilesRadialOrder(centerPixels, width, height);
     const neededTileKeys = new Set<string>();
 
-    for (let tx = minTileX; tx <= maxTileX; tx++) {
-      for (let ty = minTileY; ty <= maxTileY; ty++) {
-        const key = `${this.zoom}_${tx}_${ty}`;
-        neededTileKeys.add(key);
+    for (const tile of radialTiles) {
+      neededTileKeys.add(tile.key);
 
-        const screenX = tx * 256 - centerPixels.x + width / 2;
-        const screenY = ty * 256 - centerPixels.y + height / 2;
+      const screenX = tile.tx * 256 - centerPixels.x + width / 2;
+      const screenY = tile.ty * 256 - centerPixels.y + height / 2;
 
-        const existingSprite = this.activeTileSprites.get(key);
-        if (existingSprite) {
-          existingSprite.position.set(screenX, screenY);
-        } else {
-          this.loadAndPlaceTile(tx, ty, this.zoom, key, screenX, screenY);
-        }
+      const existingSprite = this.activeTileSprites.get(tile.key);
+      if (existingSprite) {
+        existingSprite.position.set(screenX, screenY);
+      } else {
+        // Carga progresiva radial desde el centro hacia afuera
+        this.loadAndPlaceTile(tile.tx, tile.ty, this.zoom, tile.key, screenX, screenY);
       }
     }
 
-    // Purgar teselas que quedaron fuera del campo de visión ampliado
+    // Purgar teselas que salieron de la vista
     for (const [key, sprite] of this.activeTileSprites.entries()) {
       if (!neededTileKeys.has(key)) {
         this.tileContainer.removeChild(sprite);

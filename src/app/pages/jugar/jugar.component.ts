@@ -383,31 +383,26 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Incrementa o decrementa el nivel de zoom en un paso (+1 o -1),
-   * manteniéndose dentro del rango calibrado (Z15 a Z19).
+   * Manejador de incremento o decremento de zoom.
+   * La vista del jugador permanece fija en Z19 según las reglas de diseño.
    *
-   * @param delta - Variación de nivel (+1 para acercar, -1 para alejar).
+   * @param _delta - Variación ignorada para mantener vista fija en Z19.
    * @returns void
    */
-  stepZoom(delta: number): void {
-    const next = Math.min(19, Math.max(15, this.mapZoom() + delta));
-    this.mapZoom.set(next);
-    this.rpgEngine?.setZoom(next);
+  stepZoom(_delta: number): void {
+    this.mapZoom.set(19);
+    this.rpgEngine?.setZoom(19);
   }
 
   /**
-   * Establece directamente uno de los niveles de zoom precalibrados:
-   * - 15: Vista Amplia
-   * - 17: Vista Barrio
-   * - 19: Vista Principal Jugador
+   * Establece el nivel de zoom. La vista del jugador permanece fija en Z19.
    *
-   * @param level - Nivel de zoom objetivo (15 a 19).
+   * @param _level - Nivel objetivo fijado en Z19.
    * @returns void
    */
-  setZoomPreset(level: number): void {
-    const target = Math.min(19, Math.max(15, level));
-    this.mapZoom.set(target);
-    this.rpgEngine?.setZoom(target);
+  setZoomPreset(_level: number): void {
+    this.mapZoom.set(19);
+    this.rpgEngine?.setZoom(19);
   }
 
   /**
