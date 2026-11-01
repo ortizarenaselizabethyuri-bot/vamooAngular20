@@ -127,6 +127,9 @@ export class RpgMapEngine {
   /** Caché en memoria de elementos decorativos analizados y fijados permanentemente por tesela ('z_x_y') */
   private readonly tileDecorationsCache = new Map<string, CachedTileDecoration[]>();
 
+  /** Caché en memoria de texturas PNG de alta calidad para las variantes de casas */
+  private readonly houseTextures = new Map<number, Texture>();
+
   /** Mapa de teselas actualmente activas en el escenario (clave: 'z_x_y') */
   private readonly activeTileSprites = new Map<string, Sprite>();
 
@@ -269,8 +272,46 @@ export class RpgMapEngine {
 
       // Renderizar el primer fotograma
       this.refreshMap();
+
+      // Precargar texturas PNG de casas para reemplazo de alta fidelidad
+      this.loadHouseTextures();
     } catch (error) {
       console.warn('[RpgMapEngine] No se pudo inicializar WebGL en este entorno:', error);
+    }
+  }
+
+  /**
+   * Precarga asíncrona de las texturas PNG transparentes de las 3 variantes de casas Pokémon.
+   * Si la carga tiene éxito, refresca la capa de decoraciones para mostrar los sprites de alta fidelidad.
+   *
+   * @returns Promise<void>
+   */
+  public async loadHouseTextures(): Promise<void> {
+    if (typeof window === 'undefined' || typeof Image === 'undefined') return;
+
+    try {
+      const variants = [0, 1, 2];
+      let loadedAny = false;
+
+      for (const v of variants) {
+        const url = `/assets/sprites/house_${v}.png`;
+        try {
+          const texture = await Assets.load<Texture>({ src: url, loadParser: 'loadTextures' });
+          if (texture && texture.source) {
+            texture.source.scaleMode = 'nearest';
+            this.houseTextures.set(v, texture);
+            loadedAny = true;
+          }
+        } catch {
+          // Si el archivo no está accesible, continúa con el respaldo procedural sin interrumpir
+        }
+      }
+
+      if (loadedAny && this.isInitialized) {
+        this.renderDecorations();
+      }
+    } catch {
+      // Ignorar de forma segura en pruebas headless
     }
   }
 
@@ -1392,8 +1433,9 @@ export class RpgMapEngine {
   }
 
   /**
-   * Dibuja una casa cuadrada de exactamente 20 x 20 píxeles estilo pixel-art Pokémon con 3 variantes arquitectónicas.
-   * Cuenta con fachada cúbica de adobe/sillar, tejado a dos aguas, aberturas y sombra en el suelo.
+   * Dibuja una casa estilo pixel-art Pokémon con 3 variantes arquitectónicas.
+   * Si la textura PNG transparente de la variante está cargada en memoria, dibuja el sprite de alta fidelidad;
+   * en caso contrario, utiliza el renderizado procedural como respaldo continuo.
    *
    * @param g - Objeto Graphics de PixiJS sobre el cual pintar la casita.
    * @param x - Posición horizontal central sobre la pantalla.
@@ -1405,6 +1447,30 @@ export class RpgMapEngine {
   private drawPokemonHouse(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
     if (scale <= 0) return;
 
+    // Verificar si la textura PNG transparente de la variante ya está en memoria
+    const tex = this.houseTextures.get(variant);
+    if (tex && tex.source) {
+      const houseSize = 34 * scale;
+      // Dibuja el sprite PNG transparente centrado sobre las coordenadas designadas
+      g.texture(tex, 0xffffff, x - houseSize / 2, y - houseSize / 2, houseSize, houseSize);
+      return;
+    }
+
+    // Renderizado procedural de respaldo si la textura PNG aún no ha cargado
+    this.drawPokemonHouseProcedural(g, x, y, scale, variant);
+  }
+
+  /**
+   * Renderizado procedural de respaldo para las casitas cuando no hay texturas cargadas (headless/tests).
+   *
+   * @param g - Objeto Graphics sobre el cual pintar.
+   * @param x - Posición horizontal central sobre la pantalla.
+   * @param y - Posición vertical central sobre la pantalla.
+   * @param scale - Factor de escala proporcional.
+   * @param variant - Variante arquitectónica (0, 1 o 2).
+   * @returns void
+   */
+  private drawPokemonHouseProcedural(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
     // Sombra proyectada en el suelo debajo de la casa (22x4 px)
     g.rect(x - 11 * scale, y + 8 * scale, 22 * scale, 4 * scale)
       .fill({ color: 0x000000, alpha: 0.22 });

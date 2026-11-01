@@ -459,3 +459,4 @@ filesToSave.forEach((item) => {
 });
 
 console.log('Todos los sprites de casas han sido generados exitosamente.');
+
