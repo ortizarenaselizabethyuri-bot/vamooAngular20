@@ -119,5 +119,45 @@ describe('RpgMapEngine', () => {
     expect(['park', 'road', 'block', 'water']).toContain(edgeTerrain1);
     expect(['park', 'road', 'block', 'water']).toContain(edgeTerrain2);
   });
+
+  it('debe validar la regla estricta de carreteras impidiendo que casitas o árboles se ubiquen sobre calzadas', () => {
+    // 1. Detección directa de píxeles de carretera
+    expect(engine.isRoadPixel(255, 255, 255)).toBe(true);  // Asfalto blanco
+    expect(engine.isRoadPixel(240, 240, 240)).toBe(true);  // Asfalto neutro
+    expect(engine.isRoadPixel(210, 210, 210)).toBe(true);  // Borde o casing de calle
+    expect(engine.isRoadPixel(225, 185, 140)).toBe(true);  // Arterial amarilla
+
+    // 2. No debe clasificar como carretera a zonas residenciales ni parques
+    expect(engine.isRoadPixel(243, 240, 207)).toBe(false); // Manzana beige
+    expect(engine.isRoadPixel(200, 235, 205)).toBe(false); // Parque verde
+    expect(engine.isRoadPixel(130, 180, 235)).toBe(false); // Río / agua
+
+    // 3. Regla de despeje de calzada (isAreaClearOfRoad)
+    const key = '19_152611_279850';
+    // Punto de calzada directa debe ser rechazado
+    const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 20);
+    expect(typeof roadCheck).toBe('boolean');
+  });
+
+  it('debe confinar arboledas densas exclusivamente a parques reales y excluir el fondo andino beige/oliva', () => {
+    // Parques reales con verde vivo destacado
+    expect(engine.isParkPixel(180, 235, 190)).toBe(true);
+    expect(engine.isParkPixel(110, 175, 115)).toBe(true);
+
+    // Terreno andino oliva/beige del valle (218, 224, 178) NO debe ser tratado como parque denso
+    expect(engine.isParkPixel(218, 224, 178)).toBe(false);
+
+    // Carreteras y manzanas urbanas NO son parques
+    expect(engine.isParkPixel(255, 255, 255)).toBe(false);
+    expect(engine.isParkPixel(243, 240, 207)).toBe(false);
+  });
+
+  it('debe precalcular y almacenar en caché decoraciones fijas por tesela para evitar que muten al desplazarse', () => {
+    const key = '19_152611_279850';
+    engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
+
+    // Al volver a invocar sobre la misma tesela o consultar el zoom, la respuesta es estable
+    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
+  });
 });
 

@@ -8,6 +8,24 @@ import { VamooMapPalette } from './map-palette.config.js';
 export type TerrainType = 'park' | 'road' | 'block' | 'water' | 'unknown';
 
 /**
+ * Elemento decorativo precalculado y fijado a las coordenadas de una tesela para evitar mutaciones durante el desplazamiento.
+ */
+export interface CachedTileDecoration {
+  /** Tipo de elemento visual RPG */
+  type: 'grove' | 'house' | 'tree' | 'flowers';
+  /** Coordenada horizontal local en la tesela (0 a 255) */
+  localX: number;
+  /** Coordenada vertical local en la tesela (0 a 255) */
+  localY: number;
+  /** Factor de escala proporcional dependiente del nivel de zoom */
+  scale: number;
+  /** Semilla determinista pseudo-aleatoria */
+  seed: number;
+  /** Variante botánica opcional para árboles */
+  variant?: number;
+}
+
+/**
  * Opciones de configuración para la inicialización del motor gráfico RPG.
  */
 export interface RpgMapEngineOptions {
@@ -105,6 +123,9 @@ export class RpgMapEngine {
 
   /** Caché en memoria de datos de píxeles (ImageData) para análisis y muestreo de terreno */
   private readonly tilePixelDataCache = new Map<string, ImageData>();
+
+  /** Caché en memoria de elementos decorativos analizados y fijados permanentemente por tesela ('z_x_y') */
+  private readonly tileDecorationsCache = new Map<string, CachedTileDecoration[]>();
 
   /** Mapa de teselas actualmente activas en el escenario (clave: 'z_x_y') */
   private readonly activeTileSprites = new Map<string, Sprite>();
@@ -461,9 +482,9 @@ export class RpgMapEngine {
   }
 
   /**
-   * Renderiza árboles clásicos de Pokémon, arboledas densas en parques y casitas andinas sobre los bloques
-   * urbanos, detectando automáticamente el terreno por muestreo de píxeles y manteniendo las carreteras
-   * totalmente limpias y libres de obstáculos. Escala el tamaño y densidad proporcionalmente al zoom [Z15 - Z19].
+   * Renderiza los elementos decorativos precalculados y fijados a las teselas visibles,
+   * garantizando que no se generen ni muten elementos durante el desplazamiento de cámara,
+   * manteniendo carreteras 100% libres y confinando las arboledas densas a parques.
    *
    * @returns void
    */
@@ -472,8 +493,6 @@ export class RpgMapEngine {
     this.decorationsGraphics.clear();
 
     const scaleFactor = this.getZoomScaleFactor(this.zoom);
-
-    // En Zoom 15 (o menor) no se renderizan decoraciones individuales para maximizar rendimiento y evitar saturación
     if (scaleFactor <= 0) return;
 
     const width = this.app.screen.width;
@@ -490,56 +509,42 @@ export class RpgMapEngine {
     const minTileY = Math.floor(minWorldY / 256);
     const maxTileY = Math.floor(maxWorldY / 256);
 
-    // Paso de muestreo en la cuadrícula local (256x256 px por tesela) adaptado al nivel de zoom
-    // Z16: paso 56px (baja densidad, micro-elementos)
-    // Z17: paso 42px (densidad media)
-    // Z18: paso 34px (densidad alta)
-    // Z19: paso 28px (máximo detalle y arboledas frondosas)
-    const gridStep = this.zoom === 16 ? 56 : this.zoom === 17 ? 42 : this.zoom === 18 ? 34 : 28;
-
     for (let tx = minTileX; tx <= maxTileX; tx++) {
       for (let ty = minTileY; ty <= maxTileY; ty++) {
         const key = `${this.zoom}_${tx}_${ty}`;
+
+        // Obtener decoraciones fijas de la caché o generarlas si los datos de la tesela ya están listos
+        let decorations = this.tileDecorationsCache.get(key);
+        if (!decorations) {
+          if (this.tilePixelDataCache.has(key)) {
+            this.analyzeAndCacheTileDecorations(key, tx, ty, this.zoom);
+            decorations = this.tileDecorationsCache.get(key);
+          }
+        }
+
+        // Si la tesela aún está descargando, no pintar elementos transitorios para evitar parpadeos
+        if (!decorations || decorations.length === 0) continue;
+
         const tileScreenX = tx * 256 - centerPixels.x + width / 2;
         const tileScreenY = ty * 256 - centerPixels.y + height / 2;
 
-        for (let localX = gridStep / 2; localX < 256; localX += gridStep) {
-          for (let localY = gridStep / 2; localY < 256; localY += gridStep) {
-            // Muestreo del tipo de terreno en esta coordenada
-            const terrain = this.sampleTileTerrain(key, localX, localY);
+        for (const item of decorations) {
+          const posX = tileScreenX + item.localX;
+          const posY = tileScreenY + item.localY;
 
-            // REGLA CRÍTICA: Las carreteras y pistas se mantienen 100% limpias y transitables
-            if (terrain === 'road' || terrain === 'water') {
-              continue;
-            }
-
-            // Pseudo-aleatoriedad determinista vinculada a la posición espacial exacta
-            const seed = Math.abs(
-              Math.sin((tx * 256 + localX) * 12.9898 + (ty * 256 + localY) * 78.233 + this.zoom * 37.719) * 43758.5453
-            ) % 1;
-
-            const posX = tileScreenX + localX;
-            const posY = tileScreenY + localY;
-
-            if (terrain === 'park') {
-              // 1. ZONA VERDE / PARQUE: Generar arboledas densas de árboles Pokémon
-              if (seed > 0.3) {
-                this.drawPokemonGrove(this.decorationsGraphics, posX, posY, scaleFactor, seed);
-              } else {
-                this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, scaleFactor);
-              }
-            } else if (terrain === 'block') {
-              // 2. MANZANA URBANA / RESIDENCIAL: Casitas andinas y árboles aislados de jardín
-              if (seed > 0.45 && seed < 0.85) {
-                this.drawPokemonHouse(this.decorationsGraphics, posX, posY, scaleFactor);
-              } else if (seed >= 0.85) {
-                // Árbol decorativo de jardín urbano
-                this.drawPokemonTree(this.decorationsGraphics, posX, posY, scaleFactor * 0.85);
-              } else if (seed < 0.22) {
-                // Pequeño parche de flores en la vereda
-                this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, scaleFactor);
-              }
-            }
+          switch (item.type) {
+            case 'grove':
+              this.drawPokemonGrove(this.decorationsGraphics, posX, posY, item.scale, item.seed);
+              break;
+            case 'house':
+              this.drawPokemonHouse(this.decorationsGraphics, posX, posY, item.scale);
+              break;
+            case 'tree':
+              this.drawPokemonTree(this.decorationsGraphics, posX, posY, item.scale, item.variant || 0);
+              break;
+            case 'flowers':
+              this.drawWildflowerPatch(this.decorationsGraphics, posX, posY, item.scale);
+              break;
           }
         }
       }
@@ -665,6 +670,46 @@ export class RpgMapEngine {
   }
 
   /**
+   * Determina con alta fidelidad si un color RGB corresponde a una calzada, asfalto, borde de calle o pista vehicular.
+   *
+   * @param r - Componente rojo (0 - 255).
+   * @param g - Componente verde (0 - 255).
+   * @param b - Componente azul (0 - 255).
+   * @returns boolean - true si el píxel corresponde a carretera o calzada.
+   */
+  public isRoadPixel(r: number, g: number, b: number): boolean {
+    // 1. Asfalto blanco o neutro de calzada vehicular
+    if (r >= 232 && g >= 232 && b >= 226 && Math.abs(r - g) <= 12 && Math.abs(g - b) <= 12) {
+      return true;
+    }
+    // 2. Calzada gris clara o casing de borde de calle
+    if (r >= 200 && g >= 200 && b >= 200 && Math.abs(r - g) <= 8 && Math.abs(g - b) <= 8) {
+      return true;
+    }
+    // 3. Autopistas y vías arteriales amarillas / anaranjadas
+    if (r >= 215 && g >= 175 && b <= 165 && r - b >= 40) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Determina con rigor si un píxel RGB corresponde genuinamente a vegetación o parque verde.
+   * Excluye deliberadamente el terreno andino beige/oliva de fondo para que solo los parques reales tengan arboledas densas.
+   *
+   * @param r - Componente rojo (0 - 255).
+   * @param g - Componente verde (0 - 255).
+   * @param b - Componente azul (0 - 255).
+   * @returns boolean - true si es área verde de parque o jardín público.
+   */
+  public isParkPixel(r: number, g: number, b: number): boolean {
+    // Parques y jardines en ESRI/OSM: Verde dominante destacado sobre el fondo
+    const isBrightPark = g >= 160 && (g - r) >= 14 && (g - b) >= 18;
+    const isDeepFoliage = g >= 110 && g > r * 1.10 && g > b * 1.10 && (g - r) >= 10;
+    return isBrightPark || isDeepFoliage;
+  }
+
+  /**
    * Clasifica el tipo de terreno a partir de una muestra de color RGB.
    *
    * @param r - Componente rojo (0 - 255).
@@ -678,27 +723,76 @@ export class RpgMapEngine {
       return 'water';
     }
 
-    // 2. Detección de parques / áreas verdes / plazas / vegetación
-    // En teselas cartográficas ESRI / OSM, las zonas verdes tienen G claramente dominante
-    const isPaleGreenPark = g >= 165 && g - r >= 10 && g - b >= 10;
-    const isForestDarkGreen = g >= 110 && g > r * 1.06 && g > b * 1.06 && (g - r >= 8 || g - b >= 8);
-    if (isPaleGreenPark || isForestDarkGreen) {
-      return 'park';
+    // 2. Detección de carreteras / autopistas / calles transitables (REGLA PRIORITARIA)
+    if (this.isRoadPixel(r, g, b)) {
+      return 'road';
     }
 
-    // 3. Detección de carreteras / autopistas / calles transitables
-    // Vías principales blancas o gris claro con neutralidad de canal
-    const isWhiteAsphalt = r >= 225 && g >= 225 && b >= 225 && Math.abs(r - g) <= 14 && Math.abs(g - b) <= 14;
-    // Autopistas y arterias con tinte amarillo / anaranjado
-    const isArterialRoad = r >= 220 && g >= 190 && b <= 170 && r - b >= 40;
-    // Bordes o demarcaciones de calzada (gris neutro medio)
-    const isRoadBorder = r >= 180 && r <= 220 && Math.abs(r - g) <= 8 && Math.abs(g - b) <= 8;
-    if (isWhiteAsphalt || isArterialRoad || isRoadBorder) {
-      return 'road';
+    // 3. Detección estricta de parques / áreas verdes / plazas / vegetación
+    if (this.isParkPixel(r, g, b)) {
+      return 'park';
     }
 
     // 4. Manzana urbana / zona residencial por defecto (tonos tierra, beige, marfil, adobe)
     return 'block';
+  }
+
+  /**
+   * Comprueba si una zona circular alrededor de (localX, localY) está 100% libre de calzadas y carreteras.
+   * Muestrea el centro y múltiples puntos radiales en la circunferencia y radio intermedio.
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param localX - Coordenada horizontal central (0 - 255).
+   * @param localY - Coordenada vertical central (0 - 255).
+   * @param clearanceRadius - Radio de seguridad en píxeles que debe estar completamente despejado.
+   * @returns boolean - true si el área está completamente limpia de carreteras; false si colisiona.
+   */
+  public isAreaClearOfRoad(key: string, localX: number, localY: number, clearanceRadius: number): boolean {
+    const imgData = this.tilePixelDataCache.get(key);
+    if (!imgData || !imgData.data || imgData.data.length < 256 * 256 * 4) {
+      return this.sampleTileTerrain(key, localX, localY) !== 'road';
+    }
+
+    const data = imgData.data;
+
+    const checkPoint = (px: number, py: number): boolean => {
+      const cx = Math.max(0, Math.min(255, Math.round(px)));
+      const cy = Math.max(0, Math.min(255, Math.round(py)));
+      const idx = (cy * 256 + cx) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      return this.isRoadPixel(r, g, b);
+    };
+
+    // 1. Verificar el punto central
+    if (checkPoint(localX, localY)) {
+      return false;
+    }
+
+    // 2. Muestreo radial en 12 ángulos a radio completo y radio medio
+    const numAngles = 12;
+    for (let i = 0; i < numAngles; i++) {
+      const angle = (i * 2 * Math.PI) / numAngles;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      // Punto en el borde exterior del radio de seguridad
+      const outerX = localX + clearanceRadius * cosA;
+      const outerY = localY + clearanceRadius * sinA;
+      if (checkPoint(outerX, outerY)) {
+        return false;
+      }
+
+      // Punto en el radio intermedio
+      const midX = localX + clearanceRadius * 0.5 * cosA;
+      const midY = localY + clearanceRadius * 0.5 * sinA;
+      if (checkPoint(midX, midY)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -787,6 +881,95 @@ export class RpgMapEngine {
       }
     } catch (e) {
       // Ignorar de forma segura si el lienzo está protegido por CORS o entorno headless
+    }
+  }
+
+  /**
+   * Analiza el terreno de una tesela y almacena en caché sus elementos decorativos fijos
+   * (casitas andinas espaciadas y arboledas densas exclusivas de parques), aplicando la regla
+   * estricta de despeje para carreteras.
+   *
+   * @param key - Clave única de la tesela ('z_x_y').
+   * @param tx - Índice horizontal de la tesela.
+   * @param ty - Índice vertical de la tesela.
+   * @param z - Nivel de zoom de la tesela.
+   * @returns void
+   */
+  public analyzeAndCacheTileDecorations(key: string, tx: number, ty: number, z: number): void {
+    const scaleFactor = this.getZoomScaleFactor(z);
+    if (scaleFactor <= 0) {
+      this.tileDecorationsCache.set(key, []);
+      return;
+    }
+
+    const items: CachedTileDecoration[] = [];
+
+    // Paso amplio para manzanas urbanas (72px a Z19, 84px a Z18, etc.) para evitar saturación y dejar espacio limpio
+    const gridStep = z === 19 ? 72 : z === 18 ? 84 : z === 17 ? 96 : 112;
+
+    for (let localX = gridStep / 2; localX < 256; localX += gridStep) {
+      for (let localY = gridStep / 2; localY < 256; localY += gridStep) {
+        const seed = Math.abs(
+          Math.sin((tx * 256 + localX) * 12.9898 + (ty * 256 + localY) * 78.233 + z * 37.719) * 43758.5453
+        ) % 1;
+
+        const terrain = this.sampleTileTerrain(key, localX, localY);
+
+        if (terrain === 'park') {
+          // 1. ZONA EXCLUSIVA DE PARQUE: Arboleda densa solo si está 100% libre de calzadas
+          if (this.isAreaClearOfRoad(key, localX, localY, 28 * scaleFactor)) {
+            items.push({
+              type: 'grove',
+              localX,
+              localY,
+              scale: scaleFactor,
+              seed,
+            });
+          }
+        } else if (terrain === 'block') {
+          // 2. MANZANA RESIDENCIAL: Casitas andinas limpiamente espaciadas
+          // REGLA ESTRICTA DE CARRETERAS: clearanceRadius de 22px
+          if (this.isAreaClearOfRoad(key, localX, localY, 22 * scaleFactor)) {
+            if (seed > 0.40 && seed < 0.85) {
+              items.push({
+                type: 'house',
+                localX,
+                localY,
+                scale: scaleFactor,
+                seed,
+              });
+            } else if (seed >= 0.85) {
+              // Árbol individual de jardín residencial (NO arboleda densa)
+              items.push({
+                type: 'tree',
+                localX,
+                localY,
+                scale: scaleFactor * 0.85,
+                seed,
+                variant: seed > 0.92 ? 2 : 0,
+              });
+            } else if (seed < 0.18) {
+              items.push({
+                type: 'flowers',
+                localX,
+                localY,
+                scale: scaleFactor,
+                seed,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    this.tileDecorationsCache.set(key, items);
+
+    // Limitar tamaño de caché de decoraciones a 64 teselas para ahorrar memoria
+    if (this.tileDecorationsCache.size > 64) {
+      const oldestKey = this.tileDecorationsCache.keys().next().value;
+      if (oldestKey) {
+        this.tileDecorationsCache.delete(oldestKey);
+      }
     }
   }
 
@@ -1154,6 +1337,9 @@ export class RpgMapEngine {
         this.tileContainer.addChild(sprite);
         this.activeTileSprites.set(key, sprite);
 
+        // Precalcular y fijar decoraciones de esta tesela una sola vez para evitar parpadeos
+        this.analyzeAndCacheTileDecorations(key, x, y, z);
+
         // Refrescar decoraciones de terreno tan pronto se integra la nueva tesela
         this.renderDecorations();
       }
@@ -1304,6 +1490,13 @@ export class RpgMapEngine {
         }
       }
 
+      // Purgar entradas de caché de decoraciones no coincidentes con el nuevo zoom
+      for (const decKey of this.tileDecorationsCache.keys()) {
+        if (!decKey.startsWith(`${this.zoom}_`)) {
+          this.tileDecorationsCache.delete(decKey);
+        }
+      }
+
       this.refreshMap();
 
       if (this.onCameraChangeCallback) {
@@ -1422,6 +1615,7 @@ export class RpgMapEngine {
     this.clearActiveTiles();
     this.textureCache.clear();
     this.tilePixelDataCache.clear();
+    this.tileDecorationsCache.clear();
 
     if (this.decorationsGraphics) {
       try {
