@@ -1,3 +1,4 @@
+/// <reference types="@types/google.maps" />
 import { VAMOO_MAP_PALETTE, VamooMapPalette } from './map-palette.config.js';
 
 /**

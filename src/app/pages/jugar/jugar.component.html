@@ -137,51 +137,19 @@
             }
           </div>
 
-          <!-- Marco del Mapa Interactivo con Soporte de Desplazamiento por Manito y Buffer Interno -->
+          <!-- Marco del Mapa Interactivo RPG Pixi.js + OpenStreetMap (Opción 2) -->
           <div class="map-frame-container" [class.is-dragging]="isDragging()">
             @if (isMapReady()) {
-              <!-- Buffer de renderizado ampliado: precarga los bordes en memoria para evitar pop-in al arrastrar -->
-              <div class="map-canvas-overscan">
-                <google-map 
-                  [center]="mapCenter()" 
-                  [zoom]="mapZoom()" 
-                  [options]="currentMapOptions()" 
-                  (mapInitialized)="onMapInitialized()"
-                  (mapDragstart)="onMapDragStart()"
-                  (mapDrag)="onMapDrag()"
-                  (mapDragend)="onMapDragEnd()"
-                  (zoomChanged)="onZoomChanged()"
-                  width="100%" 
-                  height="100%">
-
-                  <!-- 1. Halo satelital de precisión alrededor del usuario -->
-                  @if (userCoords()) {
-                    <map-circle 
-                      [center]="userCoords()!" 
-                      [options]="accuracyCircleOptions">
-                    </map-circle>
-                  }
-
-                  <!-- 2. Marcador del Aventurero con avatar de fauna silvestre -->
-                  @if (adventurerMarkerOptions()) {
-                    <map-marker 
-                      [options]="adventurerMarkerOptions()!">
-                    </map-marker>
-                  }
-
-                  <!-- 3. Trazado del Sendero de Expedición (Polyline Pixar Aventura) -->
-                  @if (polylinePath().length > 1) {
-                    <map-polyline 
-                      [path]="polylinePath()" 
-                      [options]="polylineOptions">
-                    </map-polyline>
-                  }
-
-                </google-map>
-
-                <!-- Capa de Texturizado Pixelado Orgánico 2D (Etapa 2: realce táctil sobre colores vivos) -->
-                <div class="map-pixel-texture-overlay" aria-hidden="true"></div>
+              <!-- Lienzo de Renderizado WebGL con Pixi.js sobre geometría real de OpenStreetMap -->
+              <div 
+                #rpgCanvasContainer 
+                class="rpg-viewport-canvas"
+                role="region" 
+                aria-label="Mapa de Expedición RPG Valle Andino">
               </div>
+
+              <!-- Viñeta decorativa estilo pantalla de consola retro -->
+              <div class="rpg-vignette-overlay" aria-hidden="true"></div>
 
               <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados (Z15 Amplia a Z19 Jugador) -->
               <div class="map-overlay-zoom-presets" role="toolbar" aria-label="Niveles de Zoom">
@@ -190,7 +158,7 @@
                   class="zoom-preset-btn" 
                   [class.active]="mapZoom() === 15" 
                   (click)="setZoomPreset(15)" 
-                  title="Vista Más Amplia (Zoom 15 - Donde se renderiza la textura 2D)">
+                  title="Vista Más Amplia (Zoom 15 - Ciudad y laderas)">
                   <span class="preset-icon">🌍</span>
                   <span>AMPLIA (Z15)</span>
                 </button>
@@ -199,7 +167,7 @@
                   class="zoom-preset-btn" 
                   [class.active]="mapZoom() >= 16 && mapZoom() <= 18" 
                   (click)="setZoomPreset(17)" 
-                  title="Vista Intermedia de Barrio (Z17)">
+                  title="Vista Intermedia de Barrio (Zoom 17 - Manzanas y calles)">
                   <span class="preset-icon">🏘️</span>
                   <span>BARRIO (Z17)</span>
                 </button>
@@ -208,13 +176,11 @@
                   class="zoom-preset-btn" 
                   [class.active]="mapZoom() === 19" 
                   (click)="setZoomPreset(19)" 
-                  title="Vista Principal del Jugador (Z19 - Ubicación habitual)">
+                  title="Vista Principal del Jugador (Zoom 19 - Ubicación habitual)">
                   <span class="preset-icon">📍</span>
                   <span>JUGADOR (Z19)</span>
                 </button>
               </div>
-
-
 
               <!-- HUD LATERAL: Ajuste Fino (+ / - / Nivel) -->
               <div class="map-overlay-stepper" role="group" aria-label="Ajuste fino de Zoom">
@@ -257,12 +223,18 @@
                 }
               </div>
 
+              <!-- Insignia informativa del motor RPG Pixi.js -->
+              <div class="rpg-engine-badge">
+                <span class="badge-dot"></span>
+                <span>PIXI.JS + OSM • VALLE ANDINO</span>
+              </div>
+
             } @else {
               <!-- Pantalla de carga animada -->
               <div class="map-loading-placeholder">
                 <div class="loading-compass">🧭</div>
-                <p class="loading-title">CALIBRANDO SATÉLITE GPS & MAPA PIXAR...</p>
-                <p class="loading-sub">Conectando con Google Maps Platform...</p>
+                <p class="loading-title">CALIBRANDO SATÉLITE GPS & MOTOR RPG...</p>
+                <p class="loading-sub">Cargando teselas de OpenStreetMap y Pixi.js...</p>
               </div>
             }
           </div>

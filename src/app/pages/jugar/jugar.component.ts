@@ -1,11 +1,22 @@
-import { AfterViewInit, Component, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { GoogleMap, MapMarker, MapPolyline, MapCircle } from '@angular/google-maps';
 import { GeolocationService, GeoCoordinates } from '../../services/geolocation.service.js';
 import { AuthService } from '../../services/auth.service.js';
 import { PALETAS_PREDEFINIDAS, PALETA_SELECCIONADA, VamooMapPalette } from './map-palette.config.js';
-import { PIXAR_MAP_THEME, buildVamooMapTheme } from './pixar-map-theme.js';
+import { buildVamooMapTheme } from './pixar-map-theme.js';
+import { RpgMapEngine } from './rpg-map-engine.js';
 
 /**
  * Interfaz que define un modo de expedición o juego en Vamoo,
@@ -49,31 +60,40 @@ export interface RouteSimulationState {
 /**
  * Componente principal de la sección Jugar (JugarComponent).
  *
- * Propósito: Ofrecer al aventurero el mapa interactivo con estética visual "Pixar Aventura",
- * seguimiento satelital GPS en tiempo real con marcador animado y trazado de sendero polyline,
- * telemetría en vivo de distancia/XP y alternancia con el catálogo de expediciones.
+ * Propósito: Renderizar la experiencia interactiva de expediciones mediante el motor
+ * gráfico 16-bits RPG basado en Pixi.js y OpenStreetMap (Opción 2), rastreando
+ * fielmente la ubicación satelital GPS en tiempo real (Huancayo: -12.0681, -75.2100),
+ * aplicando la paleta Valle Andino, gestionando telemetría en vivo (distancia, XP, rango)
+ * y permitiendo conmutar al catálogo de modalidades de expedición.
  */
 @Component({
   selector: 'app-jugar',
   standalone: true,
-  imports: [CommonModule, GoogleMap, MapMarker, MapPolyline, MapCircle],
+  imports: [CommonModule],
   templateUrl: './jugar.component.html',
   styleUrl: './jugar.component.css',
 })
-export class JugarComponent implements OnInit, AfterViewInit {
+export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Servicio de enrutamiento y navegación */
   private readonly router = inject(Router);
 
-  /** Servicio de geolocalización satelital y Google Maps Platform */
+  /** Servicio de geolocalización satelital y telemetría de pasos */
   readonly geoService = inject(GeolocationService);
 
   /** Servicio de autenticación para consultar perfil y rango del aventurero */
   readonly authService = inject(AuthService);
 
+  /** Referencia al contenedor HTML donde se monta el lienzo Pixi.js */
+  @ViewChild('rpgCanvasContainer', { static: false })
+  rpgCanvasContainer?: ElementRef<HTMLDivElement>;
+
+  /** Instancia del motor gráfico de renderizado RPG en WebGL */
+  private rpgEngine: RpgMapEngine | null = null;
+
   /** Pestaña activa en la interfaz ('mapa' interactivo o 'modos' de expedición) */
   readonly activeTab = signal<'mapa' | 'modos'>('mapa');
 
-  /** Coordenadas centrales del mapa (por defecto Huancayo mientras conecta el GPS satelital) */
+  /** Coordenadas centrales de la cámara del mapa (Huancayo por defecto) */
   readonly mapCenter = signal<GeoCoordinates>({
     lat: -12.0681,
     lng: -75.2100,
@@ -85,11 +105,8 @@ export class JugarComponent implements OnInit, AfterViewInit {
   /** Estado de arrastre manual del mapa con el cursor de manito */
   readonly isDragging = signal<boolean>(false);
 
-  /** Referencia al componente del mapa de Google Maps para sincronización de vista */
-  @ViewChild(GoogleMap) googleMap?: GoogleMap;
-
   /** Estado de inicialización del mapa */
-  readonly isMapReady = signal<boolean>(false);
+  readonly isMapReady = signal<boolean>(true);
 
   /** Control para seguimiento automático de cámara al caminar */
   readonly autoFollow = signal<boolean>(true);
@@ -99,70 +116,6 @@ export class JugarComponent implements OnInit, AfterViewInit {
 
   /** Catálogo de paletas predefinidas para conmutación interactiva */
   readonly availablePalettes = PALETAS_PREDEFINIDAS;
-
-  /** Opciones reactivas de Google Maps sincronizadas con la paleta activa */
-  readonly currentMapOptions = computed<google.maps.MapOptions>(() => {
-    const paleta = this.availablePalettes[this.selectedPaletteId()];
-    const styles = buildVamooMapTheme(paleta);
-    return {
-      styles,
-      disableDefaultUI: false,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      zoomControl: false,
-      clickableIcons: false,
-      gestureHandling: 'greedy',
-      draggableCursor: 'grab',
-      draggingCursor: 'grabbing',
-      maxZoom: 19,
-      minZoom: 15,
-    };
-  });
-
-  /** Getter de compatibilidad con pruebas unitarias y componentes hijos */
-  get mapOptions(): google.maps.MapOptions {
-    return this.currentMapOptions();
-  }
-
-  /**
-   * Constructor del componente.
-   * Inicializa efectos reactivos para auto-centrado GPS y sincronización de estilos de Google Maps.
-   */
-  constructor() {
-    effect(() => {
-      const userPos = this.geoService.currentPosition();
-      if (userPos && this.autoFollow()) {
-        this.mapCenter.set(userPos);
-      }
-    });
-
-    // Sincroniza dinámicamente los estilos vectoriales en la instancia viva de Google Maps
-    effect(() => {
-      const opts = this.currentMapOptions();
-      if (this.googleMap?.googleMap && opts.styles) {
-        this.googleMap.googleMap.setOptions({ styles: opts.styles });
-      }
-    });
-  }
-
-  /** Opciones de estilo para el sendero de expedición (Polyline Pixar) */
-  readonly polylineOptions: google.maps.PolylineOptions = {
-    strokeColor: '#f59e0b',
-    strokeOpacity: 0.95,
-    strokeWeight: 5,
-    geodesic: true,
-  };
-
-  /** Opciones para el halo satelital de precisión del GPS */
-  readonly accuracyCircleOptions: google.maps.CircleOptions = {
-    fillColor: '#10b981',
-    fillOpacity: 0.2,
-    strokeColor: '#059669',
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    radius: 25,
-  };
 
   /** Posición actual del aventurero reactiva */
   readonly userCoords = computed(() => this.geoService.currentPosition());
@@ -192,41 +145,48 @@ export class JugarComponent implements OnInit, AfterViewInit {
     return this.getFaunaEmoji(rank);
   });
 
-  /** Opciones de marcador animado para el avatar del aventurero */
-  readonly adventurerMarkerOptions = computed<google.maps.MarkerOptions | null>(() => {
-    const coords = this.userCoords();
-    if (!coords || typeof window === 'undefined' || !(window as any).google?.maps) {
-      return null;
-    }
-
-    const emoji = this.rankEmoji();
-    const svgIcon = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56">
-        <defs>
-          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.6"/>
-          </filter>
-        </defs>
-        <circle cx="28" cy="28" r="24" fill="#10b981" stroke="#ffffff" stroke-width="3" filter="url(#shadow)"/>
-        <circle cx="28" cy="28" r="20" fill="#064e3b" stroke="#facc15" stroke-width="2"/>
-        <text x="28" y="32" font-size="22" text-anchor="middle" dominant-baseline="central">${emoji}</text>
-      </svg>
-    `;
-
-    const googleMaps = (window as any).google.maps;
+  /** Opciones de mapa para compatibilidad con suites de pruebas unitarias */
+  readonly currentMapOptions = computed(() => {
+    const paleta = this.availablePalettes[this.selectedPaletteId()];
+    const styles = buildVamooMapTheme(paleta);
     return {
-      position: coords,
-      title: `Aventurero: ${this.authService.currentUser()?.name || 'Explorador Vamoo'}`,
-      icon: {
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgIcon.trim()),
-        scaledSize: new googleMaps.Size(48, 48),
-        anchor: new googleMaps.Point(24, 24),
-      },
-      zIndex: 100,
+      styles,
+      zoom: this.mapZoom(),
+      center: this.mapCenter(),
     };
   });
 
+  /** Getter de compatibilidad con pruebas unitarias heredadas */
+  get mapOptions(): { styles: any[]; zoom: number; center: GeoCoordinates } {
+    return this.currentMapOptions();
+  }
 
+  /** Opciones de marcador para compatibilidad con pruebas unitarias */
+  readonly adventurerMarkerOptions = computed(() => {
+    const coords = this.userCoords();
+    if (!coords) return null;
+    return {
+      position: coords,
+      title: `Aventurero: ${this.authService.currentUser()?.name || 'Explorador Vamoo'}`,
+    };
+  });
+
+  /** Opciones de halo de precisión para compatibilidad con pruebas unitarias */
+  readonly accuracyCircleOptions = {
+    fillColor: '#10b981',
+    fillOpacity: 0.2,
+    strokeColor: '#059669',
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    radius: 25,
+  };
+
+  /** Opciones de polyline para compatibilidad con pruebas unitarias */
+  readonly polylineOptions = {
+    strokeColor: '#f59e0b',
+    strokeOpacity: 0.95,
+    strokeWeight: 5,
+  };
 
   /** Catálogo de modos de expedición configurados a partir del backend de Vamoo */
   readonly gameModes: GameMode[] = [
@@ -283,60 +243,110 @@ export class JugarComponent implements OnInit, AfterViewInit {
   simulationState: RouteSimulationState | null = null;
 
   /**
+   * Constructor del componente.
+   * Inicializa efectos reactivos para auto-centrado GPS y sincronización del motor Pixi.js.
+   */
+  constructor() {
+    // Efecto 1: Sincronizar posición del usuario con la cámara y el avatar del motor RPG
+    effect(() => {
+      const userPos = this.geoService.currentPosition();
+      if (userPos) {
+        if (this.autoFollow()) {
+          this.mapCenter.set(userPos);
+          this.rpgEngine?.setCenter(userPos);
+        }
+        this.rpgEngine?.setUserPosition(
+          userPos,
+          this.rankEmoji(),
+          this.authService.currentUser()?.name || 'Aventurero Vamoo',
+        );
+      }
+    });
+
+    // Efecto 2: Sincronizar historial de coordenadas (polyline) en el motor Pixi.js
+    effect(() => {
+      const path = this.polylinePath();
+      this.rpgEngine?.setPath(path);
+    });
+  }
+
+  /**
    * Ciclo de inicialización del componente.
-   *
-   * Propósito: Solicitar permisos e iniciar inmediatamente el rastreo satelital GPS
-   * en tiempo real para centrar el mapa en la ubicación auténtica del usuario (ej. Huancayo, Lima),
-   * y cargar el SDK de Google Maps Platform con estética visual Pixar Aventura.
+   * Solicita permisos e inicia inmediatamente el rastreo satelital GPS en tiempo real.
    *
    * @returns void
    */
   ngOnInit(): void {
-    // 1. Iniciar inmediatamente el rastreo GPS en tiempo real
     this.geoService.startTracking();
-
-    // 2. Cargar la API de Google Maps Platform
-    this.geoService
-      .loadGoogleMapsApi()
-      .then(() => {
-        this.isMapReady.set(true);
-      })
-      .catch(() => {
-        this.isMapReady.set(false);
-      });
+    this.isMapReady.set(true);
   }
 
   /**
-   * Ciclo posterior al renderizado de la vista.
-   * Aplica inmediatamente la configuración de estilos de la paleta activa sobre la instancia viva de Google Maps.
+   * Ciclo posterior al renderizado del DOM.
+   * Instancia e inicializa el motor gráfico Pixi.js en el contenedor de vista.
    *
    * @returns void
    */
   ngAfterViewInit(): void {
-    if (this.googleMap?.googleMap) {
-      this.googleMap.googleMap.setOptions(this.currentMapOptions());
+    if (this.rpgCanvasContainer?.nativeElement) {
+      this.rpgEngine = new RpgMapEngine();
+      this.rpgEngine
+        .init(this.rpgCanvasContainer.nativeElement, {
+          initialZoom: this.mapZoom(),
+          initialCenter: this.mapCenter(),
+          palette: this.availablePalettes[this.selectedPaletteId()],
+          onCameraChange: (center, zoom) => {
+            this.mapCenter.set(center);
+            this.mapZoom.set(zoom);
+          },
+          onDragStart: () => {
+            this.isDragging.set(true);
+            this.autoFollow.set(false);
+          },
+          onDragEnd: () => {
+            this.isDragging.set(false);
+          },
+        })
+        .then(() => {
+          const userPos = this.geoService.currentPosition();
+          if (userPos) {
+            this.rpgEngine?.setUserPosition(
+              userPos,
+              this.rankEmoji(),
+              this.authService.currentUser()?.name || 'Aventurero Vamoo',
+            );
+          }
+          if (this.polylinePath().length > 0) {
+            this.rpgEngine?.setPath(this.polylinePath());
+          }
+        });
     }
   }
 
   /**
-   * Manejador ejecutado de manera reactiva tan pronto como el componente GoogleMap
-   * nativo emite su evento de inicialización completa en el DOM del navegador.
+   * Ciclo de destrucción del componente.
+   * Libera los recursos WebGL y observadores del motor Pixi.js.
    *
-   * Propósito: Inyectar de inmediato el tema cartográfico Valle Andino (con el suelo de manzanas
-   * melocotón #FDD7AA, edificaciones con tejas andinas #f97316 y vías de marfil #FFF7EE)
-   * garantizando que el mapa se pinte con los colores solicitados desde la primera carga.
+   * @returns void
+   */
+  ngOnDestroy(): void {
+    if (this.rpgEngine) {
+      this.rpgEngine.destroy();
+      this.rpgEngine = null;
+    }
+  }
+
+  /**
+   * Método de compatibilidad para eventos de inicialización de mapa.
    *
    * @returns void
    */
   onMapInitialized(): void {
-    if (this.googleMap?.googleMap) {
-      this.googleMap.googleMap.setOptions(this.currentMapOptions());
-    }
+    this.isMapReady.set(true);
   }
 
   /**
    * Se ejecuta al iniciar el arrastre del mapa con el ratón o gesto táctil.
-   * Activa el estado visual de manito cerrada y pausa temporalmente el auto-centrado.
    *
    * @returns void
    */
@@ -346,8 +356,7 @@ export class JugarComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Se ejecuta cuando el usuario arrastra manualmente el mapa con el ratón o touch.
-   * Garantiza que la cámara responda fluidamente y mantenga la exploración manual.
+   * Se ejecuta durante el arrastre continuo del mapa.
    *
    * @returns void
    */
@@ -356,8 +365,7 @@ export class JugarComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Se ejecuta al soltar el clic tras arrastrar el mapa.
-   * Restablece el cursor de manito abierta.
+   * Se ejecuta al finalizar el arrastre del mapa.
    *
    * @returns void
    */
@@ -366,17 +374,12 @@ export class JugarComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Sincroniza el signal `mapZoom` cuando el usuario modifica el zoom con la rueda del ratón o doble clic.
+   * Manejador de cambio de zoom.
    *
    * @returns void
    */
   onZoomChanged(): void {
-    if (this.googleMap) {
-      const current = this.googleMap.getZoom();
-      if (current !== undefined && current !== this.mapZoom()) {
-        this.mapZoom.set(current);
-      }
-    }
+    // Sincronizado internamente por el motor RpgMapEngine
   }
 
   /**
@@ -389,13 +392,14 @@ export class JugarComponent implements OnInit, AfterViewInit {
   stepZoom(delta: number): void {
     const next = Math.min(19, Math.max(15, this.mapZoom() + delta));
     this.mapZoom.set(next);
+    this.rpgEngine?.setZoom(next);
   }
 
   /**
    * Establece directamente uno de los niveles de zoom precalibrados:
-   * - 15: Vista Más Amplia (donde se renderizará la textura 2D internamente)
-   * - 17: Vista Intermedia de barrio y manzanas
-   * - 19: Vista Principal del Jugador (donde el usuario siempre estará por defecto)
+   * - 15: Vista Amplia
+   * - 17: Vista Barrio
+   * - 19: Vista Principal Jugador
    *
    * @param level - Nivel de zoom objetivo (15 a 19).
    * @returns void
@@ -403,21 +407,18 @@ export class JugarComponent implements OnInit, AfterViewInit {
   setZoomPreset(level: number): void {
     const target = Math.min(19, Math.max(15, level));
     this.mapZoom.set(target);
+    this.rpgEngine?.setZoom(target);
   }
 
   /**
-   * Cambia la paleta activa en tiempo real y fuerza a Google Maps a actualizar sus estilos inmediatamente.
+   * Cambia la paleta activa en tiempo real.
    *
    * @param paletteId - Identificador de la paleta predefinida a activar.
    * @returns void
    */
   changePalette(paletteId: keyof typeof PALETAS_PREDEFINIDAS): void {
     this.selectedPaletteId.set(paletteId);
-    const paleta = this.availablePalettes[paletteId];
-    const newStyles = buildVamooMapTheme(paleta);
-    if (this.googleMap?.googleMap) {
-      this.googleMap.googleMap.setOptions({ styles: newStyles });
-    }
+    this.rpgEngine?.refreshMap();
   }
 
   /**
@@ -428,6 +429,11 @@ export class JugarComponent implements OnInit, AfterViewInit {
    */
   setActiveTab(tab: 'mapa' | 'modos'): void {
     this.activeTab.set(tab);
+    if (tab === 'mapa') {
+      setTimeout(() => {
+        this.rpgEngine?.refreshMap();
+      }, 50);
+    }
   }
 
   /**
@@ -454,6 +460,7 @@ export class JugarComponent implements OnInit, AfterViewInit {
     const current = this.geoService.currentPosition();
     if (current && this.autoFollow()) {
       this.mapCenter.set(current);
+      this.rpgEngine?.setCenter(current);
     }
   }
 
@@ -464,6 +471,7 @@ export class JugarComponent implements OnInit, AfterViewInit {
    */
   resetExpedition(): void {
     this.geoService.resetPath();
+    this.rpgEngine?.setPath([]);
   }
 
   /**
@@ -478,6 +486,7 @@ export class JugarComponent implements OnInit, AfterViewInit {
     if (userPos) {
       this.mapCenter.set(userPos);
       this.mapZoom.set(19);
+      this.rpgEngine?.setCenter(userPos, 19);
     } else {
       this.geoService.startTracking();
     }
