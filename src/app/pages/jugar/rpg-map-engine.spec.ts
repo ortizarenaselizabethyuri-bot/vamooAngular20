@@ -188,5 +188,20 @@ describe('RpgMapEngine', () => {
     expect(engine.isRoadPixel(134, 135, 130)).toBe(true);
     expect(engine.isRoadPixel(255, 255, 255)).toBe(true);
   });
+
+  it('debe clasificar el área #F8E3A6 (estadios/campus) como autumn_park con árboles de otoño y CERO casas', () => {
+    // 1. Detección de color #F8E3A6 / #FFE8AA / #FCE1A3
+    expect(engine.isAutumnAreaPixel(248, 227, 166)).toBe(true);
+    expect(engine.isAutumnAreaPixel(255, 232, 170)).toBe(true);
+    expect(engine.isAutumnAreaPixel(252, 225, 163)).toBe(true);
+
+    // No debe confundir manzanas residenciales ni parques verdes
+    expect(engine.isAutumnAreaPixel(248, 244, 199)).toBe(false); // Manzana beige
+    expect(engine.isAutumnAreaPixel(180, 235, 190)).toBe(false); // Parque verde
+    expect(engine.isAutumnAreaPixel(255, 255, 255)).toBe(false); // Asfalto
+
+    // 2. Clasificación de terreno
+    expect(engine.classifyColorTerrain(248, 227, 166)).toBe('autumn_park');
+  });
 });
 

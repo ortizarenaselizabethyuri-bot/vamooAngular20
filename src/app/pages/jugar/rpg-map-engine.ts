@@ -5,7 +5,7 @@ import { VamooMapPalette } from './map-palette.config.js';
 /**
  * Tipo representativo de la clasificación de terreno geográfico sobre una tesela.
  */
-export type TerrainType = 'park' | 'road' | 'block' | 'water' | 'unknown';
+export type TerrainType = 'park' | 'road' | 'block' | 'water' | 'autumn_park' | 'unknown';
 
 /**
  * Elemento decorativo precalculado y fijado a las coordenadas de una tesela para evitar mutaciones durante el desplazamiento.
@@ -21,7 +21,7 @@ export interface CachedTileDecoration {
   scale: number;
   /** Semilla determinista pseudo-aleatoria */
   seed: number;
-  /** Variante de diseño (0, 1 o 2) para casas, árboles y vegetación */
+  /** Variante de diseño (0, 1, 2 para casas/vegetación; 0, 1, 2, 3 para árboles incluyendo otoño) */
   variant?: number;
 }
 
@@ -712,12 +712,27 @@ export class RpgMapEngine {
   }
 
   /**
+   * Determina si un píxel RGB corresponde a zonas deportivas, estadios, complejos cívicos o recreativos
+   * de tono arena dorada / ocre (#F8E3A6 / #FFE8AA), donde se concentran árboles de otoño y vegetación sin casas.
+   *
+   * @param r - Componente rojo (0 - 255).
+   * @param g - Componente verde (0 - 255).
+   * @param b - Componente azul (0 - 255).
+   * @returns boolean - true si es área recreativa / estadio de tono #F8E3A6.
+   */
+  public isAutumnAreaPixel(r: number, g: number, b: number): boolean {
+    // Zona de color #F8E3A6 / #FFE8AA / #FCE1A3: arena dorada cálida
+    // R >= 238, G entre 208 y 242, B entre 142 y 184, R - B >= 60, G - B >= 42
+    return r >= 238 && g >= 208 && g <= 242 && b >= 142 && b <= 184 && (r - b) >= 60 && (g - b) >= 42;
+  }
+
+  /**
    * Clasifica el tipo de terreno a partir de una muestra de color RGB.
    *
    * @param r - Componente rojo (0 - 255).
    * @param g - Componente verde (0 - 255).
    * @param b - Componente azul (0 - 255).
-   * @returns TerrainType - 'park' si es vegetación/parque, 'road' si es asfalto/carretera, 'block' si es manzana urbana.
+   * @returns TerrainType - 'park' si es vegetación/parque, 'autumn_park' si es zona #F8E3A6, 'road' si es calzada, 'block' si es manzana urbana.
    */
   public classifyColorTerrain(r: number, g: number, b: number): TerrainType {
     // 1. Detección de agua (ríos, lagunas, riachuelos andinos)
@@ -730,12 +745,17 @@ export class RpgMapEngine {
       return 'road';
     }
 
-    // 3. Detección estricta de parques / áreas verdes / plazas / vegetación
+    // 3. Detección de zonas recreativas / estadios / campus de color #F8E3A6 (árboles de otoño predominantes)
+    if (this.isAutumnAreaPixel(r, g, b)) {
+      return 'autumn_park';
+    }
+
+    // 4. Detección estricta de parques / áreas verdes / plazas / vegetación
     if (this.isParkPixel(r, g, b)) {
       return 'park';
     }
 
-    // 4. Manzana urbana / zona residencial por defecto (tonos tierra, beige, marfil, adobe)
+    // 5. Manzana urbana / zona residencial por defecto (tonos tierra, beige, marfil, adobe)
     return 'block';
   }
 
@@ -798,19 +818,20 @@ export class RpgMapEngine {
   }
 
   /**
-   * Comprueba si una zona está completamente libre de áreas verdes, parques y descampados.
-   * Garantiza que ninguna casita se ubique dentro o en el borde de un área verde o descampado.
+   * Comprueba si una zona está completamente libre de áreas verdes, parques, descampados y zonas de otoño (#F8E3A6).
+   * Garantiza que ninguna casita se ubique dentro o en el borde de un área verde, descampado o estadio.
    *
    * @param key - Clave única de la tesela ('z_x_y').
    * @param localX - Coordenada horizontal central (0 - 255).
    * @param localY - Coordenada vertical central (0 - 255).
    * @param clearanceRadius - Radio de seguridad en píxeles.
-   * @returns boolean - true si la zona está libre de áreas verdes; false si colisiona con vegetación/descampado.
+   * @returns boolean - true si la zona está libre de áreas verdes/estadios; false si colisiona.
    */
   public isAreaClearOfPark(key: string, localX: number, localY: number, clearanceRadius: number): boolean {
     const imgData = this.tilePixelDataCache.get(key);
     if (!imgData || !imgData.data || imgData.data.length < 256 * 256 * 4) {
-      return this.sampleTileTerrain(key, localX, localY) !== 'park';
+      const terrain = this.sampleTileTerrain(key, localX, localY);
+      return terrain !== 'park' && terrain !== 'autumn_park';
     }
 
     const data = imgData.data;
@@ -822,7 +843,7 @@ export class RpgMapEngine {
       const r = data[idx];
       const g = data[idx + 1];
       const b = data[idx + 2];
-      return this.isParkPixel(r, g, b);
+      return this.isParkPixel(r, g, b) || this.isAutumnAreaPixel(r, g, b);
     };
 
     // 1. Verificar punto central
@@ -979,7 +1000,69 @@ export class RpgMapEngine {
 
         const terrain = this.sampleTileTerrain(key, localX, localY);
 
-        if (terrain === 'park') {
+        if (terrain === 'autumn_park') {
+          // =========================================================================
+          // REGLA 1A: ZONAS RECREATIVAS / ESTADIO / ÁREAS DE COLOR #F8E3A6
+          // - CERO CASAS (puros árboles y vegetación).
+          // - Árboles de otoño (variante 3) en mayor cantidad y predominancia.
+          // - Vegetación abundante andina.
+          // =========================================================================
+          if (this.isAreaClearOfRoad(key, localX, localY, 9 * scaleFactor)) {
+            // Alta densidad de árboles en zona #F8E3A6
+            if (seed > 0.15) {
+              // Predominan los árboles de otoño (variante 3) en más del 70% de las instancias
+              const treeVariant = seed > 0.28 ? 3 : (Math.floor(seed * 7) % 3);
+              items.push({
+                type: 'tree',
+                localX,
+                localY,
+                scale: scaleFactor,
+                seed,
+                variant: treeVariant,
+              });
+            }
+
+            // Segundo árbol para formar arboledas otoñales tupidas en descampados amplios
+            if (seed > 0.38 && seed < 0.90) {
+              const secondX = Math.max(10, Math.min(245, localX + 15 * scaleFactor));
+              const secondY = Math.max(10, Math.min(245, localY - 12 * scaleFactor));
+              if (this.isAreaClearOfRoad(key, secondX, secondY, 9 * scaleFactor)) {
+                items.push({
+                  type: 'tree',
+                  localX: secondX,
+                  localY: secondY,
+                  scale: scaleFactor * 0.95,
+                  seed: (seed * 1.618) % 1,
+                  variant: 3, // Árbol de otoño
+                });
+              }
+            }
+          }
+
+          // Vegetación abundante en la zona #F8E3A6
+          const vegVariant = Math.floor(seed * 11) % 3;
+          items.push({
+            type: 'vegetation',
+            localX: Math.max(8, Math.min(248, localX + (seed > 0.5 ? 12 : -12) * scaleFactor)),
+            localY: Math.max(8, Math.min(248, localY + (seed > 0.5 ? 10 : -10) * scaleFactor)),
+            scale: scaleFactor,
+            seed,
+            variant: vegVariant,
+          });
+
+          if (seed > 0.30) {
+            const extraX = Math.max(8, Math.min(248, localX + (seed > 0.65 ? -14 : 14) * scaleFactor));
+            const extraY = Math.max(8, Math.min(248, localY + (seed > 0.65 ? 12 : -12) * scaleFactor));
+            items.push({
+              type: 'vegetation',
+              localX: extraX,
+              localY: extraY,
+              scale: scaleFactor,
+              seed: (seed * 2.3) % 1,
+              variant: Math.floor(seed * 19) % 3,
+            });
+          }
+        } else if (terrain === 'park') {
           // =========================================================================
           // REGLA 1: ÁREAS VERDES, PARQUES Y DESCAMPADOS
           // - CERO CASAS (prohibido que se generen casas aquí bajo cualquier circunstancia).
@@ -1151,13 +1234,14 @@ export class RpgMapEngine {
   }
 
   /**
-   * Dibuja un árbol proporcional de 20 x 20 píxeles con 3 variantes botánicas estilo pixel-art Pokémon.
+   * Dibuja un árbol proporcional de 20 x 20 píxeles con 4 variantes botánicas estilo pixel-art Pokémon
+   * (incluyendo el árbol de otoño con follaje cálido dorado y naranja rojizo).
    *
    * @param g - Objeto Graphics de PixiJS sobre el cual pintar el árbol.
    * @param x - Posición horizontal central sobre la pantalla.
    * @param y - Posición vertical central sobre la pantalla.
    * @param scale - Factor de escala proporcional por nivel de zoom (por defecto 1.0).
-   * @param variant - Variante botánica (0: Esférico clásico Pokémon, 1: Pino andino cónico, 2: Árbol frutal con bayas).
+   * @param variant - Variante botánica (0: Esférico clásico Pokémon, 1: Pino andino cónico, 2: Árbol frutal con bayas, 3: Árbol de otoño).
    * @returns void
    */
   private drawPokemonTree(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
@@ -1166,6 +1250,29 @@ export class RpgMapEngine {
     // Sombra ovalada en la base del árbol (16x4 px)
     g.ellipse(x, y + 9 * scale, 8 * scale, 2.5 * scale)
       .fill({ color: 0x000000, alpha: 0.25 });
+
+    if (variant === 3) {
+      // VARIANTE 3: Árbol de otoño andino con follaje dorado / naranja rojizo cálido (20x20 px)
+      // Tronco leñoso oscuro
+      g.rect(x - 2 * scale, y + 3 * scale, 4 * scale, 6 * scale)
+        .fill({ color: 0x78350f })
+        .stroke({ color: 0x451a03, width: 0.8 });
+
+      // Hojitas otoñales caídas alrededor de la base
+      g.rect(x - 6 * scale, y + 8 * scale, 1.5 * scale, 1.5 * scale).fill({ color: 0xea580c });
+      g.rect(x + 5 * scale, y + 7 * scale, 1.5 * scale, 1.5 * scale).fill({ color: 0xf59e0b });
+
+      // Copa esférica otoñal en 4 capas de pixel-art cálido
+      const r = 8.5 * scale;
+      g.circle(x, y - 1 * scale, r).fill({ color: 0x9a3412 });                    // Sombra marrón rojiza
+      g.circle(x, y - 2 * scale, r * 0.85).fill({ color: 0xea580c });             // Naranja fuego otoñal
+      g.circle(x, y - 3 * scale, r * 0.65).fill({ color: 0xf97316 });             // Naranja vivo
+      g.circle(x - 1.5 * scale, y - 4.5 * scale, r * 0.38).fill({ color: 0xfacc15 }); // Destello dorado cálido
+
+      // Píxel de brillo superior dorado pálido estilo GBA
+      g.rect(x - 2.5 * scale, y - 5.5 * scale, 1.5 * scale, 1.5 * scale).fill({ color: 0xfef08a });
+      return;
+    }
 
     if (variant === 1) {
       // VARIANTE 1: Pino / Conífera Andina triangular en 3 niveles (20x20 px)
