@@ -110,11 +110,11 @@ export class RpgMapEngine {
   /** Centro de la cámara al iniciar un arrastre */
   private dragStartCenter: GeoCoordinates = { lat: 0, lng: 0 };
 
-  /** Plantilla de URL para teselas cartográficas */
-  private tileUrlTemplate: string = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+  /** Plantilla de URL para teselas cartográficas oficiales de OpenStreetMap con balanceo por subdominios (100% abiertas, sin marcas de agua ni API key) */
+  private tileUrlTemplate: string = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-  /** Plantilla de URL de respaldo (OSM estándar) en caso de fallo en CartoDB */
-  private readonly fallbackTileUrlTemplate: string = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  /** Plantilla de URL de respaldo (OSM Humanitario con tejados terracota y vegetación viva) */
+  private readonly fallbackTileUrlTemplate: string = 'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
 
   /** Callback para notificar cambios en la cámara */
   private onCameraChangeCallback?: (center: GeoCoordinates, zoom: number) => void;
@@ -526,7 +526,9 @@ export class RpgMapEngine {
     screenX: number,
     screenY: number,
   ): Promise<void> {
+    const sub = ['a', 'b', 'c'][Math.abs(x + y) % 3];
     const tileUrl = this.tileUrlTemplate
+      .replace('{s}', sub)
       .replace('{z}', z.toString())
       .replace('{x}', x.toString())
       .replace('{y}', y.toString());

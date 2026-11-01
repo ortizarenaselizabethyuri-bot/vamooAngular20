@@ -72,3 +72,4 @@ describe('RpgMapEngine', () => {
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 });
+
