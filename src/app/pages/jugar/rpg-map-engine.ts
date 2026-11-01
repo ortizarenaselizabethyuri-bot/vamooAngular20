@@ -631,16 +631,16 @@ export class RpgMapEngine {
 
   /**
    * Obtiene el factor de escala visual para decoraciones según la regla de diseño:
-   * Vista fijada en Z19 para el jugador con renderizado calibrado al tamaño compacto de Z15 (0.45x)
-   * para evitar saturación de parcelas, dejar calles despejadas y lograr estética retro Pokémon.
+   * Vista de Z19 para el jugador con tamaño duplicado de casitas (32x20px) y árboles equilibrados (escala 0.88x)
+   * garantizando que las carreteras se mantengan libres y con estética Pokémon retro nítida.
    *
    * @param zoom - Nivel de zoom (fijado en Z19 para el aventurero).
-   * @returns number - Factor de escala visual (0.45 para tamaño compacto Z15, 0 para vista macro <= 15).
+   * @returns number - Factor de escala visual (0.88 para casas de 32x20px, 0 para vista macro <= 15).
    */
   public getZoomScaleFactor(zoom: number = 19): number {
     if (zoom <= 15) return 0;
-    // Renderizado a vista de Z19 pero al tamaño compacto de Z15
-    return 0.45;
+    // Escala calibrada exactamente para casas de 32x20px y árboles proporcionales (0.88x)
+    return 0.88;
   }
 
   /**

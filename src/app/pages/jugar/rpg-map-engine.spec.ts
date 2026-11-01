@@ -72,12 +72,12 @@ describe('RpgMapEngine', () => {
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
-  it('debe calcular el factor de escala visual: vista en Z19 con tamaño compacto de Z15 (0.45x)', () => {
+  it('debe calcular el factor de escala visual: vista en Z19 con tamaño duplicado de casitas (32x20px, escala 0.88x)', () => {
     // Z15 o menor: Vista macro -> escala 0 (evita sobrecarga y saturación)
     expect(engine.getZoomScaleFactor(15)).toBe(0);
 
-    // Z19: Vista principal del jugador calibrada al tamaño compacto de Z15 (0.45x)
-    expect(engine.getZoomScaleFactor(19)).toBe(0.45);
+    // Z19: Vista principal del jugador calibrada exactamente a 32x20px para casitas (0.88x)
+    expect(engine.getZoomScaleFactor(19)).toBe(0.88);
   });
 
   it('debe ordenar las teselas en secuencia radial progresiva desde el centro del jugador hacia los costados', () => {
@@ -161,7 +161,7 @@ describe('RpgMapEngine', () => {
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
     // Al volver a invocar sobre la misma tesela o consultar el zoom, la respuesta es estable
-    expect(engine.getZoomScaleFactor(19)).toBe(0.45);
+    expect(engine.getZoomScaleFactor(19)).toBe(0.88);
   });
 });
 
