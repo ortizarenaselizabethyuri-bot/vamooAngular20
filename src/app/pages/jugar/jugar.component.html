@@ -146,6 +146,7 @@
                   [center]="mapCenter()" 
                   [zoom]="mapZoom()" 
                   [options]="currentMapOptions()" 
+                  (mapInitialized)="onMapInitialized()"
                   (mapDragstart)="onMapDragStart()"
                   (mapDrag)="onMapDrag()"
                   (mapDragend)="onMapDragEnd()"
@@ -213,49 +214,7 @@
                 </button>
               </div>
 
-              <!-- HUD SUPERIOR 2: Selector Rápido de Paletas de Color en Vivo -->
-              <div class="map-overlay-palette-bar" role="toolbar" aria-label="Selector de Paletas">
-                <button 
-                  type="button" 
-                  class="palette-btn" 
-                  [class.active]="selectedPaletteId() === 'tierraLino'" 
-                  (click)="changePalette('tierraLino')" 
-                  title="Paleta Tierra y Lino (Eco-Pueblo Artesanal)">
-                  <span>🌾 Tierra & Lino</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="palette-btn" 
-                  [class.active]="selectedPaletteId() === 'valleAndino'" 
-                  (click)="changePalette('valleAndino')" 
-                  title="Paleta Valle Andino (Tejas Andinas y Melocotón)">
-                  <span>🏔️ Valle Andino</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="palette-btn" 
-                  [class.active]="selectedPaletteId() === 'esmeraldaPixar'" 
-                  (click)="changePalette('esmeraldaPixar')" 
-                  title="Paleta Esmeralda Pixar (Luminosa y Alegre)">
-                  <span>🌿 Esmeralda Pixar</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="palette-btn" 
-                  [class.active]="selectedPaletteId() === 'retroRPG'" 
-                  (click)="changePalette('retroRPG')" 
-                  title="Paleta Retro RPG (16-Bits Clásico)">
-                  <span>🎮 Retro RPG</span>
-                </button>
-                <button 
-                  type="button" 
-                  class="palette-btn" 
-                  [class.active]="selectedPaletteId() === 'crepuscular'" 
-                  (click)="changePalette('crepuscular')" 
-                  title="Paleta Aventura Crepuscular (Noche Mágica)">
-                  <span>🌌 Crepuscular</span>
-                </button>
-              </div>
+
 
               <!-- HUD LATERAL: Ajuste Fino (+ / - / Nivel) -->
               <div class="map-overlay-stepper" role="group" aria-label="Ajuste fino de Zoom">

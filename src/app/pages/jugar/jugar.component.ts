@@ -319,6 +319,22 @@ export class JugarComponent implements OnInit, AfterViewInit {
   }
 
   /**
+   * Manejador ejecutado de manera reactiva tan pronto como el componente GoogleMap
+   * nativo emite su evento de inicialización completa en el DOM del navegador.
+   *
+   * Propósito: Inyectar de inmediato el tema cartográfico Valle Andino (con el suelo de manzanas
+   * melocotón #FDD7AA, edificaciones con tejas andinas #f97316 y vías de marfil #FFF7EE)
+   * garantizando que el mapa se pinte con los colores solicitados desde la primera carga.
+   *
+   * @returns void
+   */
+  onMapInitialized(): void {
+    if (this.googleMap?.googleMap) {
+      this.googleMap.googleMap.setOptions(this.currentMapOptions());
+    }
+  }
+
+  /**
    * Se ejecuta al iniciar el arrastre del mapa con el ratón o gesto táctil.
    * Activa el estado visual de manito cerrada y pausa temporalmente el auto-centrado.
    *

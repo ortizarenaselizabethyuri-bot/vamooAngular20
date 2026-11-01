@@ -71,41 +71,46 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       ],
     },
 
-    // 5. Áreas verdes tipo 2: Paisaje natural, praderas y cubierta vegetal (Google Maps: #c1efd1)
+    // 5. Fondo de Manzanas Urbanas y Suelo de la Ciudad (#FDD7AA)
+    // La capa 'landscape' establece el color base de los bloques urbanos sobre el cual descansan las casas
+    {
+      featureType: 'landscape',
+      elementType: 'geometry',
+      stylers: [{ color: p.manzanasUrbanas.fill }],
+    },
+
+    // 6. Áreas Verdes Tipo 2: Paisaje natural, praderas y cubierta vegetal (#34d399 / nativo #c1efd1)
     {
       featureType: 'landscape.natural',
       elementType: 'geometry',
       stylers: [{ color: p.areasVerdesVegetacion.fill }],
     },
 
-    // 6. Manzanas urbanas: Fondo suave del bloque residencial (#FDD7AA)
+    // 7. Edificaciones y Casas: Estilo Tejas Andinas (#f97316 con sombra #9a3412)
+    // 'landscape.man_made' sobrescribe el fondo de la manzana coloreando exclusivamente las edificaciones
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.fill',
-      stylers: [{ color: p.manzanasUrbanas.fill }],
+      stylers: [
+        { visibility: 'on' },
+        { color: p.edificacionesCasas.fill },
+      ],
     },
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.stroke',
       stylers: [
-        { color: p.manzanasUrbanas.stroke },
-        { weight: p.manzanasUrbanas.strokeWeight },
+        { visibility: 'on' },
+        { color: p.edificacionesCasas.stroke },
+        { weight: p.edificacionesCasas.strokeWeight },
       ],
-    },
-
-    // 7. Edificaciones, parcelas y estructuras con color diferenciado (Tejas Andinas #f97316)
-    // Permite que las construcciones individuales, lotes y recintos destaquen sobre el fondo de la manzana
-    {
-      featureType: 'administrative.land_parcel',
-      elementType: 'geometry.fill',
-      stylers: [{ color: p.edificacionesCasas.fill }],
     },
     {
       featureType: 'administrative.land_parcel',
       elementType: 'geometry.stroke',
       stylers: [
         { color: p.edificacionesCasas.stroke },
-        { weight: p.edificacionesCasas.strokeWeight },
+        { weight: 1.0 },
       ],
     },
     {
