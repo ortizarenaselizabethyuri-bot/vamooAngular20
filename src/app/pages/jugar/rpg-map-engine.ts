@@ -112,11 +112,14 @@ export class RpgMapEngine {
 
   /** Plantilla de URL para teselas cartográficas de alta velocidad (CDN libre, sin bloqueos 403, sin marcas de agua ni API key) */
   private tileUrlTemplate: string =
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}.jpg';
 
   /** Plantilla de URL de respaldo (Topográfica con relieve y vegetación andina) */
   private readonly fallbackTileUrlTemplate: string =
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}.jpg';
+
+  /** Claves de teselas actualmente en proceso de descarga activa */
+  private readonly loadingTileKeys = new Set<string>();
 
   /** Callback para notificar cambios en la cámara */
   private onCameraChangeCallback?: (center: GeoCoordinates, zoom: number) => void;
@@ -510,6 +513,43 @@ export class RpgMapEngine {
   }
 
   /**
+   * Carga la textura de una tesela mediante Pixi Assets o alternativamente mediante un elemento HTMLImageElement nativo.
+   *
+   * @param url - URL de la imagen de la tesela con extensión (.jpg / .png).
+   * @returns Promise<Texture> Textura WebGL lista para asociarse a un Sprite.
+   */
+  private async loadTileTexture(url: string): Promise<Texture> {
+    try {
+      const texture = await Assets.load<Texture>({
+        src: url,
+        loadParser: 'loadTextures',
+      });
+      if (texture) return texture;
+    } catch (e) {
+      // Continuar al método nativo
+    }
+
+    return new Promise<Texture>((resolve, reject) => {
+      if (typeof Image === 'undefined') {
+        reject(new Error('Image is not defined in this environment'));
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const texture = Texture.from(img);
+          resolve(texture);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = (e) => reject(e);
+      img.src = url;
+    });
+  }
+
+  /**
    * Descarga la textura de una tesela desde la caché o la red y la ubica en el escenario.
    *
    * @param x - Índice horizontal de la tesela.
@@ -528,9 +568,10 @@ export class RpgMapEngine {
     screenX: number,
     screenY: number,
   ): Promise<void> {
-    const sub = ['a', 'b', 'c'][Math.abs(x + y) % 3];
+    if (this.loadingTileKeys.has(key)) return;
+    this.loadingTileKeys.add(key);
+
     const tileUrl = this.tileUrlTemplate
-      .replace('{s}', sub)
       .replace('{z}', z.toString())
       .replace('{y}', y.toString())
       .replace('{x}', x.toString());
@@ -542,27 +583,28 @@ export class RpgMapEngine {
         texture = this.textureCache.get(key)!;
       } else {
         try {
-          texture = await Assets.load(tileUrl);
+          texture = await this.loadTileTexture(tileUrl);
         } catch (e) {
           // Intentar con el proveedor de respaldo en caso de fallo
           const fallbackUrl = this.fallbackTileUrlTemplate
-            .replace('{s}', sub)
             .replace('{z}', z.toString())
             .replace('{y}', y.toString())
             .replace('{x}', x.toString());
-          texture = await Assets.load(fallbackUrl);
+          texture = await this.loadTileTexture(fallbackUrl);
         }
 
         // Configuración de filtrado de píxel más cercano para estética 16-bits nítida
-        if (texture.source) {
+        if (texture && texture.source) {
           texture.source.scaleMode = 'nearest';
         }
 
-        this.textureCache.set(key, texture);
+        if (texture) {
+          this.textureCache.set(key, texture);
+        }
       }
 
       // Si aún corresponde a una tesela activa del zoom actual
-      if (this.zoom === z && !this.activeTileSprites.has(key) && this.tileContainer) {
+      if (texture && this.zoom === z && !this.activeTileSprites.has(key) && this.tileContainer) {
         const sprite = new Sprite(texture);
         sprite.width = 256;
         sprite.height = 256;
@@ -573,6 +615,8 @@ export class RpgMapEngine {
       }
     } catch (err) {
       // Si la tesela no pudo ser cargada (ej. desconexión), se ignora silenciosamente
+    } finally {
+      this.loadingTileKeys.delete(key);
     }
   }
 
