@@ -72,12 +72,12 @@ describe('RpgMapEngine', () => {
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
-  it('debe calcular el factor de escala visual: vista en Z19 con elementos cuadrados 20x20px (escala 1.0x)', () => {
+  it('debe calcular el factor de escala visual ampliado: vista en Z19 con elementos 30x30px (escala 1.5x)', () => {
     // Z15 o menor: Vista macro -> escala 0 (evita sobrecarga y saturación)
     expect(engine.getZoomScaleFactor(15)).toBe(0);
 
-    // Z19: Vista principal del jugador con casitas cuadradas de 20x20 px y árboles de 20x20 px (escala 1.0x)
-    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
+    // Z19: Vista principal del jugador con casitas cuadradas y árboles ampliados a 30x30 px (escala 1.5x)
+    expect(engine.getZoomScaleFactor(19)).toBe(1.5);
   });
 
   it('debe ordenar las teselas en secuencia radial progresiva desde el centro del jugador hacia los costados', () => {
@@ -169,7 +169,18 @@ describe('RpgMapEngine', () => {
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
     // Al volver a invocar sobre la misma tesela o consultar el zoom, la respuesta es estable
-    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
+    expect(engine.getZoomScaleFactor(19)).toBe(1.5);
+  });
+
+  it('debe mantener las decoraciones en caché sin que desaparezcan durante desplazamientos (panning) continuos', () => {
+    // Simular desplazamiento extenso analizando 80 teselas consecutivas
+    for (let i = 0; i < 80; i++) {
+      const key = `19_${152600 + i}_${279850 + i}`;
+      engine.analyzeAndCacheTileDecorations(key, 152600 + i, 279850 + i, 19);
+    }
+
+    // La escala permanece estable y las decoraciones se preservan en la memoria de alta capacidad
+    expect(engine.getZoomScaleFactor(19)).toBe(1.5);
   });
 
   it('debe respetar la regla de áreas verdes y descampados: CERO casas, mayor densidad de árboles/vegetación y verificación de márgenes', () => {

@@ -508,6 +508,17 @@ export class RpgMapEngine {
         if (this.tilePixelDataCache.has(tile.key)) {
           this.analyzeAndCacheTileDecorations(tile.key, tile.tx, tile.ty, this.zoom);
           decorations = this.tileDecorationsCache.get(tile.key);
+        } else if (this.textureCache.has(tile.key)) {
+          // Si la textura ya está en memoria pero los píxeles no, extraerlos y analizar de inmediato
+          const tex = this.textureCache.get(tile.key);
+          if (tex && tex.source) {
+            const res = (tex.source as any).resource;
+            if (res) {
+              this.extractAndStoreTilePixels(tile.key, res);
+            }
+          }
+          this.analyzeAndCacheTileDecorations(tile.key, tile.tx, tile.ty, this.zoom);
+          decorations = this.tileDecorationsCache.get(tile.key);
         }
       }
 
@@ -632,16 +643,16 @@ export class RpgMapEngine {
 
   /**
    * Obtiene el factor de escala visual para decoraciones según la regla de diseño:
-   * Vista fijada en Z19 para el jugador con casitas cuadradas de 20x20 px, árboles de 20x20 px
-   * y vegetación adaptativa (escala 1.0x), garantizando carreteras libres y estética Pokémon nítida.
+   * Vista fijada en Z19 para el jugador con escala ampliada 1.5x (casas cuadradas y árboles de 30x30 px),
+   * garantizando calzadas libres de colisiones, presencia imponente y estética Pokémon nítida.
    *
    * @param zoom - Nivel de zoom (fijado en Z19 para el aventurero).
-   * @returns number - Factor de escala visual (1.0 para vista Z19 con elementos 20x20, 0 para vista macro <= 15).
+   * @returns number - Factor de escala visual (1.5 para vista Z19 con elementos 30x30px, 0 para vista macro <= 15).
    */
   public getZoomScaleFactor(zoom: number = 19): number {
     if (zoom <= 15) return 0;
-    // Escala 1.0x: casitas cuadradas exactas de 20x20 px y árboles proporcionales de 20x20 px
-    return 1.0;
+    // Escala ampliada 1.5x: casitas cuadradas y árboles ampliados a 30x30 px para mayor protagonismo y legibilidad
+    return 1.5;
   }
 
   /**
@@ -952,8 +963,8 @@ export class RpgMapEngine {
       const imgData = ctx.getImageData(0, 0, 256, 256);
       this.tilePixelDataCache.set(key, imgData);
 
-      // Limitar tamaño de caché a 48 teselas activas para mantener memoria baja (< 12MB)
-      if (this.tilePixelDataCache.size > 48) {
+      // Limitar tamaño de caché a 256 teselas activas (~64MB) para garantizar retención en pantallas grandes y desplazamientos
+      if (this.tilePixelDataCache.size > 256) {
         const oldestKey = this.tilePixelDataCache.keys().next().value;
         if (oldestKey) {
           this.tilePixelDataCache.delete(oldestKey);
@@ -1134,31 +1145,69 @@ export class RpgMapEngine {
           // =========================================================================
 
           // Seguridad estricta para casas: libre de carreteras Y libre de áreas verdes/descampados
-          const isClearForHouse =
-            this.isAreaClearOfRoad(key, localX, localY, 12 * scaleFactor) &&
-            this.isAreaClearOfPark(key, localX, localY, 10 * scaleFactor);
+          let houseX = localX;
+          let houseY = localY;
+          let isClearForHouse =
+            this.isAreaClearOfRoad(key, houseX, houseY, 12 * scaleFactor) &&
+            this.isAreaClearOfPark(key, houseX, houseY, 10 * scaleFactor);
+
+          // Si el centro de la celda colisiona con una calle, intentar un pequeño desplazamiento determinista en la manzana
+          if (!isClearForHouse) {
+            const offsets = [
+              [10, 0], [-10, 0], [0, 10], [0, -10],
+              [8, 8], [-8, 8], [8, -8], [-8, -8],
+            ];
+            for (const [ox, oy] of offsets) {
+              const candX = Math.max(16, Math.min(240, localX + ox));
+              const candY = Math.max(16, Math.min(240, localY + oy));
+              if (
+                this.isAreaClearOfRoad(key, candX, candY, 12 * scaleFactor) &&
+                this.isAreaClearOfPark(key, candX, candY, 10 * scaleFactor)
+              ) {
+                houseX = candX;
+                houseY = candY;
+                isClearForHouse = true;
+                break;
+              }
+            }
+          }
 
           if (isClearForHouse) {
             if (seed > 0.35 && seed < 0.85) {
-              // Casa cuadrada 20x20 con 3 variantes rotativas
+              // Casa cuadrada con 3 variantes rotativas
               const houseVariant = Math.floor(seed * 13) % 3;
               items.push({
                 type: 'house',
-                localX,
-                localY,
+                localX: houseX,
+                localY: houseY,
                 scale: scaleFactor,
                 seed,
                 variant: houseVariant,
               });
             } else if (seed >= 0.85) {
               // Árbol individual de jardín residencial (debe estar libre de carretera)
-              const isClearForTree = this.isAreaClearOfRoad(key, localX, localY, 10 * scaleFactor);
+              let treeX = localX;
+              let treeY = localY;
+              let isClearForTree = this.isAreaClearOfRoad(key, treeX, treeY, 10 * scaleFactor);
+              if (!isClearForTree) {
+                const treeOffsets = [[-8, 8], [8, -8], [8, 8], [-8, -8]];
+                for (const [ox, oy] of treeOffsets) {
+                  const candX = Math.max(14, Math.min(242, localX + ox));
+                  const candY = Math.max(14, Math.min(242, localY + oy));
+                  if (this.isAreaClearOfRoad(key, candX, candY, 10 * scaleFactor)) {
+                    treeX = candX;
+                    treeY = candY;
+                    isClearForTree = true;
+                    break;
+                  }
+                }
+              }
               if (isClearForTree) {
                 const treeVariant = Math.floor(seed * 11) % 3;
                 items.push({
                   type: 'tree',
-                  localX,
-                  localY,
+                  localX: treeX,
+                  localY: treeY,
                   scale: scaleFactor,
                   seed,
                   variant: treeVariant,
@@ -1185,8 +1234,8 @@ export class RpgMapEngine {
 
     this.tileDecorationsCache.set(key, items);
 
-    // Limitar tamaño de caché de decoraciones a 64 teselas para optimizar memoria
-    if (this.tileDecorationsCache.size > 64) {
+    // Limitar tamaño de caché de decoraciones a 2048 teselas (~300KB) para garantizar persistencia durante toda la sesión
+    if (this.tileDecorationsCache.size > 2048) {
       const oldestKey = this.tileDecorationsCache.keys().next().value;
       if (oldestKey) {
         this.tileDecorationsCache.delete(oldestKey);
@@ -1535,10 +1584,13 @@ export class RpgMapEngine {
     const centerTileX = centerPixels.x / 256;
     const centerTileY = centerPixels.y / 256;
 
-    const minWorldX = centerPixels.x - width / 2 - 256;
-    const maxWorldX = centerPixels.x + width / 2 + 256;
-    const minWorldY = centerPixels.y - height / 2 - 256;
-    const maxWorldY = centerPixels.y + height / 2 + 256;
+    // Margen de precarga amplio (512px = 2 teselas de anticipación en todas direcciones)
+    // para evitar áreas vacías o parpadeos durante el desplazamiento rápido del mapa
+    const preloadBuffer = 512;
+    const minWorldX = centerPixels.x - width / 2 - preloadBuffer;
+    const maxWorldX = centerPixels.x + width / 2 + preloadBuffer;
+    const minWorldY = centerPixels.y - height / 2 - preloadBuffer;
+    const maxWorldY = centerPixels.y + height / 2 + preloadBuffer;
 
     const minTileX = Math.floor(minWorldX / 256);
     const maxTileX = Math.floor(maxWorldX / 256);
