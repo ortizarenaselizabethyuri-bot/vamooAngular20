@@ -133,6 +133,9 @@ export class RpgMapEngine {
   /** Caché en memoria de texturas PNG de alta calidad para las variantes de árboles */
   private readonly treeTextures = new Map<number, Texture>();
 
+  /** Caché en memoria de texturas PNG de alta calidad para las 4 variantes de vegetación y arbustos */
+  private readonly vegetationTextures = new Map<number, Texture>();
+
   /** Mapa de teselas actualmente activas en el escenario (clave: 'z_x_y') */
   private readonly activeTileSprites = new Map<string, Sprite>();
 
@@ -276,9 +279,10 @@ export class RpgMapEngine {
       // Renderizar el primer fotograma
       this.refreshMap();
 
-      // Precargar texturas PNG de casas y árboles para reemplazo de alta fidelidad
+      // Precargar texturas PNG de casas, árboles y vegetación para reemplazo de alta fidelidad
       this.loadHouseTextures();
       this.loadTreeTextures();
+      this.loadVegetationTextures();
     } catch (error) {
       console.warn('[RpgMapEngine] No se pudo inicializar WebGL en este entorno:', error);
     }
@@ -304,6 +308,45 @@ export class RpgMapEngine {
           if (texture && texture.source) {
             texture.source.scaleMode = 'nearest';
             this.houseTextures.set(v, texture);
+            loadedAny = true;
+          }
+        } catch {
+          // Si el archivo no está accesible, continúa con el respaldo procedural sin interrumpir
+        }
+      }
+
+      if (loadedAny && this.isInitialized) {
+        this.renderDecorations();
+      }
+    } catch {
+      // Ignorar de forma segura en pruebas headless
+    }
+  }
+
+  /**
+   * Precarga asíncrona de las texturas PNG transparentes de las 4 variantes de vegetación y arbustos estilo Pokémon clásico:
+   * - Variante 0: Hierba alta Pokémon (Tall grass)
+   * - Variante 1: Flores silvestres andinas (Wildflowers)
+   * - Variante 2: Arbusto redondo bajo de jardín (Round Bush)
+   * - Variante 3: Arbusto floral con bayas (Flowering Bush)
+   * Si la carga tiene éxito, refresca la capa de decoraciones para mostrar los sprites de alta fidelidad.
+   *
+   * @returns Promise<void>
+   */
+  public async loadVegetationTextures(): Promise<void> {
+    if (typeof window === 'undefined' || typeof Image === 'undefined') return;
+
+    try {
+      const variants = [0, 1, 2, 3];
+      let loadedAny = false;
+
+      for (const v of variants) {
+        const url = `/assets/sprites/veg_${v}.png`;
+        try {
+          const texture = await Assets.load<Texture>({ src: url, loadParser: 'loadTextures' });
+          if (texture && texture.source) {
+            texture.source.scaleMode = 'nearest';
+            this.vegetationTextures.set(v, texture);
             loadedAny = true;
           }
         } catch {
@@ -592,13 +635,12 @@ export class RpgMapEngine {
           // Si la textura ya está en memoria pero los píxeles no, extraerlos y analizar de inmediato
           const tex = this.textureCache.get(tile.key);
           if (tex && tex.source) {
-            const res = (tex.source as any).resource;
-            if (res) {
-              this.extractAndStoreTilePixels(tile.key, res);
-            }
+            this.extractAndStoreTilePixels(tile.key, tex.source);
           }
-          this.analyzeAndCacheTileDecorations(tile.key, tile.tx, tile.ty, this.zoom);
-          decorations = this.tileDecorationsCache.get(tile.key);
+          if (this.tilePixelDataCache.has(tile.key)) {
+            this.analyzeAndCacheTileDecorations(tile.key, tile.tx, tile.ty, this.zoom);
+            decorations = this.tileDecorationsCache.get(tile.key);
+          }
         }
       }
 
@@ -799,6 +841,11 @@ export class RpgMapEngine {
       return true;
     }
 
+    // 4. Bosques oscuros, vegetación umbría y arboledas densas (dominancia verde nítida)
+    if (g >= 50 && (g - r) >= 15 && (g - b) >= 10) {
+      return true;
+    }
+
     return false;
   }
 
@@ -812,9 +859,9 @@ export class RpgMapEngine {
    * @returns boolean - true si es área recreativa / estadio de tono #F8E3A6.
    */
   public isAutumnAreaPixel(r: number, g: number, b: number): boolean {
-    // Zona de color #F8E3A6 / #FFE8AA / #FCE1A3: arena dorada cálida
-    // R >= 238, G entre 208 y 242, B entre 142 y 184, R - B >= 60, G - B >= 42
-    return r >= 238 && g >= 208 && g <= 242 && b >= 142 && b <= 184 && (r - b) >= 60 && (g - b) >= 42;
+    // Zona de color #F8E3A6 / #FFE8AA / #FCE1A3: arena dorada cálida (estadio, campus, explanadas)
+    // R >= 235, G entre 200 y 245, B entre 135 y 190, R - B >= 55, G - B >= 38
+    return r >= 235 && g >= 200 && g <= 245 && b >= 135 && b <= 190 && (r - b) >= 55 && (g - b) >= 38;
   }
 
   /**
@@ -1023,16 +1070,40 @@ export class RpgMapEngine {
   }
 
   /**
-   * Extrae los datos de píxeles brutos (ImageData) de una imagen de tesela mediante un lienzo offscreen
+   * Extrae los datos de píxeles brutos (ImageData) de una imagen o textura de tesela mediante un lienzo offscreen
    * y los almacena en caché en memoria para muestreo instantáneo de terreno.
    *
    * @param key - Clave única de la tesela ('z_x_y').
-   * @param img - Elemento CanvasImageSource cargado con la textura de la tesela.
+   * @param sourceInput - Elemento CanvasImageSource o fuente de textura Pixi cargado con la tesela.
    * @returns void
    */
-  private extractAndStoreTilePixels(key: string, img: CanvasImageSource): void {
+  private extractAndStoreTilePixels(key: string, sourceInput: any): void {
     try {
-      if (typeof document === 'undefined') return;
+      if (typeof document === 'undefined' || !sourceInput) return;
+
+      let img: CanvasImageSource | null = null;
+      if (
+        (typeof HTMLImageElement !== 'undefined' && sourceInput instanceof HTMLImageElement) ||
+        (typeof ImageBitmap !== 'undefined' && sourceInput instanceof ImageBitmap) ||
+        (typeof HTMLCanvasElement !== 'undefined' && sourceInput instanceof HTMLCanvasElement)
+      ) {
+        img = sourceInput;
+      } else if (sourceInput.resource && (
+        (typeof HTMLImageElement !== 'undefined' && sourceInput.resource instanceof HTMLImageElement) ||
+        (typeof ImageBitmap !== 'undefined' && sourceInput.resource instanceof ImageBitmap) ||
+        (typeof HTMLCanvasElement !== 'undefined' && sourceInput.resource instanceof HTMLCanvasElement)
+      )) {
+        img = sourceInput.resource;
+      } else if (sourceInput.source && sourceInput.source !== sourceInput && (
+        (typeof HTMLImageElement !== 'undefined' && sourceInput.source instanceof HTMLImageElement) ||
+        (typeof ImageBitmap !== 'undefined' && sourceInput.source instanceof ImageBitmap) ||
+        (typeof HTMLCanvasElement !== 'undefined' && sourceInput.source instanceof HTMLCanvasElement)
+      )) {
+        img = sourceInput.source;
+      }
+
+      if (!img) return;
+
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 256;
@@ -1050,7 +1121,7 @@ export class RpgMapEngine {
           this.tilePixelDataCache.delete(oldestKey);
         }
       }
-    } catch (e) {
+    } catch {
       // Ignorar de forma segura si el lienzo está protegido por CORS o entorno headless
     }
   }
@@ -1130,8 +1201,8 @@ export class RpgMapEngine {
             }
           }
 
-          // Vegetación abundante en la zona #F8E3A6
-          const vegVariant = Math.floor(seed * 11) % 3;
+          // Vegetación abundante en la zona #F8E3A6 (4 variantes: hierba alta, flores silvestres, arbusto redondo, arbusto floral)
+          const vegVariant = Math.floor(seed * 11) % 4;
           items.push({
             type: 'vegetation',
             localX: Math.max(8, Math.min(248, localX + (seed > 0.5 ? 12 : -12) * scaleFactor)),
@@ -1150,7 +1221,7 @@ export class RpgMapEngine {
               localY: extraY,
               scale: scaleFactor,
               seed: (seed * 2.3) % 1,
-              variant: Math.floor(seed * 19) % 3,
+              variant: Math.floor(seed * 19) % 4,
             });
           }
         } else if (terrain === 'park') {
@@ -1190,8 +1261,8 @@ export class RpgMapEngine {
             }
           }
 
-          // 2. Vegetación abundante en descampados y parques (puede aparecer normal)
-          const vegVariant = Math.floor(seed * 11) % 3;
+          // 2. Vegetación abundante en descampados y parques (4 variantes con arbustos)
+          const vegVariant = Math.floor(seed * 11) % 4;
           items.push({
             type: 'vegetation',
             localX: Math.max(8, Math.min(248, localX + (seed > 0.5 ? 12 : -12) * scaleFactor)),
@@ -1211,7 +1282,7 @@ export class RpgMapEngine {
               localY: extraY,
               scale: scaleFactor,
               seed: (seed * 2.3) % 1,
-              variant: Math.floor(seed * 19) % 3,
+              variant: Math.floor(seed * 19) % 4,
             });
           }
         } else if (terrain === 'block') {
@@ -1298,7 +1369,7 @@ export class RpgMapEngine {
 
           // Vegetación en aceras / esquinas de manzana (puede aparecer normal)
           if (seed < 0.28) {
-            const vegVariant = Math.floor(seed * 17) % 3;
+            const vegVariant = Math.floor(seed * 17) % 4;
             items.push({
               type: 'vegetation',
               localX,
@@ -1635,18 +1706,60 @@ export class RpgMapEngine {
   }
 
   /**
-   * Dibuja vegetación estilo Pokémon con 3 variantes (hierba alta, flores andinas, arbusto bajo de jardín).
-   * Puede ubicarse libremente en bordes de calzada, márgenes, aceras y plazas.
+   * Dibuja un elemento de vegetación o arbusto estilo Pokémon clásico con 4 variantes botánicas:
+   * 0: Hierba alta Pokémon (Tall grass)
+   * 1: Flores silvestres andinas (Wildflowers)
+   * 2: Arbusto redondo bajo de jardín (Round Bush)
+   * 3: Arbusto floral con bayas (Flowering Bush)
+   * Si la textura PNG transparente de la variante está cargada en memoria, dibuja el sprite de alta fidelidad;
+   * en caso contrario, utiliza el renderizado procedural como respaldo continuo.
    *
-   * @param g - Objeto Graphics de PixiJS sobre el cual pintar la vegetación.
+   * @param g - Objeto Graphics de PixiJS sobre el cual pintar la vegetación o arbusto.
    * @param x - Posición horizontal central sobre la pantalla.
    * @param y - Posición vertical central sobre la pantalla.
-   * @param scale - Factor de escala proporcional.
-   * @param variant - Variante botánica (0: Hierba alta silvestre, 1: Parche de flores andinas, 2: Arbusto bajo de jardín).
+   * @param scale - Factor de escala proporcional por nivel de zoom (por defecto 1.0).
+   * @param variant - Variante botánica (0, 1, 2 o 3).
    * @returns void
    */
   private drawPokemonVegetation(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
     if (scale <= 0) return;
+
+    // Verificar si la textura PNG transparente de la variante está disponible
+    const tex = this.vegetationTextures.get(variant);
+    if (tex && tex.source) {
+      const vegSize = 24 * scale;
+      // Dibuja el sprite PNG transparente centrado sobre las coordenadas designadas
+      g.texture(tex, 0xffffff, x - vegSize / 2, y - vegSize / 2, vegSize, vegSize);
+      return;
+    }
+
+    // Renderizado procedural de respaldo si la textura PNG aún no ha cargado
+    this.drawPokemonVegetationProcedural(g, x, y, scale, variant);
+  }
+
+  /**
+   * Renderizado procedural de respaldo para vegetación y arbustos cuando no hay texturas cargadas (headless/tests).
+   *
+   * @param g - Objeto Graphics sobre el cual pintar.
+   * @param x - Posición horizontal central sobre la pantalla.
+   * @param y - Posición vertical central sobre la pantalla.
+   * @param scale - Factor de escala proporcional.
+   * @param variant - Variante botánica (0, 1, 2 o 3).
+   * @returns void
+   */
+  private drawPokemonVegetationProcedural(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
+    if (variant === 3) {
+      // VARIANTE 3: Arbusto floral con flores silvestres y bayas (14x10 px)
+      g.ellipse(x, y + 3 * scale, 7 * scale, 2.5 * scale).fill({ color: 0x000000, alpha: 0.2 });
+      g.circle(x, y, 5.5 * scale).fill({ color: 0x064e3b });
+      g.circle(x, y - 1 * scale, 4.5 * scale).fill({ color: 0x16a34a });
+      g.circle(x - 1 * scale, y - 2 * scale, 2.5 * scale).fill({ color: 0x4ade80 });
+      // Bayas y florecillas
+      g.circle(x - 3 * scale, y - 2 * scale, 1.2 * scale).fill({ color: 0xef4444 });
+      g.circle(x + 2.5 * scale, y - 1 * scale, 1.2 * scale).fill({ color: 0xfacc15 });
+      g.circle(x - 0.5 * scale, y + 1 * scale, 1.0 * scale).fill({ color: 0xec4899 });
+      return;
+    }
 
     if (variant === 2) {
       // VARIANTE 2: Arbusto redondo bajo de jardín (12x8 px)
@@ -1808,13 +1921,21 @@ export class RpgMapEngine {
             resolve(texture);
           } catch (err) {
             Assets.load<Texture>({ src: url, loadParser: 'loadTextures' })
-              .then((t) => resolve(t))
+              .then((t) => {
+                if (key && t && t.source) {
+                  this.extractAndStoreTilePixels(key, t.source);
+                }
+                resolve(t);
+              })
               .catch((e) => reject(e));
           }
         };
         img.onerror = async () => {
           try {
             const texture = await Assets.load<Texture>({ src: url, loadParser: 'loadTextures' });
+            if (key && texture && texture.source) {
+              this.extractAndStoreTilePixels(key, texture.source);
+            }
             resolve(texture);
           } catch (e) {
             reject(e);
@@ -1903,10 +2024,7 @@ export class RpgMapEngine {
 
         // Asegurar que si los píxeles no estaban en caché, los extraemos del recurso subyacente
         if (!this.tilePixelDataCache.has(key) && texture && texture.source) {
-          const res = (texture.source as any).resource;
-          if (res) {
-            this.extractAndStoreTilePixels(key, res);
-          }
+          this.extractAndStoreTilePixels(key, texture.source);
         }
 
         // Precalcular y fijar decoraciones de esta tesela una sola vez para evitar parpadeos
@@ -2188,6 +2306,9 @@ export class RpgMapEngine {
     this.textureCache.clear();
     this.tilePixelDataCache.clear();
     this.tileDecorationsCache.clear();
+    this.houseTextures.clear();
+    this.treeTextures.clear();
+    this.vegetationTextures.clear();
 
     if (this.decorationsGraphics) {
       try {

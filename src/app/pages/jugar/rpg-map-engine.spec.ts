@@ -214,5 +214,14 @@ describe('RpgMapEngine', () => {
     // 2. Clasificación de terreno
     expect(engine.classifyColorTerrain(248, 227, 166)).toBe('autumn_park');
   });
+
+  it('debe soportar la detección de vegetación umbría y árboles oscuros (#064C3A) y clasificar correctamente el terreno', () => {
+    // 1. Detección de vegetación umbría / bosque oscuro (#064C3A)
+    expect(engine.isParkPixel(6, 76, 58)).toBe(true);
+
+    // 2. Muestreo seguro
+    const terrain = engine.sampleTileTerrain('19_152611_279850', 32, 32);
+    expect(['park', 'road', 'block', 'water', 'autumn_park']).toContain(terrain);
+  });
 });
 

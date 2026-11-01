@@ -411,3 +411,4 @@ files.forEach(f => {
 });
 
 console.log('Árboles estilo Pokémon clásico generados con éxito.');
+
