@@ -80,6 +80,9 @@ export class RpgMapEngine {
   /** Capa gráfica dedicada para el halo satelital de precisión */
   private accuracyGraphics: Graphics | null = null;
 
+  /** Capa gráfica para decoraciones de temática Pokémon (árboles clásicos, casitas andinas, flores) */
+  private decorationsGraphics: Graphics | null = null;
+
   /** Contenedor del avatar del aventurero (sombra, cuerpo, emoji, placa) */
   private playerContainer: Container | null = null;
 
@@ -203,6 +206,7 @@ export class RpgMapEngine {
       // Crear jerarquía de capas gráficas
       this.worldContainer = new Container();
       this.tileContainer = new Container();
+      this.decorationsGraphics = new Graphics();
       this.trailGraphics = new Graphics();
       this.accuracyGraphics = new Graphics();
       this.playerContainer = new Container();
@@ -211,6 +215,7 @@ export class RpgMapEngine {
       this.setupPaletteFilter();
 
       this.worldContainer.addChild(this.tileContainer);
+      this.worldContainer.addChild(this.decorationsGraphics);
       this.worldContainer.addChild(this.trailGraphics);
       this.worldContainer.addChild(this.accuracyGraphics);
       this.worldContainer.addChild(this.playerContainer);
@@ -250,10 +255,10 @@ export class RpgMapEngine {
 
     try {
       const colorFilter = new ColorMatrixFilter();
-      // Incrementar ligeramente el contraste para acentuar caminos y manzanas
-      colorFilter.contrast(0.2, false);
-      // Realzar saturación para que la vegetación y tejados adquieran viveza de videojuego
-      colorFilter.saturate(0.3, false);
+      // Incrementar contraste para acentuar caminos y manzanas
+      colorFilter.contrast(0.24, false);
+      // Realzar saturación para que la vegetación y tejados adquieran viveza clásica de GameBoy Advance
+      colorFilter.saturate(0.36, false);
       this.tileContainer.filters = [colorFilter];
     } catch (e) {
       // Entornos sin soporte de shader de lienzo continúan sin filtro
@@ -268,13 +273,13 @@ export class RpgMapEngine {
   private setupPlayerVisuals(): void {
     if (!this.playerContainer) return;
 
-    // 1. Gráficos de sombra y cuerpo circular con borde dorado y esmeralda
+    // 1. Gráficos del Entrenador Pokémon estilo 16-bits
     this.playerBodyGraphics = new Graphics();
     this.playerContainer.addChild(this.playerBodyGraphics);
 
-    // 2. Icono emoji representativo de la fauna
+    // 2. Icono emoji representativo de la fauna (compañero Pokémon flotante)
     const style = new TextStyle({
-      fontSize: 22,
+      fontSize: 16,
       align: 'center',
     });
     this.playerEmojiText = new Text({
@@ -282,13 +287,14 @@ export class RpgMapEngine {
       style,
     });
     this.playerEmojiText.anchor.set(0.5);
+    this.playerEmojiText.position.set(-36, -34);
     this.playerContainer.addChild(this.playerEmojiText);
 
     // 3. Placa de nombre flotante
     this.playerNameTag = new Container();
     const tagBg = new Graphics();
-    tagBg.roundRect(-45, -38, 90, 18, 4)
-      .fill({ color: 0x0f172a, alpha: 0.85 })
+    tagBg.roundRect(-42, -43, 84, 18, 4)
+      .fill({ color: 0x0f172a, alpha: 0.9 })
       .stroke({ color: 0xfacc15, width: 1.5 });
 
     const tagTextStyle = new TextStyle({
@@ -303,7 +309,7 @@ export class RpgMapEngine {
       style: tagTextStyle,
     });
     tagText.anchor.set(0.5);
-    tagText.position.set(0, -29);
+    tagText.position.set(0, -34);
 
     this.playerNameTag.addChild(tagBg);
     this.playerNameTag.addChild(tagText);
@@ -400,31 +406,16 @@ export class RpgMapEngine {
   private onTick(deltaTime: number): void {
     this.animationTime += deltaTime * 0.05;
 
-    // 1. Animación de bobbing (rebote idle) del aventurero
+    // 1. Animación de bobbing (rebote idle) del entrenador Pokémon
     if (this.playerContainer && this.playerContainer.visible) {
-      const bobOffset = Math.sin(this.animationTime * 4) * 2.5;
+      const bobOffset = Math.sin(this.animationTime * 4.5) * 1.8;
 
       if (this.playerBodyGraphics) {
-        this.playerBodyGraphics.clear();
-        // Sombra suave proyectada en el suelo
-        this.playerBodyGraphics.ellipse(0, 14, 16, 6)
-          .fill({ color: 0x000000, alpha: 0.28 });
-
-        // Aro exterior dorado
-        this.playerBodyGraphics.circle(0, -6 + bobOffset, 22)
-          .fill({ color: 0xfacc15 });
-
-        // Anillo interior verde esmeralda
-        this.playerBodyGraphics.circle(0, -6 + bobOffset, 19)
-          .fill({ color: 0x10b981 });
-
-        // Núcleo verde selva profunda
-        this.playerBodyGraphics.circle(0, -6 + bobOffset, 16)
-          .fill({ color: 0x064e3b });
+        this.drawPokemonTrainerSprite(this.playerBodyGraphics, bobOffset);
       }
 
       if (this.playerEmojiText) {
-        this.playerEmojiText.position.set(0, -6 + bobOffset);
+        this.playerEmojiText.position.set(-36, -34 + bobOffset);
       }
 
       if (this.playerNameTag) {
@@ -447,8 +438,8 @@ export class RpgMapEngine {
   }
 
   /**
-   * Refresca integralmente el escenario: calcula teselas visibles, actualiza trazado de sendero
-   * y reposiciona el avatar del aventurero.
+   * Refresca integralmente el escenario: calcula teselas visibles, actualiza trazado de sendero,
+   * renderiza elementos decorativos Pokémon y reposiciona el avatar del aventurero.
    *
    * @returns void
    */
@@ -456,8 +447,250 @@ export class RpgMapEngine {
     if (!this.app || !this.isInitialized) return;
 
     this.renderVisibleTiles();
+    this.renderDecorations();
     this.renderTrail();
     this.updatePlayerScreenPosition();
+  }
+
+  /**
+   * Renderiza árboles clásicos de Pokémon, casitas andinas y parches de flores sobre los bloques
+   * urbanos manteniendo fielmente el trazado y nombres de las calles.
+   *
+   * @returns void
+   */
+  private renderDecorations(): void {
+    if (!this.decorationsGraphics || !this.app) return;
+    this.decorationsGraphics.clear();
+
+    // Solo mostrar elementos individuales en vistas de barrio y jugador (Z17 - Z19)
+    if (this.zoom < 17) return;
+
+    const width = this.app.screen.width;
+    const height = this.app.screen.height;
+    const centerPixels = this.latLngToWorldPixels(this.center.lat, this.center.lng, this.zoom);
+
+    const minWorldX = centerPixels.x - width / 2 - 256;
+    const maxWorldX = centerPixels.x + width / 2 + 256;
+    const minWorldY = centerPixels.y - height / 2 - 256;
+    const maxWorldY = centerPixels.y + height / 2 + 256;
+
+    const minTileX = Math.floor(minWorldX / 256);
+    const maxTileX = Math.floor(maxWorldX / 256);
+    const minTileY = Math.floor(minWorldY / 256);
+    const maxTileY = Math.floor(maxWorldY / 256);
+
+    for (let tx = minTileX; tx <= maxTileX; tx++) {
+      for (let ty = minTileY; ty <= maxTileY; ty++) {
+        // Generador pseudo-aleatorio determinista basado en índices de tesela
+        const seed = Math.abs(Math.sin(tx * 12.9898 + ty * 78.233 + this.zoom * 37.719) * 43758.5453) % 1;
+
+        const tileScreenX = tx * 256 - centerPixels.x + width / 2;
+        const tileScreenY = ty * 256 - centerPixels.y + height / 2;
+
+        // 1. Árboles Pokémon redondeados en las esquinas de los bloques
+        const treeX1 = tileScreenX + 38;
+        const treeY1 = tileScreenY + 42;
+        this.drawPokemonTree(this.decorationsGraphics, treeX1, treeY1);
+
+        if (seed > 0.4) {
+          const treeX2 = tileScreenX + 218;
+          const treeY2 = tileScreenY + 214;
+          this.drawPokemonTree(this.decorationsGraphics, treeX2, treeY2);
+        }
+
+        // 2. Casitas estilo Pokémon / Valle Andino en parcelas seleccionadas
+        if (seed > 0.35 && seed < 0.85) {
+          const houseX = tileScreenX + 128;
+          const houseY = tileScreenY + 115;
+          this.drawPokemonHouse(this.decorationsGraphics, houseX, houseY);
+        }
+
+        // 3. Parches de flores silvestres Pokémon (hierba de ruta)
+        if (seed > 0.5) {
+          this.drawWildflowerPatch(this.decorationsGraphics, tileScreenX + 75, tileScreenY + 180);
+        }
+      }
+    }
+  }
+
+  /**
+   * Dibuja proceduralmente el sprite pixel-art de 16-bits de un entrenador Pokémon clásico
+   * con gorra roja y visera blanca, mochila de expedición, casaca, pantalón denim y botas.
+   *
+   * @param g - Objeto Graphics de Pixi sobre el cual pintar el sprite.
+   * @param bobOffset - Desplazamiento vertical para la animación continua de respiración/idle.
+   * @returns void
+   */
+  private drawPokemonTrainerSprite(g: Graphics, bobOffset: number): void {
+    g.clear();
+
+    // 1. Sombra suave ovalada proyectada sobre el suelo
+    g.ellipse(0, 16, 18, 6).fill({ color: 0x000000, alpha: 0.32 });
+
+    // 2. Base de plataforma de combate Pokémon (halo circular esmeralda y oro)
+    g.ellipse(0, 16, 22, 7)
+      .fill({ color: 0x10b981, alpha: 0.25 })
+      .stroke({ color: 0x059669, width: 1.5, alpha: 0.6 });
+
+    // 3. Botas de montañismo (Rojo oscuro con suela de goma negra)
+    g.rect(-8, 9 + bobOffset, 6, 6)
+      .fill({ color: 0x991b1b })
+      .stroke({ color: 0x450a0a, width: 1 });
+    g.rect(-8, 14 + bobOffset, 6, 2).fill({ color: 0x18181b });
+
+    g.rect(2, 9 + bobOffset, 6, 6)
+      .fill({ color: 0x991b1b })
+      .stroke({ color: 0x450a0a, width: 1 });
+    g.rect(2, 14 + bobOffset, 6, 2).fill({ color: 0x18181b });
+
+    // 4. Pantalones Denim Pokémon (Azul vaquero con costura central)
+    g.rect(-7, 2 + bobOffset, 14, 8)
+      .fill({ color: 0x1d4ed8 })
+      .stroke({ color: 0x1e3a8a, width: 1 });
+    g.rect(-1, 4 + bobOffset, 2, 6).fill({ color: 0x172554 });
+
+    // 5. Mochila de expedición andina visible a los lados
+    g.rect(-11, -8 + bobOffset, 22, 10)
+      .fill({ color: 0x15803d })
+      .stroke({ color: 0x052e16, width: 1 });
+
+    // 6. Casaca de Entrenador (Rojo vivo estilo clásico Pokémon Red/GBA)
+    g.rect(-8, -9 + bobOffset, 16, 12)
+      .fill({ color: 0xef4444 })
+      .stroke({ color: 0x7f1d1d, width: 1 });
+
+    // Pechera / cuello blanco
+    g.rect(-3, -9 + bobOffset, 6, 6).fill({ color: 0xffffff });
+
+    // Tirantes verdes de la mochila
+    g.rect(-7, -8 + bobOffset, 2, 10).fill({ color: 0x166534 });
+    g.rect(5, -8 + bobOffset, 2, 10).fill({ color: 0x166534 });
+
+    // Manos / Guantes del aventurero
+    g.rect(-10, -2 + bobOffset, 3, 4).fill({ color: 0xfde047 });
+    g.rect(7, -2 + bobOffset, 3, 4).fill({ color: 0xfde047 });
+
+    // 7. Rostro y Cabeza estilo Anime Pokémon
+    // Piel cálida
+    g.rect(-6, -18 + bobOffset, 12, 10)
+      .fill({ color: 0xfef08a })
+      .stroke({ color: 0xca8a04, width: 0.5 });
+
+    // Pelo castaño oscuro estilo clásico GBA
+    g.rect(-7, -21 + bobOffset, 14, 4).fill({ color: 0x451a03 });
+    g.rect(-8, -18 + bobOffset, 2, 5).fill({ color: 0x451a03 });
+    g.rect(6, -18 + bobOffset, 2, 5).fill({ color: 0x451a03 });
+
+    // Ojos anime pixelados con destello blanco
+    g.rect(-4, -15 + bobOffset, 2, 3).fill({ color: 0x0f172a });
+    g.rect(-4, -15 + bobOffset, 1, 1).fill({ color: 0xffffff });
+    g.rect(2, -15 + bobOffset, 2, 3).fill({ color: 0x0f172a });
+    g.rect(2, -15 + bobOffset, 1, 1).fill({ color: 0xffffff });
+
+    // 8. Gorra Clásica de Entrenador Pokémon
+    // Base de la gorra roja
+    g.rect(-9, -24 + bobOffset, 18, 5)
+      .fill({ color: 0xdc2626 })
+      .stroke({ color: 0x7f1d1d, width: 1 });
+
+    // Símbolo blanco frontal Pokéball
+    g.rect(-3, -24 + bobOffset, 6, 4).fill({ color: 0xffffff });
+    g.rect(-1, -23 + bobOffset, 2, 2).fill({ color: 0xdc2626 });
+
+    // Visera blanca frontal
+    g.rect(-11, -20 + bobOffset, 22, 2.5)
+      .fill({ color: 0xffffff })
+      .stroke({ color: 0x94a3b8, width: 0.5 });
+  }
+
+  /**
+   * Dibuja un árbol esférico clásico al estilo de los juegos de Pokémon de GameBoy Advance / SNES.
+   *
+   * @param g - Objeto Graphics sobre el cual pintar el árbol.
+   * @param x - Posición horizontal sobre la pantalla.
+   * @param y - Posición vertical sobre la pantalla.
+   * @returns void
+   */
+  private drawPokemonTree(g: Graphics, x: number, y: number): void {
+    // Sombra en el suelo
+    g.ellipse(x, y + 15, 14, 5).fill({ color: 0x000000, alpha: 0.25 });
+
+    // Tronco de madera
+    g.rect(x - 3, y + 8, 6, 8)
+      .fill({ color: 0x78350f })
+      .stroke({ color: 0x451a03, width: 1 });
+
+    // Copa esférica Pokémon en 4 tonos de verde
+    g.circle(x, y, 14).fill({ color: 0x064e3b });       // Contorno oscuro
+    g.circle(x, y - 1, 12).fill({ color: 0x166534 });   // Sombra inferior
+    g.circle(x, y - 3, 9).fill({ color: 0x15803d });    // Verde follaje medio
+    g.circle(x - 2, y - 5, 5).fill({ color: 0x4ade80 });// Brillo de luz superior
+  }
+
+  /**
+   * Dibuja una casita andina con tejado terracota al estilo de los edificios de pueblos Pokémon.
+   *
+   * @param g - Objeto Graphics sobre el cual pintar la casita.
+   * @param x - Posición horizontal sobre la pantalla.
+   * @param y - Posición vertical sobre la pantalla.
+   * @returns void
+   */
+  private drawPokemonHouse(g: Graphics, x: number, y: number): void {
+    // Sombra proyectada
+    g.rect(x - 20, y + 17, 40, 7).fill({ color: 0x000000, alpha: 0.2 });
+
+    // Paredes de adobe / marfil cálido
+    g.rect(x - 18, y - 2, 36, 22)
+      .fill({ color: 0xffedd5 })
+      .stroke({ color: 0x7c2d12, width: 1.5 });
+
+    // Puerta de madera
+    g.rect(x - 4, y + 6, 8, 14)
+      .fill({ color: 0x854d0e })
+      .stroke({ color: 0x451a03, width: 1 });
+    g.circle(x + 2, y + 13, 1).fill({ color: 0xfacc15 });
+
+    // Ventanas con marco azul y reflejo
+    g.rect(x - 13, y + 3, 6, 6)
+      .fill({ color: 0x60a5fa })
+      .stroke({ color: 0x1e3a8a, width: 1 });
+    g.rect(x + 7, y + 3, 6, 6)
+      .fill({ color: 0x60a5fa })
+      .stroke({ color: 0x1e3a8a, width: 1 });
+
+    // Techo a dos aguas de teja andina viva (#f97316)
+    g.poly([x - 22, y - 2, x, y - 18, x + 22, y - 2])
+      .fill({ color: 0xf97316 })
+      .stroke({ color: 0x7c2d12, width: 2 });
+
+    // Chimenea con hilera de ladrillo
+    g.rect(x + 10, y - 20, 5, 8)
+      .fill({ color: 0x9a3412 })
+      .stroke({ color: 0x431407, width: 1 });
+  }
+
+  /**
+   * Dibuja un parche de hierba alta y flores silvestres estilo Pokémon.
+   *
+   * @param g - Objeto Graphics sobre el cual pintar el parche.
+   * @param x - Posición horizontal sobre la pantalla.
+   * @param y - Posición vertical sobre la pantalla.
+   * @returns void
+   */
+  private drawWildflowerPatch(g: Graphics, x: number, y: number): void {
+    // Puntas de hierba alta Pokémon
+    g.rect(x - 6, y - 2, 2, 6).fill({ color: 0x15803d });
+    g.rect(x - 2, y - 4, 2, 8).fill({ color: 0x16a34a });
+    g.rect(x + 2, y - 3, 2, 7).fill({ color: 0x15803d });
+    g.rect(x + 6, y - 1, 2, 5).fill({ color: 0x22c55e });
+
+    // Flor silvestre roja
+    g.rect(x - 5, y - 3, 2, 2).fill({ color: 0xef4444 });
+    g.rect(x - 4, y - 2, 1, 1).fill({ color: 0xfacc15 });
+
+    // Flor silvestre amarilla
+    g.rect(x + 3, y - 4, 2, 2).fill({ color: 0xfacc15 });
+    g.rect(x + 4, y - 3, 1, 1).fill({ color: 0xf97316 });
   }
 
   /**
@@ -869,6 +1102,15 @@ export class RpgMapEngine {
 
     this.clearActiveTiles();
     this.textureCache.clear();
+
+    if (this.decorationsGraphics) {
+      try {
+        this.decorationsGraphics.destroy();
+      } catch (e) {
+        // Ignorar si ya fue liberado
+      }
+      this.decorationsGraphics = null;
+    }
 
     if (this.app) {
       try {

@@ -151,6 +151,32 @@
               <!-- Viñeta decorativa estilo pantalla de consola retro -->
               <div class="rpg-vignette-overlay" aria-hidden="true"></div>
 
+              <!-- Malla de micro-píxeles y scanlines estilo pantalla GameBoy Advance / Nintendo DS -->
+              <div class="pokemon-dither-overlay" aria-hidden="true"></div>
+
+              <!-- Cartel Clásico de Ruta / Pueblo Pokémon -->
+              <div class="pokemon-route-banner" role="status" aria-label="Ruta Actual">
+                <div class="route-banner-border">
+                  <span class="route-icon">🌿</span>
+                  <div class="route-info">
+                    <span class="route-town-title">HUANCAYO • VALLE ANDINO</span>
+                    <span class="route-street-label">📍 ZONA DE EXPEDICIÓN • SECTOR SANTA ISABEL</span>
+                  </div>
+                  <span class="route-badge-lvl">LV. {{ mapZoom() }}</span>
+                </div>
+              </div>
+
+              <!-- Mini Brújula Pokéball de Orientación Norte -->
+              <div class="pokemon-compass" title="Brújula de Orientación Norte">
+                <div class="pokeball-widget">
+                  <div class="pokeball-top"></div>
+                  <div class="pokeball-band"></div>
+                  <div class="pokeball-center-btn"></div>
+                  <div class="pokeball-bottom"></div>
+                </div>
+                <span class="compass-needle-label">N</span>
+              </div>
+
               <!-- HUD SUPERIOR: Selector de Niveles de Zoom Precalibrados (Z15 Amplia a Z19 Jugador) -->
               <div class="map-overlay-zoom-presets" role="toolbar" aria-label="Niveles de Zoom">
                 <button 

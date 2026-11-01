@@ -373,6 +373,155 @@
   border: 1px solid rgba(254, 215, 170, 0.2);
 }
 
+/* Malla de textura LCD y scanlines estilo GameBoy Advance / Nintendo DS */
+.pokemon-dither-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  background-image: 
+    repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.04) 0px, rgba(15, 23, 42, 0.04) 1px, transparent 1px, transparent 3px),
+    radial-gradient(rgba(180, 83, 9, 0.07) 1px, transparent 1px);
+  background-size: 100% 3px, 8px 8px;
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
+
+/* Cartel Clásico de Ruta Pokémon (Pueblo / Sector) */
+.pokemon-route-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 15;
+  pointer-events: none;
+  animation: slideDownSign 0.5s ease-out;
+}
+
+@keyframes slideDownSign {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.route-banner-border {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 2px solid #1e293b;
+  border-radius: 4px;
+  padding: 5px 10px;
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    inset 1px 1px 0 #ffffff;
+}
+
+.route-icon {
+  font-size: 1.1rem;
+}
+
+.route-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.route-town-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  font-weight: bold;
+  color: #1e293b;
+  letter-spacing: 0.4px;
+}
+
+.route-street-label {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.52rem;
+  color: #78350f;
+  font-weight: 600;
+}
+
+.route-badge-lvl {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.5rem;
+  background: #10b981;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #064e3b;
+  text-shadow: 1px 1px 0 #000;
+  margin-left: 4px;
+}
+
+/* Mini Brújula Pokéball de Orientación Norte */
+.pokemon-compass {
+  position: absolute;
+  top: 55px;
+  right: 12px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.pokeball-widget {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  background: #f8fafc;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.pokeball-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #ef4444;
+}
+
+.pokeball-band {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: #0f172a;
+  z-index: 2;
+}
+
+.pokeball-center-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  z-index: 3;
+}
+
+.compass-needle-label {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  font-weight: bold;
+  color: #ef4444;
+  text-shadow: 1px 1px 0 #000;
+}
+
 /* Insignia informativa del motor RPG */
 .rpg-engine-badge {
   position: absolute;
