@@ -110,11 +110,13 @@ export class RpgMapEngine {
   /** Centro de la cámara al iniciar un arrastre */
   private dragStartCenter: GeoCoordinates = { lat: 0, lng: 0 };
 
-  /** Plantilla de URL para teselas cartográficas oficiales de OpenStreetMap con balanceo por subdominios (100% abiertas, sin marcas de agua ni API key) */
-  private tileUrlTemplate: string = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  /** Plantilla de URL para teselas cartográficas de alta velocidad (CDN libre, sin bloqueos 403, sin marcas de agua ni API key) */
+  private tileUrlTemplate: string =
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
 
-  /** Plantilla de URL de respaldo (OSM Humanitario con tejados terracota y vegetación viva) */
-  private readonly fallbackTileUrlTemplate: string = 'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
+  /** Plantilla de URL de respaldo (Topográfica con relieve y vegetación andina) */
+  private readonly fallbackTileUrlTemplate: string =
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
 
   /** Callback para notificar cambios en la cámara */
   private onCameraChangeCallback?: (center: GeoCoordinates, zoom: number) => void;
@@ -530,8 +532,8 @@ export class RpgMapEngine {
     const tileUrl = this.tileUrlTemplate
       .replace('{s}', sub)
       .replace('{z}', z.toString())
-      .replace('{x}', x.toString())
-      .replace('{y}', y.toString());
+      .replace('{y}', y.toString())
+      .replace('{x}', x.toString());
 
     try {
       let texture: Texture;
@@ -544,9 +546,10 @@ export class RpgMapEngine {
         } catch (e) {
           // Intentar con el proveedor de respaldo en caso de fallo
           const fallbackUrl = this.fallbackTileUrlTemplate
+            .replace('{s}', sub)
             .replace('{z}', z.toString())
-            .replace('{x}', x.toString())
-            .replace('{y}', y.toString());
+            .replace('{y}', y.toString())
+            .replace('{x}', x.toString());
           texture = await Assets.load(fallbackUrl);
         }
 
