@@ -485,3 +485,4 @@ files.forEach(f => {
 });
 
 console.log('Casas frontales estilo Pokémon clásico generadas con éxito.');
+

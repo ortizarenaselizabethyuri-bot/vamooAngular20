@@ -130,6 +130,9 @@ export class RpgMapEngine {
   /** Caché en memoria de texturas PNG de alta calidad para las variantes de casas */
   private readonly houseTextures = new Map<number, Texture>();
 
+  /** Caché en memoria de texturas PNG de alta calidad para las variantes de árboles */
+  private readonly treeTextures = new Map<number, Texture>();
+
   /** Mapa de teselas actualmente activas en el escenario (clave: 'z_x_y') */
   private readonly activeTileSprites = new Map<string, Sprite>();
 
@@ -273,8 +276,9 @@ export class RpgMapEngine {
       // Renderizar el primer fotograma
       this.refreshMap();
 
-      // Precargar texturas PNG de casas para reemplazo de alta fidelidad
+      // Precargar texturas PNG de casas y árboles para reemplazo de alta fidelidad
       this.loadHouseTextures();
+      this.loadTreeTextures();
     } catch (error) {
       console.warn('[RpgMapEngine] No se pudo inicializar WebGL en este entorno:', error);
     }
@@ -300,6 +304,41 @@ export class RpgMapEngine {
           if (texture && texture.source) {
             texture.source.scaleMode = 'nearest';
             this.houseTextures.set(v, texture);
+            loadedAny = true;
+          }
+        } catch {
+          // Si el archivo no está accesible, continúa con el respaldo procedural sin interrumpir
+        }
+      }
+
+      if (loadedAny && this.isInitialized) {
+        this.renderDecorations();
+      }
+    } catch {
+      // Ignorar de forma segura en pruebas headless
+    }
+  }
+
+  /**
+   * Precarga asíncrona de las texturas PNG transparentes de las 4 variantes de árboles Pokémon.
+   * Si la carga tiene éxito, refresca la capa de decoraciones para mostrar los sprites de alta fidelidad.
+   *
+   * @returns Promise<void>
+   */
+  public async loadTreeTextures(): Promise<void> {
+    if (typeof window === 'undefined' || typeof Image === 'undefined') return;
+
+    try {
+      const variants = [0, 1, 2, 3];
+      let loadedAny = false;
+
+      for (const v of variants) {
+        const url = `/assets/sprites/tree_${v}.png`;
+        try {
+          const texture = await Assets.load<Texture>({ src: url, loadParser: 'loadTextures' });
+          if (texture && texture.source) {
+            texture.source.scaleMode = 'nearest';
+            this.treeTextures.set(v, texture);
             loadedAny = true;
           }
         } catch {
@@ -1324,8 +1363,9 @@ export class RpgMapEngine {
   }
 
   /**
-   * Dibuja un árbol proporcional de 20 x 20 píxeles con 4 variantes botánicas estilo pixel-art Pokémon
-   * (incluyendo el árbol de otoño con follaje cálido dorado y naranja rojizo).
+   * Dibuja un árbol proporcional estilo pixel-art Pokémon con 4 variantes botánicas.
+   * Si la textura PNG transparente de la variante está cargada en memoria, dibuja el sprite de alta fidelidad;
+   * en caso contrario, recurre al dibujo procedural como respaldo continuo.
    *
    * @param g - Objeto Graphics de PixiJS sobre el cual pintar el árbol.
    * @param x - Posición horizontal central sobre la pantalla.
@@ -1337,6 +1377,30 @@ export class RpgMapEngine {
   private drawPokemonTree(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
     if (scale <= 0) return;
 
+    // Verificar si la textura PNG transparente de la variante está disponible
+    const tex = this.treeTextures.get(variant);
+    if (tex && tex.source) {
+      const treeSize = 34 * scale;
+      // Dibuja el sprite PNG transparente centrado sobre las coordenadas designadas
+      g.texture(tex, 0xffffff, x - treeSize / 2, y - treeSize / 2, treeSize, treeSize);
+      return;
+    }
+
+    // Renderizado procedural de respaldo si la textura PNG aún no ha cargado
+    this.drawPokemonTreeProcedural(g, x, y, scale, variant);
+  }
+
+  /**
+   * Renderizado procedural de respaldo para los árboles cuando no hay texturas cargadas (headless/tests).
+   *
+   * @param g - Objeto Graphics sobre el cual pintar el árbol.
+   * @param x - Posición horizontal central sobre la pantalla.
+   * @param y - Posición vertical central sobre la pantalla.
+   * @param scale - Factor de escala proporcional.
+   * @param variant - Variante botánica (0, 1, 2 o 3).
+   * @returns void
+   */
+  private drawPokemonTreeProcedural(g: Graphics, x: number, y: number, scale: number = 1.0, variant: number = 0): void {
     // Sombra ovalada en la base del árbol (16x4 px)
     g.ellipse(x, y + 9 * scale, 8 * scale, 2.5 * scale)
       .fill({ color: 0x000000, alpha: 0.25 });
