@@ -462,7 +462,7 @@ export const PALETAS_PREDEFINIDAS = {
  * Opciones disponibles: 'valleAndino' | 'esmeraldaPixar' | 'retroRPG' | 'tierraLino' | 'crepuscular'
  * ============================================================================
  */
-export const PALETA_SELECCIONADA: keyof typeof PALETAS_PREDEFINIDAS = 'tierraLino';
+export const PALETA_SELECCIONADA: keyof typeof PALETAS_PREDEFINIDAS = 'valleAndino';
 
 /**
  * Paleta exportada consumida por toda la aplicación de forma reactiva.

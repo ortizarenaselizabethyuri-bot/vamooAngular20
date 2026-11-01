@@ -78,11 +78,55 @@ export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTy
       stylers: [{ color: p.areasVerdesVegetacion.fill }],
     },
 
-    // 6. Manzanas urbanas / Terreno edificado
+    // 6. Manzanas urbanas: Fondo suave del bloque residencial (#FDD7AA)
     {
       featureType: 'landscape.man_made',
       elementType: 'geometry.fill',
       stylers: [{ color: p.manzanasUrbanas.fill }],
+    },
+    {
+      featureType: 'landscape.man_made',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.manzanasUrbanas.stroke },
+        { weight: p.manzanasUrbanas.strokeWeight },
+      ],
+    },
+
+    // 7. Edificaciones, parcelas y estructuras con color diferenciado (Tejas Andinas #f97316)
+    // Permite que las construcciones individuales, lotes y recintos destaquen sobre el fondo de la manzana
+    {
+      featureType: 'administrative.land_parcel',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificacionesCasas.fill }],
+    },
+    {
+      featureType: 'administrative.land_parcel',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.edificacionesCasas.stroke },
+        { weight: p.edificacionesCasas.strokeWeight },
+      ],
+    },
+    {
+      featureType: 'poi.school',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificacionesCasas.fill }],
+    },
+    {
+      featureType: 'poi.government',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificacionesCasas.fill }],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificacionesCasas.fill }],
+    },
+    {
+      featureType: 'poi.medical',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificacionesCasas.fill }],
     },
 
     // 7. Carreteras y caminos locales
