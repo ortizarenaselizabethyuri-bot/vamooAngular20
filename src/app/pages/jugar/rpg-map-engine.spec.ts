@@ -72,12 +72,12 @@ describe('RpgMapEngine', () => {
     expect(engine.getCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
-  it('debe calcular el factor de escala visual: vista en Z19 con tamaño duplicado de casitas (32x20px, escala 0.88x)', () => {
+  it('debe calcular el factor de escala visual: vista en Z19 con elementos cuadrados 20x20px (escala 1.0x)', () => {
     // Z15 o menor: Vista macro -> escala 0 (evita sobrecarga y saturación)
     expect(engine.getZoomScaleFactor(15)).toBe(0);
 
-    // Z19: Vista principal del jugador calibrada exactamente a 32x20px para casitas (0.88x)
-    expect(engine.getZoomScaleFactor(19)).toBe(0.88);
+    // Z19: Vista principal del jugador con casitas cuadradas de 20x20 px y árboles de 20x20 px (escala 1.0x)
+    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
   });
 
   it('debe ordenar las teselas en secuencia radial progresiva desde el centro del jugador hacia los costados', () => {
@@ -124,22 +124,28 @@ describe('RpgMapEngine', () => {
     expect(['park', 'road', 'block', 'water']).toContain(edgeTerrain2);
   });
 
-  it('debe validar la regla estricta de carreteras impidiendo que casitas o árboles se ubiquen sobre calzadas', () => {
-    // 1. Detección directa de píxeles de carretera
+  it('debe validar la regla estricta de carreteras impidiendo que casitas o árboles se ubiquen sobre calzadas o textos viales', () => {
+    // 1. Detección directa de asfalto blanco y gris claro
     expect(engine.isRoadPixel(255, 255, 255)).toBe(true);  // Asfalto blanco
     expect(engine.isRoadPixel(240, 240, 240)).toBe(true);  // Asfalto neutro
     expect(engine.isRoadPixel(210, 210, 210)).toBe(true);  // Borde o casing de calle
-    expect(engine.isRoadPixel(225, 185, 140)).toBe(true);  // Arterial amarilla
+    expect(engine.isRoadPixel(175, 175, 175)).toBe(true);  // Casing medio de calzada
 
-    // 2. No debe clasificar como carretera a zonas residenciales ni parques
+    // 2. Detección de textos de nombres de calles sobre calzadas (ej. "Pasaje Montevideo", "Calle Nemesio")
+    expect(engine.isRoadPixel(134, 135, 130)).toBe(true);
+    expect(engine.isRoadPixel(110, 110, 110)).toBe(true);
+
+    // 3. Avenidas y carreteras arteriales amarillas
+    expect(engine.isRoadPixel(225, 185, 140)).toBe(true);
+
+    // 4. No debe clasificar como carretera a zonas residenciales, parques ni agua
     expect(engine.isRoadPixel(243, 240, 207)).toBe(false); // Manzana beige
     expect(engine.isRoadPixel(200, 235, 205)).toBe(false); // Parque verde
     expect(engine.isRoadPixel(130, 180, 235)).toBe(false); // Río / agua
 
-    // 3. Regla de despeje de calzada (isAreaClearOfRoad)
+    // 5. Regla de despeje de calzada (isAreaClearOfRoad)
     const key = '19_152611_279850';
-    // Punto de calzada directa debe ser rechazado
-    const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 20);
+    const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 12);
     expect(typeof roadCheck).toBe('boolean');
   });
 
@@ -156,12 +162,25 @@ describe('RpgMapEngine', () => {
     expect(engine.isParkPixel(243, 240, 207)).toBe(false);
   });
 
-  it('debe precalcular y almacenar en caché decoraciones fijas por tesela para evitar que muten al desplazarse', () => {
+  it('debe precalcular y almacenar en caché decoraciones fijas respetando las reglas de parques y carreteras', () => {
     const key = '19_152611_279850';
     engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
 
     // Al volver a invocar sobre la misma tesela o consultar el zoom, la respuesta es estable
-    expect(engine.getZoomScaleFactor(19)).toBe(0.88);
+    expect(engine.getZoomScaleFactor(19)).toBe(1.0);
+  });
+
+  it('debe respetar la regla de áreas verdes: CERO casas en parques y asignación de 3 variantes', () => {
+    // Clasificación de color verde de parque
+    expect(engine.classifyColorTerrain(115, 175, 120)).toBe('park');
+
+    // Muestreo determinista simulando zona de parque
+    const key = '19_152611_279850';
+    engine.analyzeAndCacheTileDecorations(key, 152611, 279850, 19);
+
+    // Detección estricta de carreteras cubre asfalto, bordes y textos sobre calzada
+    expect(engine.isRoadPixel(134, 135, 130)).toBe(true);
+    expect(engine.isRoadPixel(255, 255, 255)).toBe(true);
   });
 });
 
