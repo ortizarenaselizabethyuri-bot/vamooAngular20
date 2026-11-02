@@ -226,5 +226,123 @@ describe('RpgMapEngine', () => {
     const terrain = engine.sampleTileTerrain('19_152611_279850', 32, 32);
     expect(['park', 'road', 'block', 'water', 'autumn_park']).toContain(terrain);
   });
+
+  it('debe calcular la sujeción a pantalla (HUD clamping) y el ángulo direccional para POIs dentro y fuera del viewport', () => {
+    const screenW = 400;
+    const screenH = 600;
+    const margin = 40;
+
+    // 1. Punto dentro de pantalla (centro) -> isOnScreen = true, sin sujeción
+    const inside = RpgMapEngine.calculateScreenClamping(200, 300, screenW, screenH, margin);
+    expect(inside.isOnScreen).toBe(true);
+    expect(inside.clampedX).toBe(200);
+    expect(inside.clampedY).toBe(300);
+    expect(inside.distToMargin).toBe(0);
+
+    // 2. Punto fuera de pantalla a la derecha (x: 600, y: 300) -> sujeta al borde derecho (x: 360)
+    const right = RpgMapEngine.calculateScreenClamping(600, 300, screenW, screenH, margin);
+    expect(right.isOnScreen).toBe(false);
+    expect(right.clampedX).toBe(360); // 400 - 40
+    expect(right.clampedY).toBe(300);
+    expect(right.angle).toBeCloseTo(0, 2);
+    expect(right.distToMargin).toBeCloseTo(240, 1);
+
+    // 3. Punto fuera de pantalla hacia arriba (x: 200, y: -200) -> sujeta al borde superior (y: 40)
+    const top = RpgMapEngine.calculateScreenClamping(200, -200, screenW, screenH, margin);
+    expect(top.isOnScreen).toBe(false);
+    expect(top.clampedX).toBe(200);
+    expect(top.clampedY).toBe(40); // margin
+    expect(top.angle).toBeCloseTo(-Math.PI / 2, 2);
+    expect(top.distToMargin).toBeCloseTo(240, 1);
+
+    // 4. Punto fuera de pantalla hacia la izquierda (x: -100, y: 300) -> sujeta al borde izquierdo (x: 40)
+    const left = RpgMapEngine.calculateScreenClamping(-100, 300, screenW, screenH, margin);
+    expect(left.isOnScreen).toBe(false);
+    expect(left.clampedX).toBe(40);
+    expect(left.clampedY).toBe(300);
+    expect(Math.abs(left.angle)).toBeCloseTo(Math.PI, 2);
+
+    // 5. Punto fuera de pantalla hacia abajo (x: 200, y: 800) -> sujeta al borde inferior (y: 560)
+    const bottom = RpgMapEngine.calculateScreenClamping(200, 800, screenW, screenH, margin);
+    expect(bottom.isOnScreen).toBe(false);
+    expect(bottom.clampedX).toBe(200);
+    expect(bottom.clampedY).toBe(560); // 600 - 40
+    expect(bottom.angle).toBeCloseTo(Math.PI / 2, 2);
+  });
+
+  it('debe calcular la distancia ortodrómica en metros (Haversine) y formatear distancias para insignias RPG', () => {
+    const p1 = { lat: -12.0681, lng: -75.2100 };
+    const p2 = { lat: -12.0681, lng: -75.2100 };
+    // Distancia al mismo punto es 0 m
+    expect(RpgMapEngine.calculateDistanceMeters(p1, p2)).toBe(0);
+
+    // Distancia aproximada a un punto cercano (~111 metros al norte)
+    const pNorte = { lat: -12.0671, lng: -75.2100 };
+    const dNorte = RpgMapEngine.calculateDistanceMeters(p1, pNorte);
+    expect(dNorte).toBeGreaterThan(100);
+    expect(dNorte).toBeLessThan(125);
+
+    // Formateo de distancias
+    expect(RpgMapEngine.formatDistance(45.2)).toBe('45m');
+    expect(RpgMapEngine.formatDistance(280)).toBe('280m');
+    expect(RpgMapEngine.formatDistance(999)).toBe('999m');
+    expect(RpgMapEngine.formatDistance(1200)).toBe('1.2km');
+    expect(RpgMapEngine.formatDistance(2540)).toBe('2.5km');
+  });
+
+  it('debe gestionar el ciclo de vida y configuración de los círculos flotantes de lugares (POIs)', () => {
+    // 1. Configuración por categoría
+    expect(RpgMapEngine.getCategoryConfig('pharmacy').icon).toBe('💊');
+    expect(RpgMapEngine.getCategoryConfig('pharmacy').color).toBe(0xef4444);
+
+    expect(RpgMapEngine.getCategoryConfig('park').icon).toBe('🌳');
+    expect(RpgMapEngine.getCategoryConfig('park').color).toBe(0x10b981);
+
+    expect(RpgMapEngine.getCategoryConfig('school').icon).toBe('🏫');
+    expect(RpgMapEngine.getCategoryConfig('school').color).toBe(0x3b82f6);
+
+    expect(RpgMapEngine.getCategoryConfig('hotel').icon).toBe('🏨');
+    expect(RpgMapEngine.getCategoryConfig('hotel').color).toBe(0xf59e0b);
+
+    expect(RpgMapEngine.getCategoryConfig('hospital').icon).toBe('🏥');
+    expect(RpgMapEngine.getCategoryConfig('store').icon).toBe('🛒');
+
+    // 2. Asignación y consulta de POIs
+    engine.setPoiLocations([
+      {
+        id: 'botica-1',
+        name: 'Botica InkaFarma',
+        category: 'pharmacy',
+        coords: { lat: -12.0676, lng: -75.2096 },
+      },
+      {
+        id: 'parque-1',
+        name: 'Parque Huamanmarca',
+        category: 'park',
+        coords: { lat: -12.0684, lng: -75.2103 },
+      },
+    ]);
+
+    expect(engine.getPoiLocations().length).toBe(2);
+    expect(engine.getPoiLocations()[0].name).toBe('Botica InkaFarma');
+
+    // 3. Adición de un POI adicional
+    engine.addPoiLocation({
+      id: 'hotel-1',
+      name: 'Gran Hotel Huancayo',
+      category: 'hotel',
+      coords: { lat: -12.0710, lng: -75.2080 },
+    });
+    expect(engine.getPoiLocations().length).toBe(3);
+
+    // 4. Remoción de un POI
+    engine.removePoiLocation('botica-1');
+    expect(engine.getPoiLocations().length).toBe(2);
+    expect(engine.getPoiLocations().find((p) => p.id === 'botica-1')).toBeUndefined();
+
+    // 5. Limpieza total
+    engine.clearPoiLocations();
+    expect(engine.getPoiLocations().length).toBe(0);
+  });
 });
 

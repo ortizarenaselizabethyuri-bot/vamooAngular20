@@ -177,6 +177,69 @@
                 <span class="compass-needle-label">N</span>
               </div>
 
+              <!-- Barra de Filtros de Lugares Cercanos (Círculos Flotantes) -->
+              <div class="pokemon-poi-filter-bar" role="toolbar" aria-label="Filtrar lugares de interés">
+                <button
+                  type="button"
+                  class="poi-filter-chip"
+                  [class.active]="activePoiCategory() === 'all'"
+                  (click)="filterPoiCategory('all')"
+                  title="Todos los lugares cercanos">
+                  <span>📍 Todos ({{ nearbyPois().length }})</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-pharmacy"
+                  [class.active]="activePoiCategory() === 'pharmacy'"
+                  (click)="filterPoiCategory('pharmacy')"
+                  title="Boticas y Farmacias">
+                  <span>💊 Boticas</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-park"
+                  [class.active]="activePoiCategory() === 'park'"
+                  (click)="filterPoiCategory('park')"
+                  title="Parques y Áreas Verdes">
+                  <span>🌳 Parques</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-school"
+                  [class.active]="activePoiCategory() === 'school'"
+                  (click)="filterPoiCategory('school')"
+                  title="Escuelas y Colegios">
+                  <span>🏫 Escuelas</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-hotel"
+                  [class.active]="activePoiCategory() === 'hotel'"
+                  (click)="filterPoiCategory('hotel')"
+                  title="Hoteles y Hospedajes">
+                  <span>🏨 Hoteles</span>
+                </button>
+              </div>
+
+              <!-- Tarjeta Flotante al Seleccionar un Punto de Interés (POI) -->
+              @if (selectedPoi(); as poi) {
+                <div class="poi-floating-card animate-pop-in" role="dialog" aria-label="Lugar de Interés">
+                  <div class="poi-card-header">
+                    <span class="poi-card-icon">{{ poi.icon || '📍' }}</span>
+                    <div class="poi-card-info">
+                      <span class="poi-card-name">{{ poi.name }}</span>
+                      <span class="poi-card-subtitle">{{ poi.subtitle || 'Punto de interés cercano' }}</span>
+                    </div>
+                    <button type="button" class="btn-close-poi" (click)="clearSelectedPoi()" title="Cerrar">✕</button>
+                  </div>
+                  <div class="poi-card-actions">
+                    <button type="button" class="btn-focus-poi" (click)="selectPoi(poi)">
+                      <span>🎯 ENFOCAR EN MAPA</span>
+                    </button>
+                  </div>
+                </div>
+              }
+
               <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
               <div class="map-overlay-drag-hint">
                 <div class="drag-indicator-pill">
@@ -232,6 +295,10 @@
             <div class="legend-item">
               <span class="color-dot dot-park"></span>
               <span>PARQUES</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-poi"></span>
+              <span>CÍRCULOS POI (HUD)</span>
             </div>
           </div>
 

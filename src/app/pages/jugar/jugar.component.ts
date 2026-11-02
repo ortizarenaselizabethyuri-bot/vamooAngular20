@@ -16,7 +16,7 @@ import { GeolocationService, GeoCoordinates } from '../../services/geolocation.s
 import { AuthService } from '../../services/auth.service.js';
 import { PALETAS_PREDEFINIDAS, PALETA_SELECCIONADA, VamooMapPalette } from './map-palette.config.js';
 import { buildVamooMapTheme } from './pixar-map-theme.js';
-import { RpgMapEngine } from './rpg-map-engine.js';
+import { RpgMapEngine, RpgPoiLocation, RpgPoiCategory } from './rpg-map-engine.js';
 
 /**
  * Interfaz que define un modo de expedición o juego en Vamoo,
@@ -143,6 +143,115 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
     const user = this.authService.currentUser();
     const rank = user?.currentRank || 'Pichón';
     return this.getFaunaEmoji(rank);
+  });
+
+  /** Lista predeterminada de puntos de interés (POIs) en Huancayo para círculos flotantes */
+  readonly nearbyPois = signal<RpgPoiLocation[]>([
+    {
+      id: 'poi-botica-inkafarma',
+      name: 'Botica InkaFarma Real',
+      category: 'pharmacy',
+      coords: { lat: -12.0676, lng: -75.2096 },
+      icon: '💊',
+      color: 0xef4444,
+      subtitle: 'Atención 24 Horas • Calle Real',
+    },
+    {
+      id: 'poi-parque-huamanmarca',
+      name: 'Parque Huamanmarca',
+      category: 'park',
+      coords: { lat: -12.0684, lng: -75.2103 },
+      icon: '🌳',
+      color: 0x10b981,
+      subtitle: 'Plaza Cívica Histórica',
+    },
+    {
+      id: 'poi-botica-mifarma',
+      name: 'Botica Mifarma Ayacucho',
+      category: 'pharmacy',
+      coords: { lat: -12.0694, lng: -75.2112 },
+      icon: '💊',
+      color: 0xef4444,
+      subtitle: 'Farmacia y Medicamentos',
+    },
+    {
+      id: 'poi-hotel-presidente',
+      name: 'Hotel Presidente Huancayo',
+      category: 'hotel',
+      coords: { lat: -12.0660, lng: -75.2091 },
+      icon: '🏨',
+      color: 0xf59e0b,
+      subtitle: 'Hospedaje & Habitaciones',
+    },
+    {
+      id: 'poi-plaza-constitucion',
+      name: 'Plaza Constitución',
+      category: 'park',
+      coords: { lat: -12.0655, lng: -75.2078 },
+      icon: '🌳',
+      color: 0x10b981,
+      subtitle: 'Catedral y Plaza Principal',
+    },
+    {
+      id: 'poi-colegio-santa-isabel',
+      name: 'Colegio Santa Isabel',
+      category: 'school',
+      coords: { lat: -12.0620, lng: -75.2050 },
+      icon: '🏫',
+      color: 0x3b82f6,
+      subtitle: 'I.E. Emblemática de Huancayo',
+    },
+    {
+      id: 'poi-escuela-enma-luzmila',
+      name: 'I.E. Enma Luzmila',
+      category: 'school',
+      coords: { lat: -12.0664, lng: -75.2120 },
+      icon: '🏫',
+      color: 0x3b82f6,
+      subtitle: 'Escuela Primaria y Secundaria',
+    },
+    {
+      id: 'poi-hotel-turismo',
+      name: 'Gran Hotel Turismo',
+      category: 'hotel',
+      coords: { lat: -12.0710, lng: -75.2080 },
+      icon: '🏨',
+      color: 0xf59e0b,
+      subtitle: 'Alojamiento Ejecutivo',
+    },
+    {
+      id: 'poi-mercado-modelo',
+      name: 'Mercado Modelo Huancayo',
+      category: 'store',
+      coords: { lat: -12.0715, lng: -75.2125 },
+      icon: '🛒',
+      color: 0x8b5cf6,
+      subtitle: 'Comercio, Frutas y Verduras',
+    },
+    {
+      id: 'poi-hospital-carrion',
+      name: 'Hospital Daniel A. Carrión',
+      category: 'hospital',
+      coords: { lat: -12.0745, lng: -75.2045 },
+      icon: '🏥',
+      color: 0xec4899,
+      subtitle: 'Emergencias y Centro de Salud',
+    },
+  ]);
+
+  /** Punto de interés actualmente seleccionado o inspeccionado */
+  readonly selectedPoi = signal<RpgPoiLocation | null>(null);
+
+  /** Filtro de categoría temática de POI activa */
+  readonly activePoiCategory = signal<RpgPoiCategory | 'all'>('all');
+
+  /** Lista filtrada de POIs según la categoría seleccionada */
+  readonly filteredPois = computed(() => {
+    const category = this.activePoiCategory();
+    if (category === 'all') {
+      return this.nearbyPois();
+    }
+    return this.nearbyPois().filter((p) => p.category === category);
   });
 
   /** Opciones de mapa para compatibilidad con suites de pruebas unitarias */
@@ -306,6 +415,9 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
           onDragEnd: () => {
             this.isDragging.set(false);
           },
+          onPoiClick: (poi) => {
+            this.selectPoi(poi);
+          },
         })
         .then(() => {
           const userPos = this.geoService.currentPosition();
@@ -319,6 +431,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.polylinePath().length > 0) {
             this.rpgEngine?.setPath(this.polylinePath());
           }
+          this.rpgEngine?.setPoiLocations(this.filteredPois());
         });
     }
   }
@@ -485,6 +598,39 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.geoService.startTracking();
     }
+  }
+
+  /**
+   * Selecciona un punto de interés, centra suavemente la cámara del mapa en su ubicación y activa su ficha informativa.
+   *
+   * @param poi - Punto de interés seleccionado.
+   * @returns void
+   */
+  selectPoi(poi: RpgPoiLocation): void {
+    this.selectedPoi.set(poi);
+    this.autoFollow.set(false);
+    this.mapCenter.set(poi.coords);
+    this.rpgEngine?.setCenter(poi.coords, 19);
+  }
+
+  /**
+   * Cierra la ficha de información del punto de interés seleccionado.
+   *
+   * @returns void
+   */
+  clearSelectedPoi(): void {
+    this.selectedPoi.set(null);
+  }
+
+  /**
+   * Filtra los círculos flotantes de lugares por categoría temática (boticas, parques, escuelas, hoteles, etc.).
+   *
+   * @param category - Categoría seleccionada o 'all' para mostrar todos los lugares.
+   * @returns void
+   */
+  filterPoiCategory(category: RpgPoiCategory | 'all'): void {
+    this.activePoiCategory.set(category);
+    this.rpgEngine?.setPoiLocations(this.filteredPois());
   }
 
   /**

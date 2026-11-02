@@ -26,6 +26,61 @@ export interface CachedTileDecoration {
 }
 
 /**
+ * Categoría de punto de interés (POI) en el mapa RPG.
+ */
+export type RpgPoiCategory =
+  | 'pharmacy'
+  | 'park'
+  | 'school'
+  | 'hotel'
+  | 'hospital'
+  | 'store'
+  | 'restaurant'
+  | 'civic';
+
+/**
+ * Punto de Interés geográfico (POI) representable como círculo flotante en el mapa.
+ */
+export interface RpgPoiLocation {
+  /** Identificador único del punto de interés */
+  id: string;
+  /** Nombre descriptivo del lugar (ej. "Botica InkaFarma Real") */
+  name: string;
+  /** Categoría temática del lugar */
+  category: RpgPoiCategory;
+  /** Coordenadas geográficas reales lat/lng */
+  coords: GeoCoordinates;
+  /** Emoji o icono gráfico representativo opcional (ej. '💊', '🌳', '🏫', '🏨') */
+  icon?: string;
+  /** Color primario del círculo flotante en formato hexadecimal numérico (ej. 0xef4444) */
+  color?: number;
+  /** Subtítulo o detalle opcional del lugar (ej. "Atención 24 Horas") */
+  subtitle?: string;
+}
+
+/**
+ * Estructura de visualización de un POI con sus capas gráficas y textos en Pixi.js.
+ */
+export interface PoiDisplayItem {
+  /** Contenedor interactivo principal del marcador */
+  container: Container;
+  /** Capa gráfica de la sombra en el piso y aguja indicadora cuando está en pantalla */
+  groundShadow: Graphics;
+  /** Capa gráfica del círculo exterior, borde, halo y destello */
+  badge: Graphics;
+  /** Capa gráfica de las dos flechitas direccionales cuando está fuera de pantalla */
+  arrows: Graphics;
+  /** Texto del icono o emoji temático */
+  emojiText: Text;
+  /** Contenedor del rótulo informativo */
+  labelContainer: Container;
+  /** Fondo del rótulo informativo */
+  labelBg: Graphics;
+  /** Texto del nombre y distancia */
+  labelText: Text;
+}
+
+/**
  * Opciones de configuración para la inicialización del motor gráfico RPG.
  */
 export interface RpgMapEngineOptions {
@@ -43,6 +98,8 @@ export interface RpgMapEngineOptions {
   onDragStart?: () => void;
   /** Callback invocado al finalizar el arrastre manual */
   onDragEnd?: () => void;
+  /** Callback invocado al hacer clic o pulsar sobre un círculo flotante de POI */
+  onPoiClick?: (poi: RpgPoiLocation) => void;
 }
 
 /**
@@ -117,6 +174,18 @@ export class RpgMapEngine {
 
   /** Placa con el nombre del aventurero */
   private playerNameTag: Container | null = null;
+
+  /** Lista de puntos de interés (POIs) configurados en el mapa */
+  private poiLocations: RpgPoiLocation[] = [];
+
+  /** Contenedor específico para todos los marcadores y halos de POI */
+  private poiContainer: Container | null = null;
+
+  /** Mapa en memoria de elementos gráficos de POI activos ('poi_id' -> PoiDisplayItem) */
+  private readonly poiDisplayMap = new Map<string, PoiDisplayItem>();
+
+  /** Callback opcional invocado al hacer clic o tocar un marcador de POI */
+  private onPoiClickCallback?: (poi: RpgPoiLocation) => void;
 
   /** Caché en memoria de texturas ya descargadas para evitar descargas duplicadas */
   private readonly textureCache = new Map<string, Texture>();
@@ -206,6 +275,9 @@ export class RpgMapEngine {
     if (options?.onDragEnd) {
       this.onDragEndCallback = options.onDragEnd;
     }
+    if (options?.onPoiClick) {
+      this.onPoiClickCallback = options.onPoiClick;
+    }
 
     // Comprobación de seguridad en entornos headless, SSR o pruebas unitarias sin soporte de lienzo
     if (typeof window === 'undefined' || typeof document === 'undefined' || !container) {
@@ -248,6 +320,7 @@ export class RpgMapEngine {
       this.trailGraphics = new Graphics();
       this.accuracyGraphics = new Graphics();
       this.playerContainer = new Container();
+      this.poiContainer = new Container();
 
       // Aplicar filtro de saturación y contraste para estética vibrante RPG
       this.setupPaletteFilter();
@@ -257,6 +330,7 @@ export class RpgMapEngine {
       this.worldContainer.addChild(this.trailGraphics);
       this.worldContainer.addChild(this.accuracyGraphics);
       this.worldContainer.addChild(this.playerContainer);
+      this.worldContainer.addChild(this.poiContainer);
 
       this.app.stage.addChild(this.worldContainer);
 
@@ -586,6 +660,9 @@ export class RpgMapEngine {
         .fill({ color: 0x10b981, alpha: currentAlpha })
         .stroke({ color: 0x059669, width: 1.5, alpha: currentAlpha * 1.5 });
     }
+
+    // 3. Renderizado y actualización continua de marcadores de POI flotantes (HUD y terreno)
+    this.renderPoiMarkers();
   }
 
   /**
@@ -601,6 +678,7 @@ export class RpgMapEngine {
     this.renderDecorations();
     this.renderTrail();
     this.updatePlayerScreenPosition();
+    this.renderPoiMarkers();
   }
 
   /**
@@ -2335,6 +2413,16 @@ export class RpgMapEngine {
     this.treeTextures.clear();
     this.vegetationTextures.clear();
 
+    this.clearPoiDisplayItems();
+    if (this.poiContainer) {
+      try {
+        this.poiContainer.destroy({ children: true });
+      } catch (e) {
+        // Ignorar si ya fue liberado
+      }
+      this.poiContainer = null;
+    }
+
     if (this.decorationsGraphics) {
       try {
         this.decorationsGraphics.destroy();
@@ -2354,5 +2442,497 @@ export class RpgMapEngine {
     }
 
     this.isInitialized = false;
+  }
+
+  /**
+   * Establece o actualiza la lista de puntos de interés (POIs) en el mapa RPG y sincroniza las representaciones gráficas.
+   *
+   * @param pois - Arreglo de puntos de interés con coordenadas, nombres y categorías.
+   * @returns void
+   */
+  public setPoiLocations(pois: RpgPoiLocation[]): void {
+    this.poiLocations = [...pois];
+
+    // Limpiar elementos de visualización que ya no existen en la nueva lista
+    const activeIds = new Set(this.poiLocations.map((p) => p.id));
+    for (const [id, item] of this.poiDisplayMap.entries()) {
+      if (!activeIds.has(id)) {
+        try {
+          item.container.destroy({ children: true });
+        } catch (e) {
+          // Ignorar
+        }
+        this.poiDisplayMap.delete(id);
+      }
+    }
+
+    if (this.app && this.isInitialized) {
+      this.renderPoiMarkers();
+    }
+  }
+
+  /**
+   * Retorna una copia de la lista actual de puntos de interés configurados.
+   *
+   * @returns RpgPoiLocation[] - Copia del listado de POIs.
+   */
+  public getPoiLocations(): RpgPoiLocation[] {
+    return [...this.poiLocations];
+  }
+
+  /**
+   * Agrega un nuevo punto de interés a la lista o actualiza uno existente por id y refresca la escena.
+   *
+   * @param poi - Punto de interés a registrar o actualizar.
+   * @returns void
+   */
+  public addPoiLocation(poi: RpgPoiLocation): void {
+    const existingIndex = this.poiLocations.findIndex((p) => p.id === poi.id);
+    if (existingIndex >= 0) {
+      this.poiLocations[existingIndex] = { ...poi };
+    } else {
+      this.poiLocations.push({ ...poi });
+    }
+    if (this.app && this.isInitialized) {
+      this.renderPoiMarkers();
+    }
+  }
+
+  /**
+   * Elimina un punto de interés por su identificador único y destruye su contenedor visual.
+   *
+   * @param poiId - Identificador del POI a eliminar.
+   * @returns void
+   */
+  public removePoiLocation(poiId: string): void {
+    this.poiLocations = this.poiLocations.filter((p) => p.id !== poiId);
+    const item = this.poiDisplayMap.get(poiId);
+    if (item) {
+      try {
+        item.container.destroy({ children: true });
+      } catch (e) {
+        // Ignorar
+      }
+      this.poiDisplayMap.delete(poiId);
+    }
+  }
+
+  /**
+   * Limpia completamente todos los puntos de interés configurados en el mapa y libera sus recursos gráficos.
+   *
+   * @returns void
+   */
+  public clearPoiLocations(): void {
+    this.poiLocations = [];
+    this.clearPoiDisplayItems();
+  }
+
+  /**
+   * Centra suavemente la cámara satelital en las coordenadas del punto de interés seleccionado.
+   *
+   * @param poi - Punto de interés hacia el cual enfocar la cámara.
+   * @returns void
+   */
+  public focusOnPoi(poi: RpgPoiLocation): void {
+    this.setCenter(poi.coords, 19);
+  }
+
+  /**
+   * Elimina y destruye todos los elementos gráficos de visualización de POIs activos.
+   *
+   * @returns void
+   */
+  private clearPoiDisplayItems(): void {
+    for (const item of this.poiDisplayMap.values()) {
+      try {
+        item.container.destroy({ children: true });
+      } catch (e) {
+        // Ignorar
+      }
+    }
+    this.poiDisplayMap.clear();
+  }
+
+  /**
+   * Crea e inicializa la jerarquía de nodos gráficos de Pixi.js para un punto de interés.
+   *
+   * @param poi - Punto de interés a representar.
+   * @returns PoiDisplayItem con todos los contenedores y capas gráficas configurados.
+   */
+  private createPoiDisplayItem(poi: RpgPoiLocation): PoiDisplayItem {
+    const container = new Container();
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    container.on('pointerdown', (e) => {
+      e.stopPropagation();
+      if (this.onPoiClickCallback) {
+        this.onPoiClickCallback(poi);
+      }
+    });
+
+    const groundShadow = new Graphics();
+    const badge = new Graphics();
+    const arrows = new Graphics();
+
+    const catConfig = RpgMapEngine.getCategoryConfig(poi.category);
+    const iconText = poi.icon || catConfig.icon;
+
+    const emojiStyle = new TextStyle({
+      fontSize: 16,
+      align: 'center',
+    });
+    const emojiText = new Text({
+      text: iconText,
+      style: emojiStyle,
+    });
+    emojiText.anchor.set(0.5);
+
+    const labelContainer = new Container();
+    const labelBg = new Graphics();
+    const labelTextStyle = new TextStyle({
+      fontFamily: 'monospace',
+      fontSize: 9,
+      fontWeight: 'bold',
+      fill: 0xffffff,
+      align: 'center',
+    });
+    const labelText = new Text({
+      text: '',
+      style: labelTextStyle,
+    });
+    labelText.anchor.set(0.5);
+
+    labelContainer.addChild(labelBg);
+    labelContainer.addChild(labelText);
+
+    container.addChild(groundShadow);
+    container.addChild(badge);
+    container.addChild(emojiText);
+    container.addChild(arrows);
+    container.addChild(labelContainer);
+
+    if (this.poiContainer) {
+      this.poiContainer.addChild(container);
+    }
+
+    const item: PoiDisplayItem = {
+      container,
+      groundShadow,
+      badge,
+      arrows,
+      emojiText,
+      labelContainer,
+      labelBg,
+      labelText,
+    };
+
+    return item;
+  }
+
+  /**
+   * Renderiza todos los puntos de interés activos: calcula su proyección a pantalla, determina si están
+   * dentro de la vista o en los bordes (HUD clamped), aplica las dos flechitas direccionales y gestiona
+   * la transición de desenganche ("soltarse") hacia el suelo con oscilación flotante continua.
+   *
+   * @returns void
+   */
+  public renderPoiMarkers(): void {
+    if (!this.app || !this.poiContainer || !this.isInitialized || this.poiLocations.length === 0) {
+      return;
+    }
+
+    const screenWidth = this.app.screen.width;
+    const screenHeight = this.app.screen.height;
+    if (screenWidth <= 0 || screenHeight <= 0) return;
+
+    const refCoords = this.userPosition || this.center;
+    const margin = 42;
+    const occupiedClampedPositions: { x: number; y: number }[] = [];
+
+    this.poiLocations.forEach((poi, index) => {
+      let display = this.poiDisplayMap.get(poi.id);
+      if (!display) {
+        display = this.createPoiDisplayItem(poi);
+        this.poiDisplayMap.set(poi.id, display);
+      }
+
+      const targetScreen = this.latLngToScreenPixels(poi.coords.lat, poi.coords.lng);
+      const clamp = RpgMapEngine.calculateScreenClamping(
+        targetScreen.x,
+        targetScreen.y,
+        screenWidth,
+        screenHeight,
+        margin,
+      );
+
+      const distMeters = RpgMapEngine.calculateDistanceMeters(refCoords, poi.coords);
+      const distStr = RpgMapEngine.formatDistance(distMeters);
+
+      const catConfig = RpgMapEngine.getCategoryConfig(poi.category);
+      const poiColor = poi.color !== undefined ? poi.color : catConfig.color;
+
+      if (!clamp.isOnScreen) {
+        // =========================================================================
+        // ESTADO 1: FUERA DE PANTALLA (SUJETO AL BORDE DEL HUD CON 2 FLECHITAS)
+        // =========================================================================
+        let finalClampedX = clamp.clampedX;
+        let finalClampedY = clamp.clampedY;
+
+        // Desplazamiento anti-solapamiento cuando varios POIs coinciden en la misma dirección
+        for (const occ of occupiedClampedPositions) {
+          const d = Math.hypot(finalClampedX - occ.x, finalClampedY - occ.y);
+          if (d < 36) {
+            if (finalClampedY <= margin + 3 || finalClampedY >= screenHeight - margin - 3) {
+              finalClampedX = Math.max(margin, Math.min(screenWidth - margin, finalClampedX + (finalClampedX >= occ.x ? 36 - d : -(36 - d))));
+            } else {
+              finalClampedY = Math.max(margin, Math.min(screenHeight - margin, finalClampedY + (finalClampedY >= occ.y ? 36 - d : -(36 - d))));
+            }
+          }
+        }
+        occupiedClampedPositions.push({ x: finalClampedX, y: finalClampedY });
+
+        display.container.position.set(finalClampedX, finalClampedY);
+        display.groundShadow.clear();
+
+        // 1. Círculo flotante HUD sujeto al borde
+        display.badge.clear();
+        display.badge.circle(0, 2, 19).fill({ color: 0x000000, alpha: 0.35 });
+        display.badge.circle(0, 0, 18).fill({ color: 0x0f172a });
+        display.badge.circle(0, 0, 17).stroke({ color: 0xfacc15, width: 2 });
+        display.badge.circle(0, 0, 14.5).fill({ color: poiColor, alpha: 0.95 });
+        display.badge.ellipse(0, -6, 8, 3.5).fill({ color: 0xffffff, alpha: 0.32 });
+
+        display.emojiText.position.set(0, 0);
+
+        // 2. Dos flechitas direccionales animadas apuntando hacia el POI lejano
+        const arrowAlpha = Math.max(0, Math.min(1, clamp.distToMargin / 30));
+        display.arrows.clear();
+
+        if (arrowAlpha > 0.05) {
+          const ux = Math.cos(clamp.angle);
+          const uy = Math.sin(clamp.angle);
+          const vx = -uy;
+          const vy = ux;
+
+          const pulse = Math.sin(this.animationTime * 6 + index) * 2;
+          const badgeRadius = 18;
+
+          // Flechita 1
+          const d1 = badgeRadius + 7 + pulse;
+          const tip1X = d1 * ux;
+          const tip1Y = d1 * uy;
+          const wingLen = 5.5;
+          const wingWidth = 4.5;
+
+          const left1X = tip1X - wingLen * ux + wingWidth * vx;
+          const left1Y = tip1Y - wingLen * uy + wingWidth * vy;
+          const right1X = tip1X - wingLen * ux - wingWidth * vx;
+          const right1Y = tip1Y - wingLen * uy - wingWidth * vy;
+
+          // Flechita 2
+          const d2 = badgeRadius + 15 + pulse;
+          const tip2X = d2 * ux;
+          const tip2Y = d2 * uy;
+
+          const left2X = tip2X - wingLen * ux + wingWidth * vx;
+          const left2Y = tip2Y - wingLen * uy + wingWidth * vy;
+          const right2X = tip2X - wingLen * ux - wingWidth * vx;
+          const right2Y = tip2Y - wingLen * uy - wingWidth * vy;
+
+          // Sombra oscura exterior de alto contraste
+          display.arrows
+            .moveTo(left1X, left1Y).lineTo(tip1X, tip1Y).lineTo(right1X, right1Y)
+            .moveTo(left2X, left2Y).lineTo(tip2X, tip2Y).lineTo(right2X, right2Y)
+            .stroke({ color: 0x0f172a, width: 4.5, cap: 'round', join: 'round', alpha: arrowAlpha });
+
+          // Trazo dorado Pokémon nítido
+          display.arrows
+            .moveTo(left1X, left1Y).lineTo(tip1X, tip1Y).lineTo(right1X, right1Y)
+            .moveTo(left2X, left2Y).lineTo(tip2X, tip2Y).lineTo(right2X, right2Y)
+            .stroke({ color: 0xfacc15, width: 2.2, cap: 'round', join: 'round', alpha: arrowAlpha });
+        }
+
+        // 3. Etiqueta compacta de distancia
+        display.labelText.text = distStr;
+        const pillW = Math.max(36, display.labelText.width + 10);
+        display.labelBg.clear()
+          .roundRect(-pillW / 2, -7, pillW, 14, 7)
+          .fill({ color: 0x0f172a, alpha: 0.9 })
+          .stroke({ color: 0xfacc15, width: 1 });
+        display.labelContainer.position.set(0, 24);
+
+      } else {
+        // =========================================================================
+        // ESTADO 2: EN PANTALLA ("SUELTO" FLOTANDO LIBRE SOBRE EL MAPA REAL)
+        // =========================================================================
+        display.container.position.set(clamp.clampedX, clamp.clampedY);
+        display.arrows.clear();
+
+        const bobOffset = Math.sin(this.animationTime * 4 + index * 1.5) * 4;
+
+        // 1. Sombra de suelo y aguja indicadora
+        display.groundShadow.clear();
+        display.groundShadow.ellipse(0, 16, 12, 4.5).fill({ color: 0x000000, alpha: 0.32 });
+        display.groundShadow.moveTo(0, 16).lineTo(0, 10 + bobOffset).stroke({
+          color: poiColor,
+          width: 2,
+          alpha: 0.65,
+        });
+
+        // 2. Círculo flotante con elevación de bobbing
+        display.badge.clear();
+        display.badge.circle(0, 2 + bobOffset, 19).fill({ color: 0x000000, alpha: 0.4 });
+        display.badge.circle(0, bobOffset, 18).fill({ color: 0x0f172a });
+        display.badge.circle(0, bobOffset, 17).stroke({ color: 0xffffff, width: 2 });
+        display.badge.circle(0, bobOffset, 14.5).fill({ color: poiColor, alpha: 0.95 });
+        display.badge.ellipse(0, -6 + bobOffset, 8, 3.5).fill({ color: 0xffffff, alpha: 0.35 });
+
+        display.emojiText.position.set(0, bobOffset);
+
+        // 3. Rótulo informativo completo con nombre del lugar y distancia
+        display.labelText.text = `${poi.name} • ${distStr}`;
+        const pillW = Math.max(68, display.labelText.width + 14);
+        display.labelBg.clear()
+          .roundRect(-pillW / 2, -9, pillW, 18, 5)
+          .fill({ color: 0x0f172a, alpha: 0.92 })
+          .stroke({ color: poiColor, width: 1.5 });
+        display.labelContainer.position.set(0, -28 + bobOffset);
+      }
+    });
+  }
+
+  /**
+   * Calcula la posición de sujeción (clamping) en los bordes de la pantalla y el ángulo hacia el objetivo.
+   * Si el punto está dentro de los límites de margen, devuelve la posición sin sujetar e indica isOnScreen = true.
+   * Si está fuera, proyecta un rayo desde el centro de la pantalla hacia el objetivo e intersecta
+   * exactamente con el rectángulo delimitado por [margin, screenWidth - margin] x [margin, screenHeight - margin].
+   *
+   * @param targetX - Coordenada horizontal del objetivo en píxeles de pantalla.
+   * @param targetY - Coordenada vertical del objetivo en píxeles de pantalla.
+   * @param screenWidth - Ancho de la pantalla o viewport del canvas.
+   * @param screenHeight - Alto de la pantalla o viewport del canvas.
+   * @param margin - Distancia de separación de seguridad desde los bordes del canvas.
+   * @returns Objeto con coordenadas clampedX, clampedY, ángulo en radianes, distancia al margen e isOnScreen.
+   */
+  public static calculateScreenClamping(
+    targetX: number,
+    targetY: number,
+    screenWidth: number,
+    screenHeight: number,
+    margin: number = 38,
+  ): {
+    clampedX: number;
+    clampedY: number;
+    angle: number;
+    isOnScreen: boolean;
+    distToMargin: number;
+  } {
+    const cx = screenWidth / 2;
+    const cy = screenHeight / 2;
+    const dx = targetX - cx;
+    const dy = targetY - cy;
+    const angle = Math.atan2(dy, dx);
+
+    const minX = margin;
+    const maxX = Math.max(margin, screenWidth - margin);
+    const minY = margin;
+    const maxY = Math.max(margin, screenHeight - margin);
+
+    const isOnScreen = targetX >= minX && targetX <= maxX && targetY >= minY && targetY <= maxY;
+
+    if (isOnScreen) {
+      return {
+        clampedX: targetX,
+        clampedY: targetY,
+        angle,
+        isOnScreen: true,
+        distToMargin: 0,
+      };
+    }
+
+    // Proyección del rayo desde el centro hacia los bordes de la pantalla
+    const halfW = (maxX - minX) / 2;
+    const halfH = (maxY - minY) / 2;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    let t = 1;
+    if (absDx > 0.0001 && absDy > 0.0001) {
+      const tx = halfW / absDx;
+      const ty = halfH / absDy;
+      t = Math.min(tx, ty);
+    } else if (absDx > 0.0001) {
+      t = halfW / absDx;
+    } else if (absDy > 0.0001) {
+      t = halfH / absDy;
+    }
+
+    const clampedX = Math.max(minX, Math.min(maxX, cx + dx * t));
+    const clampedY = Math.max(minY, Math.min(maxY, cy + dy * t));
+    const distToMargin = Math.hypot(targetX - clampedX, targetY - clampedY);
+
+    return {
+      clampedX,
+      clampedY,
+      angle,
+      isOnScreen: false,
+      distToMargin,
+    };
+  }
+
+  /**
+   * Calcula la distancia ortodrómica en metros entre dos coordenadas geográficas mediante la fórmula del Haversine.
+   *
+   * @param p1 - Primera coordenada geográfica.
+   * @param p2 - Segunda coordenada geográfica.
+   * @returns Distancia en metros.
+   */
+  public static calculateDistanceMeters(p1: GeoCoordinates, p2: GeoCoordinates): number {
+    const R = 6371000; // Radio medio de la Tierra en metros
+    const dLat = (p2.lat - p1.lat) * (Math.PI / 180);
+    const dLng = (p2.lng - p1.lng) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(p1.lat * (Math.PI / 180)) *
+        Math.cos(p2.lat * (Math.PI / 180)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Formatea una distancia en metros a una representación compacta legible para insignias RPG (ej. "45m", "350m", "1.2km").
+   *
+   * @param meters - Distancia en metros.
+   * @returns Cadena formateada.
+   */
+  public static formatDistance(meters: number): string {
+    if (meters < 1000) {
+      return `${Math.round(meters)}m`;
+    }
+    return `${(meters / 1000).toFixed(1)}km`;
+  }
+
+  /**
+   * Retorna la configuración visual predeterminada (icono emoji, color primario y denominación) para una categoría de POI.
+   *
+   * @param category - Categoría del punto de interés.
+   * @returns Objeto con icon, color y label.
+   */
+  public static getCategoryConfig(category: RpgPoiCategory): { icon: string; color: number; label: string } {
+    const defaults: Record<RpgPoiCategory, { icon: string; color: number; label: string }> = {
+      pharmacy: { icon: '💊', color: 0xef4444, label: 'Botica / Farmacia' },
+      park: { icon: '🌳', color: 0x10b981, label: 'Parque / Área Verde' },
+      school: { icon: '🏫', color: 0x3b82f6, label: 'Escuela / Colegio' },
+      hotel: { icon: '🏨', color: 0xf59e0b, label: 'Hotel / Hospedaje' },
+      hospital: { icon: '🏥', color: 0xec4899, label: 'Hospital / Salud' },
+      store: { icon: '🛒', color: 0x8b5cf6, label: 'Mercado / Comercio' },
+      restaurant: { icon: '🍽️', color: 0xf97316, label: 'Restaurante / Comida' },
+      civic: { icon: '🏛️', color: 0x06b6d4, label: 'Cívico / Banco' },
+    };
+    return defaults[category] || { icon: '📍', color: 0x06b6d4, label: 'Ubicación' };
   }
 }

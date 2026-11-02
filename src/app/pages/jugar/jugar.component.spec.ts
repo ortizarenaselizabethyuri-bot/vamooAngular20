@@ -137,4 +137,28 @@ describe('JugarComponent', () => {
     expect(component.formattedDistance()).toContain('km');
     expect(component.currentExpeditionXp()).toBeGreaterThanOrEqual(15);
   });
+
+  it('debe gestionar los puntos de interés cercanos (POIs) y permitir filtrado y selección', () => {
+    expect(component.nearbyPois().length).toBeGreaterThanOrEqual(5);
+
+    // Filtrar por boticas
+    component.filterPoiCategory('pharmacy');
+    expect(component.activePoiCategory()).toBe('pharmacy');
+    expect(component.filteredPois().every((p) => p.category === 'pharmacy')).toBe(true);
+
+    // Seleccionar un POI
+    const poi = component.nearbyPois()[0];
+    component.selectPoi(poi);
+    expect(component.selectedPoi()?.id).toBe(poi.id);
+    expect(component.autoFollow()).toBe(false);
+    expect(component.mapCenter().lat).toBe(poi.coords.lat);
+
+    // Cerrar selección
+    component.clearSelectedPoi();
+    expect(component.selectedPoi()).toBeNull();
+
+    // Restablecer todas las categorías
+    component.filterPoiCategory('all');
+    expect(component.filteredPois().length).toBe(component.nearbyPois().length);
+  });
 });

@@ -911,6 +911,7 @@
 .dot-house { background: #D4A373; border-color: #8c5a3c; }
 .dot-block { background: #F5EBE0; border-color: #e6ccb2; }
 .dot-road { background: #FAEDCD; border-color: #b7b7a4; }
+.dot-poi { background: #ef4444; border-color: #facc15; border-radius: 50%; box-shadow: 0 0 5px #ef4444; }
 
 .legend-step-badge {
   font-family: var(--font-pixel), monospace;
@@ -1189,4 +1190,214 @@
     justify-content: center;
     gap: 0.5rem;
   }
+
+  .pokemon-poi-filter-bar {
+    top: 68px;
+    right: 44px;
+  }
+
+  .poi-floating-card {
+    top: 104px;
+    max-width: calc(100% - 24px);
+  }
+}
+
+/* ==========================================================================
+   BARRA DE FILTROS DE LUGARES CERCANOS (POIs FLOTANTES)
+   ========================================================================== */
+.pokemon-poi-filter-bar {
+  position: absolute;
+  top: 76px;
+  left: 12px;
+  right: 50px;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pokemon-poi-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.poi-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1.5px solid #475569;
+  border-radius: 12px;
+  color: #e2e8f0;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.poi-filter-chip:hover {
+  border-color: #facc15;
+  color: #facc15;
+  transform: translateY(-1px);
+}
+
+.poi-filter-chip.active {
+  background: #0f172a;
+  border-color: #facc15;
+  color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+}
+
+.poi-filter-chip.chip-pharmacy.active {
+  border-color: #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.poi-filter-chip.chip-park.active {
+  border-color: #10b981;
+  color: #6ee7b7;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.poi-filter-chip.chip-school.active {
+  border-color: #3b82f6;
+  color: #93c5fd;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.poi-filter-chip.chip-hotel.active {
+  border-color: #f59e0b;
+  color: #fde68a;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+/* ==========================================================================
+   TARJETA FLOTANTE DE DETALLE DE POI (ESTILO POKÉMON RETRO)
+   ========================================================================== */
+.poi-floating-card {
+  position: absolute;
+  top: 114px;
+  left: 12px;
+  max-width: 290px;
+  z-index: 20;
+  background: rgba(15, 23, 42, 0.94);
+  border: 2px solid #facc15;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(250, 204, 21, 0.25);
+  backdrop-filter: blur(6px);
+  animation: popInPoi 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popInPoi {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.poi-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poi-card-icon {
+  font-size: 1.25rem;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid #475569;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.poi-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.poi-card-name {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.68rem;
+  font-weight: bold;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poi-card-subtitle {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-close-poi {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.btn-close-poi:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.poi-card-actions {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #334155;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-focus-poi {
+  background: #0284c7;
+  border: 1.5px solid #38bdf8;
+  border-radius: 4px;
+  color: #ffffff;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.56rem;
+  font-weight: bold;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-focus-poi:hover {
+  background: #0369a1;
+  border-color: #7dd3fc;
+  transform: translateY(-1px);
 }
