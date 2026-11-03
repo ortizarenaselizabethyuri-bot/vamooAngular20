@@ -145,7 +145,8 @@
                 <google-map 
                   [center]="mapCenter()" 
                   [zoom]="mapZoom()" 
-                  [options]="mapOptions" 
+                  [options]="currentMapOptions()" 
+                  (mapInitialized)="onMapInitialized()"
                   (mapDragstart)="onMapDragStart()"
                   (mapDrag)="onMapDrag()"
                   (mapDragend)="onMapDragEnd()"
@@ -213,6 +214,8 @@
                 </button>
               </div>
 
+
+
               <!-- HUD LATERAL: Ajuste Fino (+ / - / Nivel) -->
               <div class="map-overlay-stepper" role="group" aria-label="Ajuste fino de Zoom">
                 <button 
@@ -271,11 +274,20 @@
               <span class="status-gps-diag">{{ geoService.statusMessage() }}</span>
             </div>
             <div class="legend-item">
-              <span class="color-dot dot-park"></span>
-              <span>PARQUES Y RESERVAS ECOLÓGICAS</span>
+              <span class="color-dot dot-house"></span>
+              <span>CASAS (TEJAS)</span>
             </div>
-            <div class="legend-item legend-step-badge">
-              <span>🎨 ETAPA 2: COLORES VIVOS & TEXTURA 2D (BASE Z15)</span>
+            <div class="legend-item">
+              <span class="color-dot dot-block"></span>
+              <span>MANZANAS</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-road"></span>
+              <span>VÍAS</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-park"></span>
+              <span>PARQUES</span>
             </div>
           </div>
 

@@ -1,175 +1,176 @@
+import { VAMOO_MAP_PALETTE, VamooMapPalette } from './map-palette.config.js';
+
 /**
- * Tema de diseño cartográfico "Pixar Aventura & Minecraft 2D" para Google Maps Platform en Vamoo.
+ * Función fábrica que genera el array de estilos vectoriales para Google Maps Platform,
+ * derivado directamente de una paleta especificada o de VAMOO_MAP_PALETTE por defecto.
  *
- * Propósito: Proveer una estilización vectorial de alto contraste y colores vivos y vibrantes,
- * sirviendo como base fidedigna a la geometría real de Google Maps para el renderizado pixelado en Zoom 15.
+ * Propósito: Mapear de forma optimizada las capas oficiales soportadas por Google Maps JavaScript API,
+ * garantizando una longitud serializada inferior a 1,000 caracteres para evitar el error interno
+ * "Custom style string" que provocaba la anulación total del tema y la reversión al mapa normal.
  *
- * Características principales de la paleta (Etapa 2):
- * - Parques y reservas naturales (poi.park): Verde esmeralda vivo y brillante (#10b981) con bordes delimitados (#059669).
- * - Paisaje natural y campos (landscape.natural): Verde pradera fresco (#dcfce7) para separar áreas abiertas de la ciudad.
- * - Manzanas urbanas y huellas de edificios (landscape.man_made): Tono terracota/tejado cálido (#fde68a / #fed7aa)
- *   que se proyecta ÚNICAMENTE donde Google Maps registra edificaciones y urbanizaciones reales.
- * - Carreteras y vías de transporte (road): Bordes de alto contraste (#475569 / #64748b) y asfalto limpio (#ffffff, #facc15, #f59e0b)
- *   que preservan la geometría exacta de cada curva, diagonal y callejón sin distorsión sintética.
- * - Cuerpos de agua (water): Azul turquesa zafiro cristalino (#06b6d4 / #0284c7).
- * - Ocultamiento de ruido comercial (poi.business): Silenciado para mantener la estética pura de expedición.
+ * Capas urbanas diferenciadas:
+ * 1. Manzanas / Áreas urbanas (landscape.man_made, landscape): Fondo melocotón cálido suave (#FDD7AA).
+ * 2. Casas residenciales (administrative.land_parcel): Tejas andinas de arcilla terracota viva (#f97316).
+ * 3. Edificios y equipamientos (poi): Adobe tostado / sillar colonial andino (#854d0e).
+ *
+ * @param palette - Paleta opcional a utilizar (por defecto VAMOO_MAP_PALETTE).
+ * @returns google.maps.MapTypeStyle[] Arreglo con la configuración de estilizado oficial de Google Maps.
  */
-export const PIXAR_MAP_THEME: google.maps.MapTypeStyle[] = [
-  // 1. Fondo general del terreno natural (Praderas suaves)
-  {
-    elementType: 'geometry',
-    stylers: [{ color: '#f0fdf4' }],
-  },
+export function buildVamooMapTheme(palette?: VamooMapPalette): google.maps.MapTypeStyle[] {
+  const p = palette || VAMOO_MAP_PALETTE;
 
-  // 2. Ocultar iconos y comercios no esenciales para limpiar la interfaz de aventura
-  {
-    featureType: 'poi.business',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'poi.attraction',
-    elementType: 'geometry',
-    stylers: [{ color: '#bbf7d0' }],
-  },
+  return [
+    // 1. Fondo general del terreno
+    {
+      elementType: 'geometry',
+      stylers: [{ color: p.terrenoBase.fondo }],
+    },
 
-  // 3. Parques, jardines y áreas verdes protegidas (Verde Esmeralda Vivo)
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#10b981' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#059669' }, { weight: 2 }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#064e3b' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#ffffff' }, { weight: 3 }],
-  },
+    // 2. Ocultar iconos y textos publicitarios de comercios para mantener la estética pixel aventura
+    {
+      featureType: 'poi',
+      elementType: 'labels.icon',
+      stylers: [{ visibility: 'off' }],
+    },
 
-  // 4. Masas de agua cristalinas (Ríos, lagos, mar turquesa)
-  {
-    featureType: 'water',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#06b6d4' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#0891b2' }, { weight: 1.5 }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#083344' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#ffffff' }, { weight: 2 }],
-  },
+    // 3. Manzanas Urbanas y Áreas Urbanas (#FDD7AA)
+    // Delimita el suelo base suave de los bloques urbanos donde se asientan las casas y edificios
+    {
+      featureType: 'landscape.man_made',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.manzanasUrbanas.fill }],
+    },
+    {
+      featureType: 'landscape.man_made',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.manzanasUrbanas.stroke },
+        { weight: p.manzanasUrbanas.strokeWeight },
+      ],
+    },
+    {
+      featureType: 'landscape',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.manzanasUrbanas.fill }],
+    },
 
-  // 5. Paisaje natural y topografía suave
-  {
-    featureType: 'landscape.natural',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#dcfce7' }],
-  },
+    // 4. Casas: Huellas y Lotes Residenciales (Estilo Tejas Andinas #f97316)
+    // Colorea las parcelas y viviendas residenciales destacándolas sobre la manzana
+    {
+      featureType: 'administrative.land_parcel',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.casasResidenciales.fill }],
+    },
+    {
+      featureType: 'administrative.land_parcel',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.casasResidenciales.stroke },
+        { weight: p.casasResidenciales.strokeWeight },
+      ],
+    },
 
-  // 6. Manzanas urbanas y huellas de edificios (Solo donde Google Maps registra construcciones reales)
-  {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#fed7aa' }],
-  },
-  {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#f97316' }, { weight: 1.2 }],
-  },
+    // 5. Edificios: Estructuras cívicas, comerciales y equipamientos urbanos (#854d0e adobe tostado / sillar)
+    // Permite que colegios, comercios, hospitales, iglesias y edificios públicos destaquen con su propio color
+    {
+      featureType: 'poi',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.edificiosEstructuras.fill }],
+    },
 
-  // 7. Red vial y carreteras de exploración (Alto Contraste y Geometría Fidedigna)
-  {
-    featureType: 'road',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#ffffff' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#64748b' }, { weight: 1.5 }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#f59e0b' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#b45309' }, { weight: 2.5 }],
-  },
-  {
-    featureType: 'road.arterial',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#facc15' }],
-  },
-  {
-    featureType: 'road.arterial',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#a16207' }, { weight: 2 }],
-  },
-  {
-    featureType: 'road.local',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#ffffff' }],
-  },
-  {
-    featureType: 'road.local',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#475569' }, { weight: 1.5 }],
-  },
+    // 6. Áreas Verdes Tipo 1: Parques, jardines y plazas destacadas (#10b981 verde esmeralda vivo)
+    {
+      featureType: 'poi.park',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.areasVerdesParques.fill }],
+    },
+    {
+      featureType: 'poi.park',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: p.areasVerdesParques.textFill }],
+    },
+    {
+      featureType: 'poi.attraction',
+      elementType: 'geometry',
+      stylers: [{ color: p.areasVerdesParques.fill }],
+    },
 
-  // 8. Tipografía de calles y jirones
-  {
-    featureType: 'road',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#1e293b' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#ffffff' }, { weight: 2.5 }],
-  },
+    // 7. Áreas Verdes Tipo 2: Paisaje natural, praderas y cubierta vegetal (#34d399 verde menta)
+    {
+      featureType: 'landscape.natural',
+      elementType: 'geometry',
+      stylers: [{ color: p.areasVerdesVegetacion.fill }],
+    },
 
-  // 9. Líneas administrativas y límites territoriales suaves
-  {
-    featureType: 'administrative',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#94a3b8' }, { weight: 1.2 }],
-  },
-  {
-    featureType: 'administrative.locality',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#0f172a' }],
-  },
+    // 8. Hidrografía: Masas de agua y ríos cristalinos (#06b6d4 turquesa)
+    {
+      featureType: 'water',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.hidrografia.fill }],
+    },
+    {
+      featureType: 'water',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: p.hidrografia.textFill }],
+    },
 
-  // 10. Transporte y tránsito ecológico sutil
-  {
-    featureType: 'transit',
-    elementType: 'geometry',
-    stylers: [{ color: '#e0f2fe' }],
-  },
-  {
-    featureType: 'transit.station',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#0284c7' }],
-  },
-];
+    // 9. Carreteras y Red Vial de Exploración (#FFF7EE marfil suave)
+    {
+      featureType: 'road',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.redVial.callesLocales.fill }],
+    },
+    {
+      featureType: 'road',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { color: p.redVial.callesLocales.stroke },
+        { weight: p.redVial.callesLocales.strokeWeight },
+      ],
+    },
+    {
+      featureType: 'road.local',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.redVial.callesLocales.fill }],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.redVial.autopistas.fill }],
+    },
+    {
+      featureType: 'road.arterial',
+      elementType: 'geometry.fill',
+      stylers: [{ color: p.redVial.avenidas.fill }],
+    },
+    {
+      featureType: 'road',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: p.redVial.etiquetas.textFill }],
+    },
+
+    // 10. Líneas administrativas territoriales
+    {
+      featureType: 'administrative',
+      elementType: 'geometry.stroke',
+      stylers: [{ color: '#cbd5e1' }, { weight: 1.2 }],
+    },
+    {
+      featureType: 'administrative.locality',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#1e293b' }],
+    },
+
+    // 11. Transporte y tránsito ecológico sutil
+    {
+      featureType: 'transit',
+      elementType: 'geometry',
+      stylers: [{ color: '#e0f2fe' }],
+    },
+  ];
+}
+
+/**
+ * Instancia precompilada del tema cartográfico para Google Maps.
+ */
+export const PIXAR_MAP_THEME: google.maps.MapTypeStyle[] = buildVamooMapTheme();
