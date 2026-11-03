@@ -17,6 +17,7 @@ import { AuthService } from '../../services/auth.service.js';
 import { PALETAS_PREDEFINIDAS, PALETA_SELECCIONADA, VamooMapPalette } from './map-palette.config.js';
 import { buildVamooMapTheme } from './pixar-map-theme.js';
 import { RpgMapEngine, RpgPoiLocation, RpgPoiCategory } from './rpg-map-engine.js';
+import { getNearbyPois, MASTER_POI_CATALOG } from './poi-catalog.js';
 
 /**
  * Interfaz que define un modo de expedición o juego en Vamoo,
@@ -145,99 +146,11 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.getFaunaEmoji(rank);
   });
 
-  /** Lista predeterminada de puntos de interés (POIs) en Huancayo para círculos flotantes con coordenadas georreferenciadas exactas */
-  readonly nearbyPois = signal<RpgPoiLocation[]>([
-    {
-      id: 'poi-plaza-constitucion',
-      name: 'Plaza Constitución',
-      category: 'park',
-      coords: { lat: -12.06806, lng: -75.21008 },
-      icon: '🌳',
-      color: 0x10b981,
-      subtitle: 'Catedral y Plaza Principal de Huancayo',
-    },
-    {
-      id: 'poi-parque-huamanmarca',
-      name: 'Parque Huamanmarca',
-      category: 'park',
-      coords: { lat: -12.07084, lng: -75.20833 },
-      icon: '🏛️',
-      color: 0x10b981,
-      subtitle: 'Sede Municipal y Centro Cívico',
-    },
-    {
-      id: 'poi-botica-mifarma',
-      name: 'Botica Mifarma Ayacucho',
-      category: 'pharmacy',
-      coords: { lat: -12.06631, lng: -75.21167 },
-      icon: '💊',
-      color: 0xef4444,
-      subtitle: 'Calle Real con Jr. Ayacucho • Centro',
-    },
-    {
-      id: 'poi-botica-inkafarma',
-      name: 'Botica InkaFarma Real',
-      category: 'pharmacy',
-      coords: { lat: -12.06782, lng: -75.21087 },
-      icon: '💊',
-      color: 0xef4444,
-      subtitle: 'Calle Real 540 • Frente a Plaza Constitución',
-    },
-    {
-      id: 'poi-hotel-presidente',
-      name: 'Hotel Presidente Huancayo',
-      category: 'hotel',
-      coords: { lat: -12.07367, lng: -75.20703 },
-      icon: '🏨',
-      color: 0xf59e0b,
-      subtitle: 'Calle Real 1138 • Frente a Jr. Calixto',
-    },
-    {
-      id: 'poi-gran-hotel-turismo',
-      name: 'Gran Hotel Turismo',
-      category: 'hotel',
-      coords: { lat: -12.07028, lng: -75.20798 },
-      icon: '🏨',
-      color: 0xf59e0b,
-      subtitle: 'Jr. Ancash 729 • Plaza Huamanmarca',
-    },
-    {
-      id: 'poi-colegio-santa-isabel',
-      name: 'Colegio Santa Isabel',
-      category: 'school',
-      coords: { lat: -12.05729, lng: -75.20185 },
-      icon: '🏫',
-      color: 0x3b82f6,
-      subtitle: 'Jirón Santa Isabel 567 • Emblemático',
-    },
-    {
-      id: 'poi-escuela-enma-luzmila',
-      name: 'I.E. Enma Luzmila',
-      category: 'school',
-      coords: { lat: -12.06730, lng: -75.21180 },
-      icon: '🏫',
-      color: 0x3b82f6,
-      subtitle: 'Jr. Cuzco 226 • Cercado de Huancayo',
-    },
-    {
-      id: 'poi-mercado-modelo',
-      name: 'Mercado Modelo Huancayo',
-      category: 'store',
-      coords: { lat: -12.07182, lng: -75.20524 },
-      icon: '🛒',
-      color: 0x8b5cf6,
-      subtitle: 'Jr. Mantaro con Jr. Cajamarca',
-    },
-    {
-      id: 'poi-hospital-carrion',
-      name: 'Hospital Daniel A. Carrión',
-      category: 'hospital',
-      coords: { lat: -12.07301, lng: -75.22175 },
-      icon: '🏥',
-      color: 0xec4899,
-      subtitle: 'Av. Daniel Alcides Carrión • Emergencias',
-    },
-  ]);
+  /** Lista reactiva de puntos de interés (POIs) más cercanos a la ubicación del usuario */
+  readonly nearbyPois = signal<RpgPoiLocation[]>(getNearbyPois({ lat: -12.0681, lng: -75.2100 }));
+
+  /** Coordenadas del último anclaje utilizado para calcular lugares cercanos */
+  private lastPoiAnchorCoords: GeoCoordinates | null = null;
 
   /** Punto de interés actualmente seleccionado o inspeccionado */
   readonly selectedPoi = signal<RpgPoiLocation | null>(null);
@@ -369,6 +282,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
           this.rankEmoji(),
           this.authService.currentUser()?.name || 'Aventurero Vamoo',
         );
+        this.updateNearbyPoisForLocation(userPos);
       }
     });
 
@@ -388,6 +302,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.geoService.startTracking();
     this.isMapReady.set(true);
+    this.updateNearbyPoisForLocation(this.mapCenter(), true);
   }
 
   /**
@@ -421,6 +336,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
         })
         .then(() => {
           const userPos = this.geoService.currentPosition();
+          const initialCoords = userPos || this.mapCenter();
           if (userPos) {
             this.rpgEngine?.setUserPosition(
               userPos,
@@ -431,7 +347,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.polylinePath().length > 0) {
             this.rpgEngine?.setPath(this.polylinePath());
           }
-          this.rpgEngine?.setPoiLocations(this.filteredPois());
+          this.updateNearbyPoisForLocation(initialCoords, true);
         });
     }
   }
@@ -566,9 +482,12 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   simulateStep(): void {
     this.geoService.simulateWalkStep();
     const current = this.geoService.currentPosition();
-    if (current && this.autoFollow()) {
-      this.mapCenter.set(current);
-      this.rpgEngine?.setCenter(current);
+    if (current) {
+      if (this.autoFollow()) {
+        this.mapCenter.set(current);
+        this.rpgEngine?.setCenter(current);
+      }
+      this.updateNearbyPoisForLocation(current);
     }
   }
 
@@ -583,8 +502,8 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Centra la cámara del mapa en la ubicación satelital en tiempo real del aventurero
-   * y reactiva el seguimiento automático de cámara en la escala del jugador (Zoom 19).
+   * Centra la cámara del mapa en la ubicación satelital en tiempo real del aventurero,
+   * reactiva el seguimiento automático de cámara (Zoom 19) y recalcula los lugares cercanos.
    *
    * @returns void
    */
@@ -595,9 +514,35 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
       this.mapCenter.set(userPos);
       this.mapZoom.set(19);
       this.rpgEngine?.setCenter(userPos, 19);
+      this.updateNearbyPoisForLocation(userPos, true);
     } else {
       this.geoService.startTracking();
     }
+  }
+
+  /**
+   * Actualiza reactivamente los círculos flotantes de lugares (POIs) más cercanos a la ubicación del usuario.
+   * Si el usuario se ha desplazado más de 50 metros desde el último cálculo, resuelve los POIs más cercanos
+   * y refresca los marcadores del motor gráfico RPG.
+   *
+   * @param coords - Coordenadas actuales del usuario o centro del mapa.
+   * @param force - Forzar la actualización sin evaluar la distancia mínima de desplazamiento.
+   * @returns void
+   */
+  updateNearbyPoisForLocation(coords: GeoCoordinates, force: boolean = false): void {
+    if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) return;
+
+    if (!force && this.lastPoiAnchorCoords) {
+      const movedDist = RpgMapEngine.calculateDistanceMeters(this.lastPoiAnchorCoords, coords);
+      if (movedDist < 50) {
+        return; // Evita recalcular innecesariamente ante micro-movimientos de GPS
+      }
+    }
+
+    this.lastPoiAnchorCoords = { ...coords };
+    const resolved = getNearbyPois(coords, { maxRadiusMeters: 2500, limit: 10 });
+    this.nearbyPois.set(resolved);
+    this.rpgEngine?.setPoiLocations(this.filteredPois());
   }
 
   /**

@@ -161,4 +161,20 @@ describe('JugarComponent', () => {
     component.filterPoiCategory('all');
     expect(component.filteredPois().length).toBe(component.nearbyPois().length);
   });
+
+  it('debe actualizar reactivamente los POIs cercanos cuando la ubicación del usuario cambia', () => {
+    // Al ubicarse en el centro de Huancayo
+    component.updateNearbyPoisForLocation({ lat: -12.0681, lng: -75.2100 }, true);
+    const poisCentro = component.nearbyPois();
+    expect(poisCentro.length).toBeGreaterThan(0);
+
+    // Al desplazarse hacia El Tambo (~2.5km al norte)
+    component.updateNearbyPoisForLocation({ lat: -12.0482, lng: -75.2215 }, true);
+    const poisTambo = component.nearbyPois();
+    expect(poisTambo.length).toBeGreaterThan(0);
+
+    // Los lugares cercanos en El Tambo deben ser distintos a los del Centro
+    expect(poisTambo[0].id).not.toBe(poisCentro[0].id);
+    expect(poisTambo.some((p) => p.name.includes('El Tambo') || p.name.includes('Castilla'))).toBe(true);
+  });
 });
