@@ -898,6 +898,23 @@ export class RpgMapEngine {
       return true;
     }
 
+    // 6. Carreteras residenciales, secundarias y calles de tono crema / melocotón suave #FFECCA (ej. Calle Ayacucho / Jr. Ayacucho)
+    // #FFECCA en RGB es exactamente (255, 236, 202) -> (r - g) = 19, (r - b) = 53, (g - b) = 34
+    // R: 250-255, G: 230-242, B: 195-212 con R > G > B
+    if (r >= 250 && g >= 230 && g <= 242 && b >= 195 && b <= 212 && (r - g) >= 14 && (r - b) >= 46) {
+      return true;
+    }
+
+    // 7. Bordes, líneas de límite y casings anaranjados / salmón / terracota de calles residenciales (ej. márgenes de Calle Ayacucho)
+    if (r >= 220 && g >= 155 && g <= 220 && b >= 135 && b <= 205 && (r - g) >= 16 && (r - b) >= 35) {
+      return true;
+    }
+
+    // 8. Textos y rotulaciones con nombres de calles sobre calzadas (ej. "Calle Ayacucho", numeración vial)
+    if (r >= 65 && r <= 195 && maxDiff <= 18) {
+      return true;
+    }
+
     return false;
   }
 
@@ -2764,31 +2781,47 @@ export class RpgMapEngine {
 
       } else {
         // =========================================================================
-        // ESTADO 2: EN PANTALLA ("SUELTO" FLOTANDO LIBRE SOBRE EL MAPA REAL)
+        // ESTADO 2: EN PANTALLA ("SUELTO" FLOTANDO CON PRECISIÓN MILIMÉTRICA AL SUELO)
         // =========================================================================
         display.container.position.set(clamp.clampedX, clamp.clampedY);
         display.arrows.clear();
 
         const bobOffset = Math.sin(this.animationTime * 4 + index * 1.5) * 4;
+        const badgeCenterY = -28 + bobOffset;
+        const needleTopY = badgeCenterY + 14;
 
-        // 1. Sombra de suelo y aguja indicadora
+        // 1. Diana y punto de contacto exacto en el suelo (0, 0)
         display.groundShadow.clear();
-        display.groundShadow.ellipse(0, 16, 12, 4.5).fill({ color: 0x000000, alpha: 0.32 });
-        display.groundShadow.moveTo(0, 16).lineTo(0, 10 + bobOffset).stroke({
+        // Sombra de contacto elíptica en el suelo
+        display.groundShadow.ellipse(0, 0, 9, 3.5).fill({ color: 0x000000, alpha: 0.45 });
+        // Punto de referencia geográfico exacto (retícula/diana central)
+        display.groundShadow.circle(0, 0, 3).fill({ color: 0x0f172a, alpha: 0.95 });
+        display.groundShadow.circle(0, 0, 2).fill({ color: poiColor, alpha: 0.95 });
+        display.groundShadow.circle(0, 0, 1).fill({ color: 0xffffff, alpha: 0.9 });
+
+        // Aguja vertical de alta precisión que conecta el suelo (0, 0) con el círculo flotante
+        display.groundShadow.moveTo(0, 0).lineTo(0, needleTopY).stroke({
+          color: 0x0f172a,
+          width: 3.5,
+          alpha: 0.8,
+          cap: 'round',
+        });
+        display.groundShadow.moveTo(0, 0).lineTo(0, needleTopY).stroke({
           color: poiColor,
           width: 2,
-          alpha: 0.65,
+          alpha: 0.95,
+          cap: 'round',
         });
 
-        // 2. Círculo flotante con elevación de bobbing
+        // 2. Círculo flotante elevado sobre el punto geográfico
         display.badge.clear();
-        display.badge.circle(0, 2 + bobOffset, 19).fill({ color: 0x000000, alpha: 0.4 });
-        display.badge.circle(0, bobOffset, 18).fill({ color: 0x0f172a });
-        display.badge.circle(0, bobOffset, 17).stroke({ color: 0xffffff, width: 2 });
-        display.badge.circle(0, bobOffset, 14.5).fill({ color: poiColor, alpha: 0.95 });
-        display.badge.ellipse(0, -6 + bobOffset, 8, 3.5).fill({ color: 0xffffff, alpha: 0.35 });
+        display.badge.circle(0, badgeCenterY + 2, 18).fill({ color: 0x000000, alpha: 0.35 });
+        display.badge.circle(0, badgeCenterY, 17).fill({ color: 0x0f172a });
+        display.badge.circle(0, badgeCenterY, 16).stroke({ color: 0xffffff, width: 2 });
+        display.badge.circle(0, badgeCenterY, 13.5).fill({ color: poiColor, alpha: 0.95 });
+        display.badge.ellipse(0, badgeCenterY - 5, 7, 3).fill({ color: 0xffffff, alpha: 0.35 });
 
-        display.emojiText.position.set(0, bobOffset);
+        display.emojiText.position.set(0, badgeCenterY);
 
         // 3. Rótulo informativo completo con nombre del lugar y distancia
         display.labelText.text = `${poi.name} • ${distStr}`;
@@ -2797,7 +2830,7 @@ export class RpgMapEngine {
           .roundRect(-pillW / 2, -9, pillW, 18, 5)
           .fill({ color: 0x0f172a, alpha: 0.92 })
           .stroke({ color: poiColor, width: 1.5 });
-        display.labelContainer.position.set(0, -28 + bobOffset);
+        display.labelContainer.position.set(0, badgeCenterY - 26);
       }
     });
   }

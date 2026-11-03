@@ -140,13 +140,19 @@ describe('RpgMapEngine', () => {
     expect(engine.isRoadPixel(254, 148, 96)).toBe(true);  // Carretera arterial anaranjada
     expect(engine.isRoadPixel(247, 145, 94)).toBe(true);  // Vía 2099 coral oscuro
 
-    // 4. No debe clasificar como carretera a zonas residenciales, parques ni agua
+    // 4. Carreteras residenciales y secundarias de color #FFECCA (ej. Calle Ayacucho / Jr. Ayacucho)
+    expect(engine.isRoadPixel(255, 236, 202)).toBe(true); // Calzada #FFECCA
+    expect(engine.isRoadPixel(250, 232, 198)).toBe(true); // Calzada crema suave
+    expect(engine.isRoadPixel(248, 195, 175)).toBe(true); // Casing anaranjado / salmón de Calle Ayacucho
+    expect(engine.classifyColorTerrain(255, 236, 202)).toBe('road');
+
+    // 5. No debe clasificar como carretera a zonas residenciales, parques ni agua
     expect(engine.isRoadPixel(243, 240, 207)).toBe(false); // Manzana beige
     expect(engine.isRoadPixel(200, 235, 205)).toBe(false); // Parque verde
     expect(engine.isRoadPixel(130, 180, 235)).toBe(false); // Río / agua
     expect(engine.isRoadPixel(248, 227, 166)).toBe(false); // Zona otoño #F8E3A6
 
-    // 5. Regla de despeje de calzada (isAreaClearOfRoad)
+    // 6. Regla de despeje de calzada (isAreaClearOfRoad)
     const key = '19_152611_279850';
     const roadCheck = engine.isAreaClearOfRoad(key, 0, 0, 14);
     expect(typeof roadCheck).toBe('boolean');
