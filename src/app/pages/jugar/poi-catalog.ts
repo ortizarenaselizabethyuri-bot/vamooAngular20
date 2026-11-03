@@ -3,12 +3,12 @@ import { RpgPoiLocation, RpgMapEngine } from './rpg-map-engine.js';
 
 /**
  * Catálogo Maestro Georreferenciado de Puntos de Interés (POIs) en Huancayo y Valle del Mantaro.
- * Cubre los principales distritos y sectores urbanos:
- * - Sector 1: Huancayo Centro / Cercado
- * - Sector 2: El Tambo (Sector Norte)
- * - Sector 3: Chilca (Sector Sur)
- * - Sector 4: San Carlos, Palián y Torre Torre (Sector Este)
- * - Sector 5: Pilcomayo y Chupaca (Sector Oeste)
+ * Coordenadas milimétricamente calibradas con OpenStreetMap (OSM) y Cartografía Oficial:
+ * - Sector 1: Huancayo Centro / Cercado (Plazas, Farmacias, Hoteles, Escuelas, Mercados, Hospitales)
+ * - Sector 2: El Tambo (Sector Norte: Plazas, Colegios Emblemáticos, Hospital Ramiro Prialé Essalud)
+ * - Sector 3: Chilca (Sector Sur: Plaza Principal, Parque Abel Martínez, Colegios y Centros de Salud)
+ * - Sector 4: San Carlos, Palián y Torre Torre (Sector Este: Parque de la Identidad Huanca, Parque Túpac Amaru)
+ * - Sector 5: Pilcomayo y Chupaca (Sector Oeste: Plazas Principales y Hospedajes del Valle)
  */
 export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
   // =========================================================================
@@ -18,7 +18,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-plaza-constitucion',
     name: 'Plaza Constitución',
     category: 'park',
-    coords: { lat: -12.06806, lng: -75.21008 },
+    coords: { lat: -12.06805, lng: -75.21007 }, // OSM way/88269258
     icon: '🌳',
     color: 0x10b981,
     subtitle: 'Catedral y Plaza Principal de Huancayo',
@@ -27,25 +27,25 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-parque-huamanmarca',
     name: 'Parque Huamanmarca',
     category: 'park',
-    coords: { lat: -12.07084, lng: -75.20833 },
+    coords: { lat: -12.07085, lng: -75.20832 }, // OSM way/550944381
     icon: '🏛️',
     color: 0x10b981,
     subtitle: 'Sede Municipal y Centro Cívico',
   },
   {
     id: 'poi-botica-mifarma-centro',
-    name: 'Botica Mifarma Ayacucho',
+    name: 'Botica Mifarma Real',
     category: 'pharmacy',
-    coords: { lat: -12.06631, lng: -75.21167 },
+    coords: { lat: -12.06907, lng: -75.20985 }, // OSM node/4844627298
     icon: '💊',
     color: 0xef4444,
-    subtitle: 'Calle Real con Jr. Ayacucho • Centro',
+    subtitle: 'Calle Real • Entre Constitución y Huamanmarca',
   },
   {
     id: 'poi-botica-inkafarma-centro',
     name: 'Botica InkaFarma Real',
     category: 'pharmacy',
-    coords: { lat: -12.06782, lng: -75.21087 },
+    coords: { lat: -12.06782, lng: -75.21087 }, // OSM node/5037621617
     icon: '💊',
     color: 0xef4444,
     subtitle: 'Calle Real 540 • Frente a Plaza Constitución',
@@ -54,7 +54,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-hotel-presidente',
     name: 'Hotel Presidente Huancayo',
     category: 'hotel',
-    coords: { lat: -12.07367, lng: -75.20703 },
+    coords: { lat: -12.07367, lng: -75.20703 }, // OSM way/516217298
     icon: '🏨',
     color: 0xf59e0b,
     subtitle: 'Calle Real 1138 • Frente a Jr. Calixto',
@@ -63,7 +63,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-gran-hotel-turismo',
     name: 'Gran Hotel Turismo',
     category: 'hotel',
-    coords: { lat: -12.07028, lng: -75.20798 },
+    coords: { lat: -12.07032, lng: -75.20790 }, // OSM way/950202561 (Hotel de Turistas Huancayo)
     icon: '🏨',
     color: 0xf59e0b,
     subtitle: 'Jr. Ancash 729 • Plaza Huamanmarca',
@@ -72,7 +72,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-colegio-santa-isabel',
     name: 'Colegio Santa Isabel',
     category: 'school',
-    coords: { lat: -12.05729, lng: -75.20185 },
+    coords: { lat: -12.05729, lng: -75.20185 }, // OSM way/430253663
     icon: '🏫',
     color: 0x3b82f6,
     subtitle: 'Jirón Santa Isabel 567 • Emblemático',
@@ -90,7 +90,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-mercado-modelo',
     name: 'Mercado Modelo Huancayo',
     category: 'store',
-    coords: { lat: -12.07182, lng: -75.20524 },
+    coords: { lat: -12.07182, lng: -75.20524 }, // OSM way/430245852
     icon: '🛒',
     color: 0x8b5cf6,
     subtitle: 'Jr. Mantaro con Jr. Cajamarca',
@@ -99,7 +99,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-hospital-carrion',
     name: 'Hospital Daniel A. Carrión',
     category: 'hospital',
-    coords: { lat: -12.07301, lng: -75.22175 },
+    coords: { lat: -12.07301, lng: -75.22175 }, // OSM way/516477398
     icon: '🏥',
     color: 0xec4899,
     subtitle: 'Av. Daniel Alcides Carrión • Emergencias',
@@ -110,21 +110,21 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
   // =========================================================================
   {
     id: 'poi-parque-bolognesi-tambo',
-    name: 'Parque Bolognesi El Tambo',
+    name: 'Plaza Bolognesi El Tambo',
     category: 'park',
-    coords: { lat: -12.05210, lng: -75.21850 },
+    coords: { lat: -12.05701, lng: -75.21618 }, // OSM way/671690276
     icon: '🌳',
     color: 0x10b981,
-    subtitle: 'Av. Mariscal Castilla • El Tambo',
+    subtitle: 'Av. Mariscal Castilla • Tres Esquinas',
   },
   {
     id: 'poi-plaza-el-tambo',
     name: 'Plaza de El Tambo',
     category: 'park',
-    coords: { lat: -12.04820, lng: -75.22150 },
+    coords: { lat: -12.05030, lng: -75.22130 }, // Frente a Municipalidad Distrital de El Tambo
     icon: '🏛️',
     color: 0x10b981,
-    subtitle: 'Frente a la Municipalidad Distrital de El Tambo',
+    subtitle: 'Av. Mariscal Castilla 1920 • Centro El Tambo',
   },
   {
     id: 'poi-botica-inkafarma-tambo',
@@ -148,19 +148,19 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-colegio-mariscal-castilla',
     name: 'Colegio Mariscal Castilla',
     category: 'school',
-    coords: { lat: -12.04750, lng: -75.21700 },
+    coords: { lat: -12.05949, lng: -75.21916 }, // OSM way/1011821650
     icon: '🏫',
     color: 0x3b82f6,
-    subtitle: 'Av. Mariátegui • Gran Unidad Escolar El Tambo',
+    subtitle: 'Jirón Libertad • Gran Unidad Escolar El Tambo',
   },
   {
     id: 'poi-colegio-politecnico-centro',
     name: 'I.E. Politécnico Regional',
     category: 'school',
-    coords: { lat: -12.04350, lng: -75.21900 },
+    coords: { lat: -12.06256, lng: -75.21672 }, // OSM way/560216016 (Pasaje Politécnico)
     icon: '🏫',
     color: 0x3b82f6,
-    subtitle: 'Jr. Huancavelica • Politécnico del Centro',
+    subtitle: 'Tucumachay • Politécnico Regional del Centro',
   },
   {
     id: 'poi-hotel-balcones-tambo',
@@ -184,10 +184,10 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-hospital-essalud-tambo',
     name: 'Hospital Regional Essalud',
     category: 'hospital',
-    coords: { lat: -12.04050, lng: -75.22600 },
+    coords: { lat: -12.05171, lng: -75.22866 }, // OSM way/777343964 (Hospital Ramiro Prialé Prialé)
     icon: '🏥',
     color: 0xec4899,
-    subtitle: 'Av. Independencia • Hospital Ramiro Prialé',
+    subtitle: 'Av. Independencia 296 • Hospital Ramiro Prialé',
   },
   {
     id: 'poi-mercado-mayorista-tambo',
@@ -206,7 +206,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-plaza-chilca',
     name: 'Plaza Principal de Chilca',
     category: 'park',
-    coords: { lat: -12.08600, lng: -75.20450 },
+    coords: { lat: -12.08626, lng: -75.20826 }, // Parque Los Héroes / Plaza Chilca
     icon: '🌳',
     color: 0x10b981,
     subtitle: 'Av. 9 de Diciembre • Centro de Chilca',
@@ -215,10 +215,10 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-parque-abel-martinez',
     name: 'Parque Abel Martínez',
     category: 'park',
-    coords: { lat: -12.08150, lng: -75.20700 },
+    coords: { lat: -12.08655, lng: -75.20557 }, // OSM way/814301876
     icon: '🌳',
     color: 0x10b981,
-    subtitle: 'Jr. Ancash con Jr. Real • Chilca',
+    subtitle: 'Señor de los Milagros • Chilca',
   },
   {
     id: 'poi-botica-inkafarma-chilca',
@@ -242,10 +242,10 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-colegio-tupac-amaru',
     name: 'Colegio Túpac Amaru',
     category: 'school',
-    coords: { lat: -12.08900, lng: -75.20650 },
+    coords: { lat: -12.09620, lng: -75.19260 }, // OSM node/5254848730
     icon: '🏫',
     color: 0x3b82f6,
-    subtitle: 'Av. Real 2230 • I.E. Emblemática Chilca',
+    subtitle: 'Jirón Túpac Amaru • Azapampa Chilca',
   },
   {
     id: 'poi-ie-30012-chilca',
@@ -269,19 +269,19 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-centro-salud-chilca',
     name: 'Centro de Salud de Chilca',
     category: 'hospital',
-    coords: { lat: -12.08650, lng: -75.20850 },
+    coords: { lat: -12.09060, lng: -75.20300 }, // OSM node/6861453057
     icon: '🏥',
     color: 0xec4899,
-    subtitle: 'Jr. Humbalt • Atención Primaria de Salud',
+    subtitle: 'Jr. Humboldt 900 • Atención Primaria de Salud',
   },
   {
     id: 'poi-mercado-central-chilca',
     name: 'Mercado Central de Chilca',
     category: 'store',
-    coords: { lat: -12.08550, lng: -75.20520 },
+    coords: { lat: -12.08109, lng: -75.20344 }, // OSM node/4410466092
     icon: '🛒',
     color: 0x8b5cf6,
-    subtitle: 'Jr. Santos Chocano • Feria Artesanal y Comestibles',
+    subtitle: 'Prolongación Ricardo Palma • Chilca Cercado',
   },
 
   // =========================================================================
@@ -291,19 +291,19 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-parque-identidad-huanca',
     name: 'Parque de la Identidad Huanca',
     category: 'park',
-    coords: { lat: -12.05450, lng: -75.20120 },
+    coords: { lat: -12.04922, lng: -75.19782 }, // OSM way/91070564
     icon: '🌳',
     color: 0x10b981,
     subtitle: 'Urb. San Carlos • Esculturas y Vegetación Andina',
   },
   {
-    id: 'poi-parque-los-pinos',
-    name: 'Parque Los Pinos San Carlos',
+    id: 'poi-parque-tupac-amaru-sancarlos',
+    name: 'Parque Túpac Amaru San Carlos',
     category: 'park',
-    coords: { lat: -12.06200, lng: -75.20050 },
+    coords: { lat: -12.06026, lng: -75.20375 }, // Parque Túpac Amaru Urb. San Carlos
     icon: '🌳',
     color: 0x10b981,
-    subtitle: 'Urb. Los Pinos • Área Recreativa San Carlos',
+    subtitle: 'Urb. San Carlos • Zona Recreativa Central',
   },
   {
     id: 'poi-botica-san-carlos',
@@ -318,16 +318,16 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-colegio-salesiano',
     name: 'Colegio Salesiano Santa Rosa',
     category: 'school',
-    coords: { lat: -12.06450, lng: -75.20250 },
+    coords: { lat: -12.06654, lng: -75.21559 }, // OSM way/515914490
     icon: '🏫',
     color: 0x3b82f6,
-    subtitle: 'Calle Salesianos • Educación Técnico-Humanista',
+    subtitle: 'Pasaje Salesianos • Millotingo El Tambo',
   },
   {
     id: 'poi-hotel-montecarlo',
-    name: 'Hotel Montecarlo San Carlos',
+    name: 'Hotel Residencial San Carlos',
     category: 'hotel',
-    coords: { lat: -12.05800, lng: -75.20350 },
+    coords: { lat: -12.05798, lng: -75.20408 }, // Urb. San Carlos Sector Central
     icon: '🏨',
     color: 0xf59e0b,
     subtitle: 'Urb. San Carlos • Hospedaje Residencial',
@@ -336,10 +336,10 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-clinica-ortega',
     name: 'Clínica Ortega',
     category: 'hospital',
-    coords: { lat: -12.06650, lng: -75.20400 },
+    coords: { lat: -12.07060, lng: -75.21637 }, // OSM way/950202566
     icon: '🏥',
     color: 0xec4899,
-    subtitle: 'Av. Giráldez • Centro Quirúrgico Especializado',
+    subtitle: 'Av. Daniel Alcides Carrión • Centro Quirúrgico Especializado',
   },
 
   // =========================================================================
@@ -349,7 +349,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-plaza-pilcomayo',
     name: 'Plaza de Armas de Pilcomayo',
     category: 'park',
-    coords: { lat: -12.05800, lng: -75.25300 },
+    coords: { lat: -12.04940, lng: -75.25060 }, // Plaza Principal y Municipalidad de Pilcomayo
     icon: '🌳',
     color: 0x10b981,
     subtitle: 'Centro Cívico e Histórico de Pilcomayo',
@@ -358,25 +358,25 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-botica-central-pilcomayo',
     name: 'Botica Central Pilcomayo',
     category: 'pharmacy',
-    coords: { lat: -12.05750, lng: -75.25400 },
+    coords: { lat: -12.04910, lng: -75.25120 },
     icon: '💊',
     color: 0xef4444,
-    subtitle: 'Av. Las Palmas • Pilcomayo',
+    subtitle: 'Av. Las Palmas • Pilcomayo Centro',
   },
   {
     id: 'poi-ie-pilcomayo',
     name: 'I.E. Pilcomayo',
     category: 'school',
-    coords: { lat: -12.05950, lng: -75.25150 },
+    coords: { lat: -12.05020, lng: -75.24980 },
     icon: '🏫',
     color: 0x3b82f6,
-    subtitle: 'Calle Real • Educación Secundaria',
+    subtitle: 'Jr. Libertad • Educación Secundaria Pilcomayo',
   },
   {
     id: 'poi-plaza-chupaca',
     name: 'Plaza Principal de Chupaca',
     category: 'park',
-    coords: { lat: -12.06100, lng: -75.28600 },
+    coords: { lat: -12.06176, lng: -75.28770 }, // Plaza de Armas Chupaca
     icon: '🌳',
     color: 0x10b981,
     subtitle: 'Cuna de los Danzantes Shapis • Chupaca',
@@ -385,7 +385,7 @@ export const MASTER_POI_CATALOG: RpgPoiLocation[] = [
     id: 'poi-hotel-chupaca',
     name: 'Hotel Campestre Chupaca',
     category: 'hotel',
-    coords: { lat: -12.05900, lng: -75.28400 },
+    coords: { lat: -12.06080, lng: -75.28650 },
     icon: '🏨',
     color: 0xf59e0b,
     subtitle: 'Alojamiento Turístico Valle del Yacus',

@@ -35,28 +35,28 @@ describe('PoiCatalog & Dynamic Nearby Places', () => {
     }
   });
 
-  it('debe resolver lugares propios de El Tambo al ubicarse en el sector norte (-12.0482, -75.2215)', () => {
-    const tamboCoords = { lat: -12.0482, lng: -75.2215 };
+  it('debe resolver lugares propios de El Tambo al ubicarse en el sector norte (-12.0503, -75.2213)', () => {
+    const tamboCoords = { lat: -12.0503, lng: -75.2213 };
     const nearby = getNearbyPois(tamboCoords, { maxRadiusMeters: 1500, limit: 8 });
 
     expect(nearby.length).toBeGreaterThan(0);
-    // El primer lugar en El Tambo debe estar a menos de 100m (Plaza de El Tambo)
+    // El primer lugar en El Tambo debe estar a menos de 50m (Plaza de El Tambo)
     const distTambo = RpgMapEngine.calculateDistanceMeters(tamboCoords, nearby[0].coords);
-    expect(distTambo).toBeLessThan(100);
+    expect(distTambo).toBeLessThan(50);
 
     // Debe incluir lugares del sector El Tambo y NO del centro como prioritarios
     const names = nearby.map((p) => p.name);
     expect(names.some((n) => n.includes('El Tambo') || n.includes('Castilla'))).toBe(true);
   });
 
-  it('debe resolver lugares propios de Chilca al ubicarse en el sector sur (-12.0860, -75.2045)', () => {
-    const chilcaCoords = { lat: -12.0860, lng: -75.2045 };
+  it('debe resolver lugares propios de Chilca al ubicarse en el sector sur (-12.08626, -75.20826)', () => {
+    const chilcaCoords = { lat: -12.08626, lng: -75.20826 };
     const nearby = getNearbyPois(chilcaCoords, { maxRadiusMeters: 1500, limit: 8 });
 
     expect(nearby.length).toBeGreaterThan(0);
-    // Plaza de Chilca debe estar a menos de 50 metros
+    // Plaza de Chilca debe estar exactamente en la posición (distancia < 5m)
     const distChilca = RpgMapEngine.calculateDistanceMeters(chilcaCoords, nearby[0].coords);
-    expect(distChilca).toBeLessThan(50);
+    expect(distChilca).toBeLessThan(5);
 
     const names = nearby.map((p) => p.name);
     expect(names.some((n) => n.includes('Chilca'))).toBe(true);
