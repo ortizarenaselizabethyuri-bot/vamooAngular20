@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../../services/auth.service.js';
+import { ThemeService } from '../../services/theme.service.js';
 
 /**
  * Interfaz descriptiva para los botones de navegación con estética poligonal retro.
@@ -41,6 +42,9 @@ export class HeaderComponent {
 
   /** Servicio de autenticación conectado con el backend NestJS */
   readonly authService = inject(AuthService);
+
+  /** Servicio global de modo oscuro y claro */
+  readonly themeService = inject(ThemeService);
 
   /** Estado reactivo del botón activo en la botonera */
   readonly activeBtn = signal<string>('inicio');
@@ -123,7 +127,7 @@ export class HeaderComponent {
    */
   private updateActiveFromUrl(url: string): void {
     const cleanSegment = url.replace(/^\//, '').split('?')[0].split('/')[0];
-    if (cleanSegment && ['inicio', 'jugar', 'comunidad', 'login', 'register'].includes(cleanSegment)) {
+    if (cleanSegment && ['inicio', 'jugar', 'comunidad', 'perfil', 'login', 'register'].includes(cleanSegment)) {
       this.activeBtn.set(cleanSegment);
     } else if (!cleanSegment) {
       this.activeBtn.set('inicio');
@@ -151,6 +155,25 @@ export class HeaderComponent {
    */
   toggleUserMenu(): void {
     this.isUserMenuOpen.update((open) => !open);
+  }
+
+  /**
+   * Alterna entre modo oscuro y modo claro en toda la aplicación.
+   *
+   * @returns void
+   */
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
+  }
+
+  /**
+   * Navega a la vista completa de perfil estilo Steam.
+   *
+   * @returns void
+   */
+  goToProfile(): void {
+    this.isUserMenuOpen.set(false);
+    this.selectNav('perfil');
   }
 
   /**

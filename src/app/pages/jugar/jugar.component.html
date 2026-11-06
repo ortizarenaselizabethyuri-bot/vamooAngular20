@@ -49,7 +49,260 @@
            VISTA 1: MAPA DE AVENTURA COMPLETO (CANVAS 2D PIXEL-ART 5PX)
            ======================================================== -->
       @if (activeTab() === 'mapa') {
-        <app-pixel-map-viewer></app-pixel-map-viewer>
+        <div class="map-section-wrapper">
+          
+          <!-- TELEMETRÍA EN VIVO DE LA EXPEDICIÓN (HUD) -->
+          <div class="expedition-metrics-dashboard">
+            <!-- Métrica 1: Distancia -->
+            <div class="metric-card">
+              <span class="metric-icon">🚶</span>
+              <div class="metric-data">
+                <span class="metric-value">{{ formattedDistance() }}</span>
+                <span class="metric-label">RECORRIDO</span>
+              </div>
+            </div>
+
+            <!-- Métrica 2: XP en Vivo -->
+            <div class="metric-card xp-card">
+              <span class="metric-icon">⭐</span>
+              <div class="metric-data">
+                <span class="metric-value">+{{ currentExpeditionXp() }} XP</span>
+                <span class="metric-label">GANANCIA LIGA</span>
+              </div>
+            </div>
+
+            <!-- Métrica 3: Estado GPS -->
+            <div class="metric-card gps-card">
+              <span class="metric-icon">🛰️</span>
+              <div class="metric-data">
+                <span class="metric-value status-text" [class.active-gps]="geoService.isTracking()">
+                  {{ geoService.isTracking() ? 'GPS ACTIVO' : 'PAUSADO' }}
+                </span>
+                <span class="metric-label">{{ polylinePath().length }} PUNTOS</span>
+              </div>
+            </div>
+
+            <!-- Métrica 4: Rango Aventurero -->
+            <div class="metric-card avatar-card">
+              <span class="metric-icon">{{ rankEmoji() }}</span>
+              <div class="metric-data">
+                <span class="metric-value">{{ (authService.currentUser()?.currentRank || 'Pichón') | uppercase }}</span>
+                <span class="metric-label">AVENTURERO</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTONERA DE CONTROL DE CAMINATA -->
+          <div class="expedition-control-bar">
+            <!-- Botón 1: Iniciar / Pausar GPS -->
+            <button 
+              type="button" 
+              class="btn-expedition" 
+              [class.btn-tracking]="geoService.isTracking()"
+              (click)="toggleTracking()">
+              <span class="btn-icon">{{ geoService.isTracking() ? '⏸️' : '🚀' }}</span>
+              <span>{{ geoService.isTracking() ? 'PAUSAR EXPEDICIÓN' : 'INICIAR EXPEDICIÓN' }}</span>
+            </button>
+
+            <!-- Botón 2: Simular Paso (+35m) -->
+            <button 
+              type="button" 
+              class="btn-expedition btn-step" 
+              (click)="simulateStep()" 
+              title="Simula un paso de 35 metros para probar el rastro polyline">
+              <span class="btn-icon">⚡</span>
+              <span>AVANZAR PASO (+35m)</span>
+            </button>
+
+            <!-- Botón 3: Centrar en el Aventurero -->
+            <button 
+              type="button" 
+              class="btn-expedition btn-center" 
+              (click)="centerOnUser()" 
+              title="Centrar la cámara en tu ubicación actual">
+              <span class="btn-icon">🎯</span>
+              <span>CENTRAR EN MÍ</span>
+            </button>
+
+            <!-- Botón 4: Reiniciar Rastro -->
+            @if (polylinePath().length > 1) {
+              <button 
+                type="button" 
+                class="btn-expedition btn-reset" 
+                (click)="resetExpedition()" 
+                title="Reiniciar distancia y trazado">
+                <span class="btn-icon">🔄</span>
+                <span>REINICIAR</span>
+              </button>
+            }
+          </div>
+
+          <!-- Marco del Mapa Interactivo RPG Pixi.js + OpenStreetMap (Opción 2) -->
+          <div class="map-frame-container" [class.is-dragging]="isDragging()">
+            @if (isMapReady()) {
+              <!-- Lienzo de Renderizado WebGL con Pixi.js sobre geometría real de OpenStreetMap -->
+              <div 
+                #rpgCanvasContainer 
+                class="rpg-viewport-canvas"
+                role="region" 
+                aria-label="Mapa de Expedición RPG Valle Andino">
+              </div>
+
+              <!-- Viñeta decorativa estilo pantalla de consola retro -->
+              <div class="rpg-vignette-overlay" aria-hidden="true"></div>
+
+              <!-- Malla de micro-píxeles y scanlines estilo pantalla GameBoy Advance / Nintendo DS -->
+              <div class="pokemon-dither-overlay" aria-hidden="true"></div>
+
+              <!-- Cartel Clásico de Ruta / Pueblo Pokémon -->
+              <div class="pokemon-route-banner" role="status" aria-label="Ruta Actual">
+                <div class="route-banner-border">
+                  <span class="route-icon">🌿</span>
+                  <div class="route-info">
+                    <span class="route-town-title">HUANCAYO • VALLE ANDINO</span>
+                    <span class="route-street-label">📍 ZONA DE EXPEDICIÓN • SECTOR SANTA ISABEL</span>
+                  </div>
+                  <span class="route-badge-lvl">LV. {{ mapZoom() }}</span>
+                </div>
+              </div>
+
+              <!-- Mini Brújula Pokéball de Orientación Norte -->
+              <div class="pokemon-compass" title="Brújula de Orientación Norte">
+                <div class="pokeball-widget">
+                  <div class="pokeball-top"></div>
+                  <div class="pokeball-band"></div>
+                  <div class="pokeball-center-btn"></div>
+                  <div class="pokeball-bottom"></div>
+                </div>
+                <span class="compass-needle-label">N</span>
+              </div>
+
+              <!-- Barra de Filtros de Lugares Cercanos (Círculos Flotantes) -->
+              <div class="pokemon-poi-filter-bar" role="toolbar" aria-label="Filtrar lugares de interés">
+                <button
+                  type="button"
+                  class="poi-filter-chip"
+                  [class.active]="activePoiCategory() === 'all'"
+                  (click)="filterPoiCategory('all')"
+                  title="Todos los lugares cercanos">
+                  <span>📍 Todos ({{ nearbyPois().length }})</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-pharmacy"
+                  [class.active]="activePoiCategory() === 'pharmacy'"
+                  (click)="filterPoiCategory('pharmacy')"
+                  title="Boticas y Farmacias">
+                  <span>💊 Boticas</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-park"
+                  [class.active]="activePoiCategory() === 'park'"
+                  (click)="filterPoiCategory('park')"
+                  title="Parques y Áreas Verdes">
+                  <span>🌳 Parques</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-school"
+                  [class.active]="activePoiCategory() === 'school'"
+                  (click)="filterPoiCategory('school')"
+                  title="Escuelas y Colegios">
+                  <span>🏫 Escuelas</span>
+                </button>
+                <button
+                  type="button"
+                  class="poi-filter-chip chip-hotel"
+                  [class.active]="activePoiCategory() === 'hotel'"
+                  (click)="filterPoiCategory('hotel')"
+                  title="Hoteles y Hospedajes">
+                  <span>🏨 Hoteles</span>
+                </button>
+              </div>
+
+              <!-- Tarjeta Flotante al Seleccionar un Punto de Interés (POI) -->
+              @if (selectedPoi(); as poi) {
+                <div class="poi-floating-card animate-pop-in" role="dialog" aria-label="Lugar de Interés">
+                  <div class="poi-card-header">
+                    <span class="poi-card-icon">{{ poi.icon || '📍' }}</span>
+                    <div class="poi-card-info">
+                      <span class="poi-card-name">{{ poi.name }}</span>
+                      <span class="poi-card-subtitle">{{ poi.subtitle || 'Punto de interés cercano' }}</span>
+                    </div>
+                    <button type="button" class="btn-close-poi" (click)="clearSelectedPoi()" title="Cerrar">✕</button>
+                  </div>
+                  <div class="poi-card-actions">
+                    <button type="button" class="btn-focus-poi" (click)="selectPoi(poi)">
+                      <span>🎯 ENFOCAR EN MAPA</span>
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
+              <div class="map-overlay-drag-hint">
+                <div class="drag-indicator-pill">
+                  <span class="drag-hand-icon">{{ isDragging() ? '✊' : '✋' }}</span>
+                  <span class="drag-status-label">{{ isDragging() ? 'DESPLAZANDO MAPA...' : 'DESPLAZAMIENTO LIBRE' }}</span>
+                </div>
+                @if (!autoFollow()) {
+                  <button 
+                    type="button" 
+                    class="btn-floating-recenter" 
+                    (click)="centerOnUser()" 
+                    title="Volver a enfocar en tu GPS">
+                    <span class="recenter-icon">🎯</span>
+                    <span>VOLVER A CENTRAR</span>
+                  </button>
+                }
+              </div>
+
+              <!-- Insignia informativa del motor RPG Pixi.js -->
+              <div class="rpg-engine-badge">
+                <span class="badge-dot"></span>
+                <span>PIXI.JS • VALLE ANDINO • HUANCAYO</span>
+              </div>
+
+            } @else {
+              <!-- Pantalla de carga animada -->
+              <div class="map-loading-placeholder">
+                <div class="loading-compass">🧭</div>
+                <p class="loading-title">CALIBRANDO SATÉLITE GPS & MOTOR RPG...</p>
+                <p class="loading-sub">Cargando teselas de OpenStreetMap y Pixi.js...</p>
+              </div>
+            }
+          </div>
+
+          <!-- Barra de diagnóstico y estado satelital -->
+          <div class="map-legend-bar">
+            <div class="legend-item">
+              <span class="pulse-indicator" [class.paused]="!geoService.isTracking()"></span>
+              <span class="status-gps-diag">{{ geoService.statusMessage() }}</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-house"></span>
+              <span>CASAS (TEJAS)</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-block"></span>
+              <span>MANZANAS</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-road"></span>
+              <span>VÍAS</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-park"></span>
+              <span>PARQUES</span>
+            </div>
+            <div class="legend-item">
+              <span class="color-dot dot-poi"></span>
+              <span>CÍRCULOS POI (HUD)</span>
+            </div>
+          </div>
+
+        </div>
       }
 
       <!-- ========================================================
@@ -119,13 +372,15 @@
         </div>
       }
 
-      <!-- Pie informativo -->
-      <div class="footer-callout">
-        <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
-        <button type="button" class="btn-login-link" (click)="goToLogin()">
-          INICIAR SESIÓN
-        </button>
-      </div>
+      <!-- Pie informativo (Solo visible si el usuario no ha iniciado sesión) -->
+      @if (!authService.isAuthenticated()) {
+        <div class="footer-callout">
+          <span class="callout-label">¿LISTO PARA REGISTRAR TUS PROGRESOS?</span>
+          <button type="button" class="btn-login-link" (click)="goToLogin()">
+            INICIAR SESIÓN
+          </button>
+        </div>
+      }
 
     </div>
 

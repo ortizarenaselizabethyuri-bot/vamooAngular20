@@ -206,6 +206,17 @@
         </button>
       }
 
+      <!-- Botón Selector Modo Oscuro / Claro Retro Pixel -->
+      <button 
+        type="button" 
+        class="pixel-theme-toggle-btn" 
+        (click)="toggleTheme()"
+        [title]="themeService.isDark() ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'"
+        [attr.aria-label]="themeService.isDark() ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'">
+        <span class="theme-icon-orb">{{ themeService.isDark() ? '🌙' : '☀️' }}</span>
+        <span class="theme-txt-label">{{ themeService.isDark() ? 'OSCURO' : 'CLARO' }}</span>
+      </button>
+
       <!-- Badge de Perfil del Aventurero Autenticado (Sustituye LOGIN y REGISTER) -->
       @if (authService.isAuthenticated() && authService.currentUser(); as user) {
         <div 
@@ -262,7 +273,15 @@
                   <span class="stat-name">Email:</span>
                   <span class="stat-data text-email" [title]="user.email">{{ user.email }}</span>
                 </div>
+                <div class="stat-row theme-stat-row" (click)="toggleTheme()" role="button" tabindex="0">
+                  <span class="stat-name">Modo Visual:</span>
+                  <span class="stat-data text-theme-toggle">{{ themeService.isDark() ? '🌙 Oscuro' : '☀️ Claro' }}</span>
+                </div>
                 <div class="dropdown-separator"></div>
+                <button type="button" class="pixel-btn-view-profile" (click)="goToProfile()">
+                  <span class="btn-profile-icon">👤</span>
+                  <span>VER PERFIL (STEAM)</span>
+                </button>
                 <button type="button" class="pixel-btn-logout" (click)="logout()">
                   <span class="logout-icon">🚪</span>
                   <span>CERRAR SESIÓN</span>

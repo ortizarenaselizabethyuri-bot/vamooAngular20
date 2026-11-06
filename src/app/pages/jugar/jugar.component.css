@@ -311,11 +311,11 @@
   animation: none;
 }
 
-/* Marco del mapa con estilo de consola retro */
+/* Marco del mapa con estilo de consola retro y cursor de manito */
 .map-frame-container {
   position: relative;
   width: 100%;
-  height: 540px;
+  height: 550px;
   border: 4px solid #090e17;
   border-radius: 6px;
   overflow: hidden;
@@ -323,6 +323,519 @@
   box-shadow: 
     inset 0 0 10px rgba(0, 0, 0, 0.8),
     0 4px 10px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  user-select: none;
+}
+
+.map-frame-container:active,
+.map-frame-container.is-dragging {
+  cursor: grabbing;
+}
+
+/* Lienzo WebGL Pixi.js de Renderizado RPG (Opción 2: Pixi.js + OpenStreetMap) */
+.rpg-viewport-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #FDD7AA;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.rpg-viewport-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  cursor: inherit;
+}
+
+.map-frame-container.is-dragging .rpg-viewport-canvas,
+.rpg-viewport-canvas:active {
+  cursor: grabbing;
+}
+
+/* Viñeta decorativa y sombreado perimetral estilo consola retro */
+.rpg-vignette-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 
+    inset 0 0 45px rgba(15, 23, 42, 0.45),
+    inset 0 0 12px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(254, 215, 170, 0.2);
+}
+
+/* Malla de textura LCD y scanlines estilo GameBoy Advance / Nintendo DS */
+.pokemon-dither-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  background-image: 
+    repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.04) 0px, rgba(15, 23, 42, 0.04) 1px, transparent 1px, transparent 3px),
+    radial-gradient(rgba(180, 83, 9, 0.07) 1px, transparent 1px);
+  background-size: 100% 3px, 8px 8px;
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
+
+/* Cartel Clásico de Ruta Pokémon (Pueblo / Sector) */
+.pokemon-route-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 15;
+  pointer-events: none;
+  animation: slideDownSign 0.5s ease-out;
+}
+
+@keyframes slideDownSign {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.route-banner-border {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 2px solid #1e293b;
+  border-radius: 4px;
+  padding: 5px 10px;
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    inset 1px 1px 0 #ffffff;
+}
+
+.route-icon {
+  font-size: 1.1rem;
+}
+
+.route-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.route-town-title {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  font-weight: bold;
+  color: #1e293b;
+  letter-spacing: 0.4px;
+}
+
+.route-street-label {
+  font-family: var(--font-pixel-sub), sans-serif;
+  font-size: 0.52rem;
+  color: #78350f;
+  font-weight: 600;
+}
+
+.route-badge-lvl {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.5rem;
+  background: #10b981;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #064e3b;
+  text-shadow: 1px 1px 0 #000;
+  margin-left: 4px;
+}
+
+/* Mini Brújula Pokéball de Orientación Norte */
+.pokemon-compass {
+  position: absolute;
+  top: 55px;
+  right: 12px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.pokeball-widget {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  background: #f8fafc;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.pokeball-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #ef4444;
+}
+
+.pokeball-band {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: #0f172a;
+  z-index: 2;
+}
+
+.pokeball-center-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  z-index: 3;
+}
+
+.compass-needle-label {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  font-weight: bold;
+  color: #ef4444;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Insignia informativa del motor RPG */
+.rpg-engine-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 4px 9px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #facc15;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.5px;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #10b981;
+  animation: pulseBadgeDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseBadgeDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}
+
+/* Buffer de renderizado ampliado (compatibilidad) */
+.map-canvas-overscan {
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  cursor: grab;
+}
+
+.map-canvas-overscan:active,
+.map-frame-container.is-dragging .map-canvas-overscan {
+  cursor: grabbing;
+}
+
+.map-canvas-overscan google-map {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Forzar que el cursor de Google Maps use la manito */
+.map-canvas-overscan [role="region"],
+.map-canvas-overscan .gm-style,
+.map-canvas-overscan canvas {
+  cursor: inherit !important;
+}
+
+/* Capa de Texturizado Pixelado Orgánico 2D:
+   Combina micro-trama de tejas andinas (hilera de arcilla) y dithering de césped (verde bosque + esmeralda) */
+.map-pixel-texture-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image: 
+    /* 1. Malla horizontal desplazada: relieve de hileras de tejas andinas */
+    linear-gradient(to right, rgba(154, 52, 18, 0.09) 1px, transparent 1px),
+    /* 2. Dithering de césped pixelado: micro-puntos verde bosque oscuro sobre el verde esmeralda */
+    radial-gradient(rgba(6, 95, 70, 0.16) 1.2px, transparent 1.2px),
+    /* 3. Cuadrícula base de cuantización de bloques Minecraft 2D (8x8px) */
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+  background-size: 8px 4px, 8px 8px, 8px 8px;
+  background-position: 0 0, 4px 4px, 0 0;
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+}
+
+/* --------------------------------------------------------
+   HUD FLOTANTE DENTRO DEL MAPA (Presets de Zoom & Manito)
+   -------------------------------------------------------- */
+
+/* 1. Barra Superior de Presets de Zoom */
+.map-overlay-zoom-presets {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(9, 14, 23, 0.88);
+  backdrop-filter: blur(6px);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 2px solid #334155;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.zoom-preset-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  padding: 5px 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.zoom-preset-btn:hover {
+  color: #f8fafc;
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+.zoom-preset-btn.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border-color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 1px 1px 0 #6ee7b7;
+}
+
+.preset-icon {
+  font-size: 0.75rem;
+}
+
+/* Barra de Selección Rápida de Paletas en Vivo */
+.map-overlay-palette-bar {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(9, 14, 23, 0.92);
+  backdrop-filter: blur(6px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1.5px solid #334155;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 90%;
+}
+
+.palette-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 3px;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.palette-btn:hover {
+  color: #f8fafc;
+  background: #334155;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.palette-btn.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  border-color: #fde68a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6), inset 1px 1px 0 #fef08a;
+}
+
+/* 2. Control Lateral Stepper (+ / Z / -) */
+.map-overlay-stepper {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(9, 14, 23, 0.88);
+  backdrop-filter: blur(6px);
+  border: 2px solid #334155;
+  border-radius: 6px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.stepper-btn {
+  width: 28px;
+  height: 28px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #f8fafc;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #334155;
+  color: #facc15;
+  border-color: #facc15;
+}
+
+.stepper-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepper-badge {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  color: #facc15;
+  padding: 2px 4px;
+  text-shadow: 1px 1px 0 #000;
+  letter-spacing: 0.5px;
+}
+
+/* 3. Indicador de Desplazamiento & Auto-Seguimiento */
+.map-overlay-drag-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.drag-indicator-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(9, 14, 23, 0.88);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid #334155;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.drag-hand-icon {
+  font-size: 0.8rem;
+}
+
+.drag-status-label {
+  letter-spacing: 0.4px;
+}
+
+.btn-floating-recenter {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  color: #ffffff;
+  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
+  border: 1.5px solid #818cf8;
+  border-radius: 20px;
+  padding: 4px 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.5), inset 1px 1px 0 #a5b4fc;
+  transition: transform 0.1s steps(2), filter 0.1s ease;
+}
+
+.btn-floating-recenter:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.btn-floating-recenter:active {
+  transform: translateY(1px);
+}
+
+.recenter-icon {
+  font-size: 0.75rem;
 }
 
 /* Placeholder de carga del mapa */
@@ -393,9 +906,12 @@
   border: 1px solid #000;
 }
 
-.dot-water { background: #38bdf8; }
-.dot-park { background: #4ade80; }
-.dot-road { background: #facc15; }
+.dot-water { background: #64b5f6; border-color: #1e88e5; }
+.dot-park { background: #588157; border-color: #344e41; }
+.dot-house { background: #D4A373; border-color: #8c5a3c; }
+.dot-block { background: #F5EBE0; border-color: #e6ccb2; }
+.dot-road { background: #FAEDCD; border-color: #b7b7a4; }
+.dot-poi { background: #ef4444; border-color: #facc15; border-radius: 50%; box-shadow: 0 0 5px #ef4444; }
 
 .legend-step-badge {
   font-family: var(--font-pixel), monospace;
@@ -674,4 +1190,214 @@
     justify-content: center;
     gap: 0.5rem;
   }
+
+  .pokemon-poi-filter-bar {
+    top: 68px;
+    right: 44px;
+  }
+
+  .poi-floating-card {
+    top: 104px;
+    max-width: calc(100% - 24px);
+  }
+}
+
+/* ==========================================================================
+   BARRA DE FILTROS DE LUGARES CERCANOS (POIs FLOTANTES)
+   ========================================================================== */
+.pokemon-poi-filter-bar {
+  position: absolute;
+  top: 76px;
+  left: 12px;
+  right: 50px;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pokemon-poi-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.poi-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1.5px solid #475569;
+  border-radius: 12px;
+  color: #e2e8f0;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.poi-filter-chip:hover {
+  border-color: #facc15;
+  color: #facc15;
+  transform: translateY(-1px);
+}
+
+.poi-filter-chip.active {
+  background: #0f172a;
+  border-color: #facc15;
+  color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+}
+
+.poi-filter-chip.chip-pharmacy.active {
+  border-color: #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.poi-filter-chip.chip-park.active {
+  border-color: #10b981;
+  color: #6ee7b7;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.poi-filter-chip.chip-school.active {
+  border-color: #3b82f6;
+  color: #93c5fd;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.poi-filter-chip.chip-hotel.active {
+  border-color: #f59e0b;
+  color: #fde68a;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+/* ==========================================================================
+   TARJETA FLOTANTE DE DETALLE DE POI (ESTILO POKÉMON RETRO)
+   ========================================================================== */
+.poi-floating-card {
+  position: absolute;
+  top: 114px;
+  left: 12px;
+  max-width: 290px;
+  z-index: 20;
+  background: rgba(15, 23, 42, 0.94);
+  border: 2px solid #facc15;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(250, 204, 21, 0.25);
+  backdrop-filter: blur(6px);
+  animation: popInPoi 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popInPoi {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.poi-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poi-card-icon {
+  font-size: 1.25rem;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid #475569;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.poi-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.poi-card-name {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.68rem;
+  font-weight: bold;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poi-card-subtitle {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.52rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-close-poi {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.btn-close-poi:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.poi-card-actions {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #334155;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-focus-poi {
+  background: #0284c7;
+  border: 1.5px solid #38bdf8;
+  border-radius: 4px;
+  color: #ffffff;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.56rem;
+  font-weight: bold;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-focus-poi:hover {
+  background: #0369a1;
+  border-color: #7dd3fc;
+  transform: translateY(-1px);
 }

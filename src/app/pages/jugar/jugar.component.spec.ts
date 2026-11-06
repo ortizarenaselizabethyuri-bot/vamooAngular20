@@ -49,7 +49,7 @@ describe('JugarComponent', () => {
   it('debe inicializarse en la pestaña de mapa de aventura pixel-art 5px', () => {
     expect(component.activeTab()).toBe('mapa');
     expect(component.mapOptions.styles).toBeDefined();
-    expect(component.mapCenter().lat).toBeCloseTo(-12.1217, 2);
+    expect(component.mapCenter().lat).toBeCloseTo(-12.0681, 2);
   });
 
   it('debe alternar entre pestañas de mapa de aventura y modalidades', () => {
@@ -98,10 +98,14 @@ describe('JugarComponent', () => {
   });
 
   it('debe gestionar el inicio, pausa y simulación de pasos en la expedición (Etapa 2)', () => {
-    // Inicialmente no está rastreando
+    // Al inicializarse con ngOnInit() ya inicia el rastreo GPS en vivo
+    expect(component.geoService.isTracking()).toBe(true);
+
+    // Pausar expedición
+    component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(false);
 
-    // Iniciar expedición
+    // Reanudar expedición
     component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(true);
 
@@ -110,7 +114,7 @@ describe('JugarComponent', () => {
     expect(component.polylinePath().length).toBeGreaterThan(0);
     expect(component.geoService.totalDistanceMeters()).toBeGreaterThanOrEqual(0);
 
-    // Pausar expedición
+    // Pausar expedición nuevamente
     component.toggleTracking();
     expect(component.geoService.isTracking()).toBe(false);
 
@@ -132,5 +136,45 @@ describe('JugarComponent', () => {
     expect(component.geoService.totalDistanceMeters()).toBeGreaterThan(1000);
     expect(component.formattedDistance()).toContain('km');
     expect(component.currentExpeditionXp()).toBeGreaterThanOrEqual(15);
+  });
+
+  it('debe gestionar los puntos de interés cercanos (POIs) y permitir filtrado y selección', () => {
+    expect(component.nearbyPois().length).toBeGreaterThanOrEqual(5);
+
+    // Filtrar por boticas
+    component.filterPoiCategory('pharmacy');
+    expect(component.activePoiCategory()).toBe('pharmacy');
+    expect(component.filteredPois().every((p) => p.category === 'pharmacy')).toBe(true);
+
+    // Seleccionar un POI
+    const poi = component.nearbyPois()[0];
+    component.selectPoi(poi);
+    expect(component.selectedPoi()?.id).toBe(poi.id);
+    expect(component.autoFollow()).toBe(false);
+    expect(component.mapCenter().lat).toBe(poi.coords.lat);
+
+    // Cerrar selección
+    component.clearSelectedPoi();
+    expect(component.selectedPoi()).toBeNull();
+
+    // Restablecer todas las categorías
+    component.filterPoiCategory('all');
+    expect(component.filteredPois().length).toBe(component.nearbyPois().length);
+  });
+
+  it('debe actualizar reactivamente los POIs cercanos cuando la ubicación del usuario cambia', () => {
+    // Al ubicarse en el centro de Huancayo
+    component.updateNearbyPoisForLocation({ lat: -12.0681, lng: -75.2100 }, true);
+    const poisCentro = component.nearbyPois();
+    expect(poisCentro.length).toBeGreaterThan(0);
+
+    // Al desplazarse hacia El Tambo (~2.5km al norte)
+    component.updateNearbyPoisForLocation({ lat: -12.0482, lng: -75.2215 }, true);
+    const poisTambo = component.nearbyPois();
+    expect(poisTambo.length).toBeGreaterThan(0);
+
+    // Los lugares cercanos en El Tambo deben ser distintos a los del Centro
+    expect(poisTambo[0].id).not.toBe(poisCentro[0].id);
+    expect(poisTambo.some((p) => p.name.includes('El Tambo') || p.name.includes('Castilla'))).toBe(true);
   });
 });

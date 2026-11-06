@@ -681,6 +681,33 @@
   margin: 0.2rem 0;
 }
 
+.pixel-btn-view-profile {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.58rem;
+  padding: 0.45rem 0.6rem;
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  border: 2px solid #082f49;
+  box-shadow: inset 1px 1px 0 #38bdf8, 0 3px 0 #082f49;
+  color: #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  transition: transform 0.1s ease;
+}
+
+.pixel-btn-view-profile:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.pixel-btn-view-profile:active {
+  transform: translateY(1px);
+}
+
 .pixel-btn-logout {
   font-family: var(--font-pixel), monospace;
   font-size: 0.58rem;
@@ -704,5 +731,68 @@
 
 .pixel-btn-logout:active {
   transform: translateY(1px);
+}
+
+/* ========================================================
+   SELECTOR DE MODO OSCURO / MODO CLARO (PIXEL ART)
+   ======================================================== */
+.pixel-theme-toggle-btn {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.56rem;
+  padding: 0.45rem 0.75rem;
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+  border: 2px solid #0f172a;
+  box-shadow: inset 1px 1px 0 #64748b, 0 3px 0 #0f172a;
+  color: #f8fafc;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.4rem;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+body.theme-light .pixel-theme-toggle-btn,
+[data-theme='light'] .pixel-theme-toggle-btn {
+  background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+  border-color: #854d0e;
+  box-shadow: inset 1px 1px 0 #fef9c3, 0 3px 0 #854d0e;
+  color: #713f12;
+}
+
+.pixel-theme-toggle-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.pixel-theme-toggle-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 1px 1px 0 #64748b, 0 1px 0 #0f172a;
+}
+
+.theme-icon-orb {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.theme-txt-label {
+  letter-spacing: 0.5px;
+}
+
+.theme-stat-row {
+  cursor: pointer;
+  padding: 0.2rem 0;
+  transition: background 0.15s;
+}
+
+.theme-stat-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.text-theme-toggle {
+  color: #facc15 !important;
+  font-weight: 700;
 }
 

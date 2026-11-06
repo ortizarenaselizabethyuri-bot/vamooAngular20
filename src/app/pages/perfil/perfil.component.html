@@ -1,0 +1,1106 @@
+<div class="steam-profile-root" [ngClass]="['theme-' + customization().steamTheme, themeService.isDark() ? 'mode-dark' : 'mode-light']">
+  
+  <!-- Notificación Toast Flotante -->
+  @if (toastMessage()) {
+    <div class="steam-toast-banner" role="status">
+      <span class="toast-icon">✨</span>
+      <span class="toast-text">{{ toastMessage() }}</span>
+    </div>
+  }
+
+  <!-- Banner para visitantes no autenticados -->
+  @if (!isAuthenticated()) {
+    <div class="guest-profile-alert">
+      <div class="guest-alert-content">
+        <span class="guest-alert-icon">🎮</span>
+        <div class="guest-alert-texts">
+          <h4>MODO VISUALIZACIÓN DE PERFIL PÚBLICO</h4>
+          <p>Estás viendo una vista previa de la Hoja de Aventurero estilo Steam. Inicia sesión para personalizar tu vitrina, nivel y logros.</p>
+        </div>
+      </div>
+      <button type="button" class="steam-btn steam-btn-primary" (click)="goToLogin()">
+        🔑 INICIAR SESIÓN
+      </button>
+    </div>
+  }
+
+  <!-- Fondo Ambiental Inmersivo estilo Steam -->
+  <div class="steam-backdrop-ambient">
+    <div class="ambient-glow glow-top"></div>
+    <div class="ambient-glow glow-bottom"></div>
+  </div>
+
+  <div class="steam-container">
+    
+    <!-- ========================================== -->
+    <!-- CABECERA PRINCIPAL DEL PERFIL ESTILO STEAM -->
+    <!-- ========================================== -->
+    <header class="steam-profile-header">
+      <!-- Esquinas ornamentales retro pixel art de Vamoo -->
+      <div class="pixel-corner corner-tl"></div>
+      <div class="pixel-corner corner-tr"></div>
+      <div class="pixel-corner corner-bl"></div>
+      <div class="pixel-corner corner-br"></div>
+      
+      <!-- Lado Izquierdo: Avatar, Marcos y Datos Personales -->
+      <div class="header-user-block">
+        
+        <!-- Marco de Avatar con efecto Neon Steam -->
+        <div class="steam-avatar-wrapper" [class.in-game]="true">
+          <div class="steam-avatar-frame">
+            @if (currentUser()?.picture && !currentUser()?.picture?.startsWith('http')) {
+              <div class="avatar-emoji-portrait">{{ currentUser()?.picture }}</div>
+            } @else if (currentUser()?.picture) {
+              <img [src]="currentUser()?.picture" [alt]="currentUser()?.name" class="avatar-img-portrait" />
+            } @else {
+              <div class="avatar-emoji-portrait">{{ getRankEmoji(currentUser()?.currentRank) }}</div>
+            }
+          </div>
+          <!-- Indicador de Estado: En Línea / En Expedición -->
+          <span class="steam-status-badge" title="Explorador activo en Vamoo">
+            <span class="status-dot"></span>
+            <span class="status-name">EN LÍNEA</span>
+          </span>
+        </div>
+
+        <!-- Información de Identidad -->
+        <div class="header-identity">
+          <div class="persona-name-row">
+            <h1 class="persona-name">{{ currentUser()?.name || 'Aventurero Desconocido' }}</h1>
+            <span class="steam-player-badge">{{ currentUser()?.currentRank || 'Pichón' }}</span>
+          </div>
+
+          <!-- Ubicación y Bandera -->
+          <div class="persona-location">
+            <span class="flag-icon">🇵🇪</span>
+            <span class="location-text">{{ customization().location || 'Huancayo, Junín, Perú' }}</span>
+          </div>
+
+          <!-- Mensaje de Estado / Juego en Curso -->
+          <div class="persona-status-box">
+            <span class="game-status-label">Explorando en Vamoo:</span>
+            <span class="game-status-val">{{ customization().statusMessage || 'Rutas Urbanas de Junín' }}</span>
+          </div>
+
+          <!-- Biografía / Resumen de Perfil -->
+          <p class="persona-bio">
+            "{{ customization().bio }}"
+          </p>
+        </div>
+      </div>
+
+      <!-- Lado Derecho: Nivel Steam, Insignia Destacada y Botones de Acción -->
+      <div class="header-stats-block">
+        
+        <!-- Nivel estilo Steam con Círculo Metálico -->
+        <div class="steam-level-box">
+          <div class="level-badge-header">
+            <span class="lvl-title">Nivel de Aventurero</span>
+            <div class="steam-level-circle" [ngClass]="getLevelTierClass(steamLevel())" [title]="'Nivel ' + steamLevel()">
+              <span class="lvl-number">{{ steamLevel() }}</span>
+            </div>
+          </div>
+
+          <!-- Barra de Progreso hacia el siguiente nivel -->
+          <div class="level-progress-wrap">
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" [style.width.%]="levelProgressPercent()"></div>
+            </div>
+            <div class="progress-labels">
+              <span>{{ levelProgressPercent() }} / 100 XP</span>
+              <span>Sig. Nivel: {{ steamLevel() + 1 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insignia Destacada en la Cabecera (Featured Badge) -->
+        @if (headerFeaturedBadge(); as featured) {
+          <div class="header-featured-badge-card" (click)="openBadgeSelectorModal()" role="button" tabindex="0" title="Haz clic para cambiar insignia destacada">
+            <div class="badge-icon-box">
+              <span class="badge-emoji">{{ featured.iconoUrl || '🏅' }}</span>
+            </div>
+            <div class="badge-meta">
+              <span class="badge-card-title">{{ featured.titulo }}</span>
+              <span class="badge-card-xp">+{{ (currentUser()?.leagueXp || 50) }} XP ganados</span>
+              <span class="badge-card-desc">{{ featured.descripcion }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Botonera de Acciones Rápidas -->
+        <div class="header-actions-row">
+          <button type="button" class="steam-btn steam-btn-theme" (click)="toggleTheme()" [title]="themeService.isDark() ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'">
+            <span class="btn-icon">{{ themeService.isDark() ? '🌙' : '☀️' }}</span>
+            <span>{{ themeService.isDark() ? 'Oscuro' : 'Claro' }}</span>
+          </button>
+          <button type="button" class="steam-btn steam-btn-secondary" (click)="openEditModal()">
+            <span class="btn-icon">⚙️</span>
+            <span>Editar perfil</span>
+          </button>
+          <button type="button" class="steam-btn steam-btn-secondary" (click)="copyProfileLink()" title="Copiar enlace público de perfil">
+            <span class="btn-icon">🔗</span>
+            <span>Compartir</span>
+          </button>
+          <button type="button" class="steam-btn steam-btn-primary" (click)="goToGame()">
+            <span class="btn-icon">🗺️</span>
+            <span>Ir al mapa</span>
+          </button>
+        </div>
+
+      </div>
+
+    </header>
+
+    <!-- ========================================== -->
+    <!-- BARRA DE PESTAÑAS (STEAM PROFILE TABS)     -->
+    <!-- ========================================== -->
+    <nav class="steam-tabs-nav" aria-label="Secciones del perfil">
+      <button 
+        type="button" 
+        class="steam-tab-btn" 
+        [class.active]="activeTab() === 'resumen'"
+        (click)="setTab('resumen')">
+        <span class="tab-icon">🏠</span>
+        <span>Resumen</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="steam-tab-btn" 
+        [class.active]="activeTab() === 'insignias'"
+        (click)="setTab('insignias')">
+        <span class="tab-icon">🏅</span>
+        <span>Insignias</span>
+        <span class="tab-counter">{{ achievements().length }}</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="steam-tab-btn" 
+        [class.active]="activeTab() === 'salud'"
+        (click)="setTab('salud')">
+        <span class="tab-icon">🌿</span>
+        <span>Salud & Beneficios</span>
+        <span class="tab-counter">{{ totalSteps() | number }}👟</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="steam-tab-btn" 
+        [class.active]="activeTab() === 'actividad'"
+        (click)="setTab('actividad')">
+        <span class="tab-icon">🧭</span>
+        <span>Expediciones</span>
+        <span class="tab-counter">{{ activities().length }}</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="steam-tab-btn" 
+        [class.active]="activeTab() === 'comentarios'"
+        (click)="setTab('comentarios')">
+        <span class="tab-icon">💬</span>
+        <span>Muro Social</span>
+        <span class="tab-counter">{{ comments().length }}</span>
+      </button>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- CONTENIDO: PESTAÑA RESUMEN (SHOWCASES)     -->
+    <!-- ========================================== -->
+    @if (activeTab() === 'resumen') {
+      <div class="steam-tab-content fade-in">
+        
+        <!-- EXPOSITOR 1: VITRINA DE INSIGNIAS DESTACADAS (STEAM BADGE SHOWCASE) -->
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">🏆</span>
+              <h3 class="showcase-title">EXPOSITOR DE INSIGNIAS DESTACADAS</h3>
+            </div>
+            <button type="button" class="steam-link-btn" (click)="openBadgeSelectorModal()">
+              <span>Editar vitrina</span>
+              <span class="arrow">⚙️</span>
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <div class="badges-showcase-grid">
+              
+              <!-- Slot 1 -->
+              @if (featuredBadges()[0]; as b1) {
+                <div class="badge-slot filled">
+                  <div class="slot-icon-frame">{{ b1.iconoUrl || '🥾' }}</div>
+                  <span class="slot-name">{{ b1.titulo }}</span>
+                  <span class="slot-desc">{{ b1.descripcion }}</span>
+                  <span class="slot-category">{{ b1.categoria }}</span>
+                </div>
+              } @else {
+                <div class="badge-slot empty" (click)="openBadgeSelectorModal()">
+                  <span class="empty-plus">+</span>
+                  <span class="empty-txt">Asignar insignia</span>
+                </div>
+              }
+
+              <!-- Slot 2 -->
+              @if (featuredBadges()[1]; as b2) {
+                <div class="badge-slot filled">
+                  <div class="slot-icon-frame">{{ b2.iconoUrl || '🏛️' }}</div>
+                  <span class="slot-name">{{ b2.titulo }}</span>
+                  <span class="slot-desc">{{ b2.descripcion }}</span>
+                  <span class="slot-category">{{ b2.categoria }}</span>
+                </div>
+              } @else {
+                <div class="badge-slot empty" (click)="openBadgeSelectorModal()">
+                  <span class="empty-plus">+</span>
+                  <span class="empty-txt">Asignar insignia</span>
+                </div>
+              }
+
+              <!-- Slot 3 -->
+              @if (featuredBadges()[2]; as b3) {
+                <div class="badge-slot filled">
+                  <div class="slot-icon-frame">{{ b3.iconoUrl || '🦙' }}</div>
+                  <span class="slot-name">{{ b3.titulo }}</span>
+                  <span class="slot-desc">{{ b3.descripcion }}</span>
+                  <span class="slot-category">{{ b3.categoria }}</span>
+                </div>
+              } @else {
+                <div class="badge-slot empty" (click)="openBadgeSelectorModal()">
+                  <span class="empty-plus">+</span>
+                  <span class="empty-txt">Asignar insignia</span>
+                </div>
+              }
+
+            </div>
+          </div>
+        </section>
+
+        <!-- EXPOSITOR 2: EXPEDICIÓN / DESTINO FAVORITO (FAVORITE GAME SHOWCASE) -->
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">⭐</span>
+              <h3 class="showcase-title">EXPEDICIÓN FAVORITA</h3>
+            </div>
+            <span class="showcase-meta">Lugar predilecto</span>
+          </div>
+
+          <div class="showcase-body">
+            <div class="favorite-game-layout">
+              <div class="game-cover-banner">
+                <span class="cover-big-icon">🏞️</span>
+                <span class="cover-city-tag">Huancayo</span>
+              </div>
+              <div class="game-info-col">
+                <h4 class="fav-route-name">{{ customization().favoriteRouteName || 'Circuito Parque de la Identidad Huanca' }}</h4>
+                <p class="fav-route-desc">
+                  Recorrido cultural con monolitos de piedra, flora andina nativa y puntos de validación QR de artesanos locales.
+                </p>
+                <div class="fav-metrics-row">
+                  <div class="metric-item">
+                    <span class="metric-label">Tiempo en ruta:</span>
+                    <span class="metric-val">4.8 horas registradas</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Distancia:</span>
+                    <span class="metric-val">{{ customization().favoriteRouteDistance || '3.4 km' }}</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Bonificación:</span>
+                    <span class="metric-val text-bonus">+20% XP en grupo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- EXPOSITOR 3: ESTADÍSTICAS GLOBALES & LIGA DE FAUNA (STATS SHOWCASE) -->
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">📊</span>
+              <h3 class="showcase-title">ESTADÍSTICAS DEL AVENTURERO & LIGA</h3>
+            </div>
+            <span class="showcase-meta">División {{ currentUser()?.currentRank || 'Pichón' }}</span>
+          </div>
+
+          <div class="showcase-body">
+            <div class="steam-stats-grid">
+              
+              <div class="stat-box">
+                <span class="stat-number text-xp">{{ currentUser()?.totalXp || stats().totalXpEarned || 0 }}</span>
+                <span class="stat-desc">XP Total Acumulada</span>
+              </div>
+
+              <div class="stat-box">
+                <span class="stat-number text-league">{{ currentUser()?.leagueXp || 0 }}</span>
+                <span class="stat-desc">XP Ciclo Semanal</span>
+              </div>
+
+              <div class="stat-box">
+                <span class="stat-number text-km">{{ stats().totalDistanceKm || 0 }} km</span>
+                <span class="stat-desc">Distancia Caminada</span>
+              </div>
+
+              <div class="stat-box">
+                <span class="stat-number text-outings">{{ stats().totalOutings || activities().length || 0 }}</span>
+                <span class="stat-desc">Expediciones Validadas</span>
+              </div>
+
+              <div class="stat-box">
+                <span class="stat-number text-streak">🔥 {{ streak().semanasConsecutivas }}</span>
+                <span class="stat-desc">Semanas de Racha</span>
+              </div>
+
+              <div class="stat-box">
+                <span class="stat-number text-badges">{{ achievements().length }}</span>
+                <span class="stat-desc">Insignias Obtenidas</span>
+              </div>
+
+              <div class="stat-box highlight-health">
+                <span class="stat-number text-steps">👟 {{ totalSteps() | number }}</span>
+                <span class="stat-desc">Pasos Dados Estimados</span>
+              </div>
+
+              <div class="stat-box highlight-health">
+                <span class="stat-number text-calories">🔥 {{ totalCalories() | number }}</span>
+                <span class="stat-desc">Calorías Quemadas (kcal)</span>
+              </div>
+
+              <div class="stat-box highlight-health">
+                <span class="stat-number text-eco">🌱 {{ totalCo2Saved() }} kg</span>
+                <span class="stat-desc">CO2 Ahorrado al Planeta</span>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- EXPOSITOR 4: ECO-SALUD & BENEFICIOS DE SALIR -->
+        <section class="steam-showcase-card health-showcase">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">🌿</span>
+              <h3 class="showcase-title">IMPACTO EN TU SALUD & BENEFICIOS DE SALIR</h3>
+            </div>
+            <button type="button" class="steam-link-btn" (click)="setTab('salud')">
+              <span>Ver guía médica completa</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <!-- Banner Motivacional -->
+            <div class="health-hero-banner">
+              <div class="health-hero-icon">🥾</div>
+              <div class="health-hero-text">
+                <h4 class="health-hero-title">¡CADA PASO ES MEDICINA NATURAL PARA TU CUERPO Y MENTE!</h4>
+                <p class="health-hero-desc">
+                  Al caminar por las rutas andinas de Junín, tu cuerpo activa el sistema cardiovascular, despeja el estrés diario mediante la luz solar y reduces emisiones contaminantes en tu ciudad.
+                </p>
+              </div>
+            </div>
+
+            <!-- Mini Simulador Interactivo de Expedición -->
+            <div class="health-simulator-box">
+              <div class="sim-header">
+                <span class="sim-title">⚡ SIMULADOR INTERACTIVO DE SALUD</span>
+                <span class="sim-dist-badge">Objetivo: {{ simulatedKm() }} km a pie</span>
+              </div>
+
+              <div class="sim-slider-row">
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  step="0.5" 
+                  class="sim-range-input" 
+                  [value]="simulatedKm()" 
+                  (input)="setSimulatedKm(+$any($event.target).value)" />
+              </div>
+
+              <div class="sim-results-grid">
+                <div class="sim-result-card">
+                  <span class="sim-card-icon">👟</span>
+                  <span class="sim-card-val">{{ simulatedSteps() | number }}</span>
+                  <span class="sim-card-lbl">Pasos Estimados</span>
+                </div>
+                <div class="sim-result-card">
+                  <span class="sim-card-icon">🔥</span>
+                  <span class="sim-card-val">{{ simulatedCalories() | number }} kcal</span>
+                  <span class="sim-card-lbl">Calorías Quemadas</span>
+                </div>
+                <div class="sim-result-card">
+                  <span class="sim-card-icon">⏱️</span>
+                  <span class="sim-card-val">~{{ simulatedMinutes() }} min</span>
+                  <span class="sim-card-lbl">Tiempo en Movimiento</span>
+                </div>
+                <div class="sim-result-card">
+                  <span class="sim-card-icon">🌱</span>
+                  <span class="sim-card-val">{{ simulatedCo2() }} kg</span>
+                  <span class="sim-card-lbl">CO2 Ahorrado</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resumen de 3 Beneficios Principales -->
+            <div class="health-benefits-preview-grid">
+              @for (benefit of healthBenefits().slice(0, 3); track benefit.id) {
+                <div class="benefit-preview-card">
+                  <div class="benefit-icon-ring">{{ benefit.icon }}</div>
+                  <div class="benefit-preview-content">
+                    <span class="benefit-badge-cat">{{ benefit.categoryLabel }}</span>
+                    <h5 class="benefit-title">{{ benefit.title }}</h5>
+                    <span class="benefit-highlight">{{ benefit.statHighlight }}</span>
+                    <p class="benefit-desc">{{ benefit.description }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+
+        <!-- ACTIVIDAD RECIENTE (RECENT ACTIVITY STEAM) -->
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">⏱️</span>
+              <h3 class="showcase-title">ACTIVIDAD RECIENTE EN EL REINO</h3>
+            </div>
+            <button type="button" class="steam-link-btn" (click)="setTab('actividad')">
+              <span>Ver todas</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <div class="recent-activities-list">
+              @for (act of activities().slice(0, 3); track act._id) {
+                <div class="activity-row-item">
+                  <div class="activity-icon-badge">
+                    <span>🧭</span>
+                  </div>
+                  <div class="activity-info">
+                    <span class="activity-title">{{ act.rutaNombre || 'Expedición en Sendero Urbano' }}</span>
+                    <div class="activity-tags">
+                      <span class="act-tag tag-dist">🏃 {{ act.distanciaKm }} km</span>
+                      <span class="act-tag tag-steps">👟 ~{{ calcSteps(act.distanciaKm) | number }} pasos</span>
+                      <span class="act-tag tag-calories">🔥 ~{{ calcCalories(act.distanciaKm) }} kcal</span>
+                      <span class="act-tag tag-time">⏱️ {{ act.duracionMinutos }} min</span>
+                      @if (act.acompanado) {
+                        <span class="act-tag tag-friend">👥 +20% Bonus Amigos</span>
+                      }
+                      @if (act.esLugarNuevo) {
+                        <span class="act-tag tag-new">⭐ +50 XP Nuevo Lugar</span>
+                      }
+                      @if (act.validadoPorGPS) {
+                        <span class="act-tag tag-gps">📍 GPS Validado</span>
+                      }
+                      @if (act.validadoPorQR) {
+                        <span class="act-tag tag-qr">📱 QR Escaneado</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="activity-xp-badge">
+                    +{{ act.xpGanada }} XP
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA PREVIA DEL MURO DE COMENTARIOS -->
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">💬</span>
+              <h3 class="showcase-title">COMENTARIOS DEL PERFIL</h3>
+            </div>
+            <button type="button" class="steam-link-btn" (click)="setTab('comentarios')">
+              <span>Ver los {{ comments().length }} comentarios</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <!-- Formulario Rápido de Comentario -->
+            <div class="steam-comment-form">
+              <div class="form-avatar-mini">
+                <span>{{ getRankEmoji(currentUser()?.currentRank) }}</span>
+              </div>
+              <div class="form-input-wrap">
+                <input 
+                  type="text" 
+                  class="steam-comment-input" 
+                  placeholder="Escribe un mensaje de apoyo en el muro de este aventurero..."
+                  [(ngModel)]="newCommentText"
+                  (keydown.enter)="postComment()" />
+                <button type="button" class="steam-btn steam-btn-primary" (click)="postComment()">
+                  Publicar
+                </button>
+              </div>
+            </div>
+
+            <!-- Últimos 2 comentarios -->
+            <div class="comments-stream">
+              @for (cmt of comments().slice(0, 2); track cmt.id) {
+                <div class="comment-item">
+                  <div class="cmt-avatar-frame">
+                    <span>{{ cmt.authorAvatar || '🐣' }}</span>
+                  </div>
+                  <div class="cmt-bubble">
+                    <div class="cmt-meta">
+                      <span class="cmt-author">{{ cmt.authorName }}</span>
+                      <span class="cmt-badge">{{ cmt.authorRank || 'Aventurero' }}</span>
+                      <span class="cmt-date">{{ cmt.date }}</span>
+                    </div>
+                    <p class="cmt-text">{{ cmt.content }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+
+      </div>
+    }
+
+    <!-- ========================================== -->
+    <!-- CONTENIDO: PESTAÑA INSIGNIAS (MEDALLERO)   -->
+    <!-- ========================================== -->
+    @if (activeTab() === 'insignias') {
+      <div class="steam-tab-content fade-in">
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">🏅</span>
+              <h3 class="showcase-title">MEDALLERO COMPLETO DE CONDECORACIONES ({{ achievements().length }})</h3>
+            </div>
+            <button type="button" class="steam-btn steam-btn-secondary" (click)="openBadgeSelectorModal()">
+              ⚙️ Configurar vitrina de perfil
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <div class="all-badges-grid">
+              @for (item of achievements(); track item._id) {
+                <div class="badge-detail-card" [class.limited-edition]="item.esEdicionLimitada">
+                  <div class="badge-detail-icon">
+                    <span>{{ item.iconoUrl || '🏅' }}</span>
+                  </div>
+                  <div class="badge-detail-info">
+                    <div class="b-title-row">
+                      <span class="b-title">{{ item.titulo }}</span>
+                      @if (item.esEdicionLimitada) {
+                        <span class="b-limited-pill">Edición Limitada</span>
+                      }
+                    </div>
+                    <p class="b-desc">{{ item.descripcion }}</p>
+                    <div class="b-footer">
+                      <span class="b-cat">🏷️ {{ item.categoria }}</span>
+                      <span class="b-type">{{ item.tipo === 'trofeo' ? '🏆 Trofeo' : '🎖️ Insignia' }}</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ========================================== -->
+    <!-- CONTENIDO: PESTAÑA SALUD & BENEFICIOS      -->
+    <!-- ========================================== -->
+    @if (activeTab() === 'salud') {
+      <div class="steam-tab-content fade-in">
+        
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">🫀</span>
+              <h3 class="showcase-title">IMPACTO EN TU SALUD & BENEFICIOS DE SALIR A CAMINAR</h3>
+            </div>
+            <span class="showcase-meta">Guía Médica y de Bienestar Vamoo</span>
+          </div>
+
+          <div class="showcase-body">
+            
+            <!-- Dashboard de Salud Acumulado -->
+            <div class="health-overview-dashboard">
+              <div class="health-dash-col">
+                <span class="dash-val text-steps">👟 {{ totalSteps() | number }}</span>
+                <span class="dash-lbl">Pasos Acumulados</span>
+                <span class="dash-sub">Meta recomendada: 8,000 al día</span>
+              </div>
+              <div class="health-dash-col">
+                <span class="dash-val text-calories">🔥 {{ totalCalories() | number }} kcal</span>
+                <span class="dash-lbl">Calorías Quemadas</span>
+                <span class="dash-sub">Gasto energético aeróbico</span>
+              </div>
+              <div class="health-dash-col">
+                <span class="dash-val text-eco">🌱 {{ totalCo2Saved() }} kg</span>
+                <span class="dash-lbl">CO2 No Emitido</span>
+                <span class="dash-sub">Movilidad sostenible a pie</span>
+              </div>
+            </div>
+
+            <!-- Filtro de Categorías de Beneficios -->
+            <div class="benefit-category-filters">
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'todos'"
+                (click)="setBenefitFilter('todos')">
+                ✨ Todos
+              </button>
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'cardiovascular'"
+                (click)="setBenefitFilter('cardiovascular')">
+                🫀 Cardiovascular
+              </button>
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'mental'"
+                (click)="setBenefitFilter('mental')">
+                🧠 Mental & Estrés
+              </button>
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'muscular'"
+                (click)="setBenefitFilter('muscular')">
+                💪 Músculos & Calorías
+              </button>
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'inmunologico'"
+                (click)="setBenefitFilter('inmunologico')">
+                ☀️ Sol & Inmunidad
+              </button>
+              <button 
+                type="button" 
+                class="cat-filter-btn" 
+                [class.active]="selectedBenefitFilter() === 'ecologico'"
+                (click)="setBenefitFilter('ecologico')">
+                🌱 Planeta Verde
+              </button>
+            </div>
+
+            <!-- Catálogo de Tarjetas de Beneficios -->
+            <div class="full-benefits-cards-grid">
+              @for (ben of filteredBenefits(); track ben.id) {
+                <div class="benefit-card-full">
+                  <div class="b-full-header">
+                    <span class="b-full-icon">{{ ben.icon }}</span>
+                    <div class="b-full-titles">
+                      <span class="b-full-cat-tag">{{ ben.categoryLabel }}</span>
+                      <h4 class="b-full-title">{{ ben.title }}</h4>
+                    </div>
+                  </div>
+                  <div class="b-full-highlight-box">
+                    <span class="highlight-star">⭐</span>
+                    <span class="highlight-txt">{{ ben.statHighlight }}</span>
+                  </div>
+                  <p class="b-full-desc">{{ ben.description }}</p>
+                  <div class="b-full-science-box">
+                    <span class="science-icon">💡</span>
+                    <p class="science-text"><strong>Evidencia Científica:</strong> {{ ben.scientificTip }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Calculadora / Simulador de Próxima Expedición -->
+            <div class="walk-calculator-panel">
+              <div class="calc-title-box">
+                <span class="calc-icon">🏃‍♂️</span>
+                <div>
+                  <h4 class="calc-heading">CALCULADORA DE PRÓXIMA CAMINATA</h4>
+                  <p class="calc-sub">Desliza la distancia para estimar los beneficios en tu organismo y entorno:</p>
+                </div>
+              </div>
+
+              <div class="calc-control-wrap">
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="25" 
+                  step="0.5" 
+                  class="sim-range-input large" 
+                  [value]="simulatedKm()" 
+                  (input)="setSimulatedKm(+$any($event.target).value)" />
+                <span class="calc-dist-display">{{ simulatedKm() }} km</span>
+              </div>
+
+              <div class="calc-metrics-row">
+                <div class="calc-box">
+                  <span class="calc-val text-steps">👟 {{ simulatedSteps() | number }}</span>
+                  <span class="calc-label">Pasos Estimados</span>
+                  <span class="calc-subtext">~{{ (simulatedSteps() / 80).toFixed(0) }}% de la meta diaria</span>
+                </div>
+                <div class="calc-box">
+                  <span class="calc-val text-calories">🔥 {{ simulatedCalories() | number }} kcal</span>
+                  <span class="calc-label">Calorías Quemadas</span>
+                  <span class="calc-subtext">Equivale a un almuerzo nutritivo</span>
+                </div>
+                <div class="calc-box">
+                  <span class="calc-val text-time">~{{ simulatedMinutes() }} min</span>
+                  <span class="calc-label">Tiempo Estimado</span>
+                  <span class="calc-subtext">Ritmo constante a paso vivo</span>
+                </div>
+                <div class="calc-box">
+                  <span class="calc-val text-eco">🌱 {{ simulatedCo2() }} kg</span>
+                  <span class="calc-label">CO2 No Emitido</span>
+                  <span class="calc-subtext">Ahorro frente a auto o bus</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Consejo Andino de Altura y Oxigenación -->
+            <div class="altitude-tip-banner">
+              <span class="altitude-icon">🏔️</span>
+              <div class="altitude-text">
+                <h5 class="altitude-title">BENEFICIO ADICIONAL: CAMINATA EN ALTURA (JUNÍN · 3,250 M S. N. M.)</h5>
+                <p class="altitude-p">
+                  Caminar en el Valle del Mantaro estimula naturalmente la eritropoyetina (aumenta glóbulos rojos) y expande tu capacidad pulmonar hasta en un 25%. ¡Recuerda beber agua fresca y disfrutar del aire andino!
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    }
+
+    <!-- ========================================== -->
+    <!-- CONTENIDO: PESTAÑA ACTIVIDADES / RUTAS     -->
+    <!-- ========================================== -->
+    @if (activeTab() === 'actividad') {
+      <div class="steam-tab-content fade-in">
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">🧭</span>
+              <h3 class="showcase-title">HISTORIAL DE EXPEDICIONES & SALIDAS FÍSICAS ({{ activities().length }})</h3>
+            </div>
+            <button type="button" class="steam-btn steam-btn-primary" (click)="goToGame()">
+              🗺️ Nueva expedición en el mapa
+            </button>
+          </div>
+
+          <div class="showcase-body">
+            <div class="activities-detailed-list">
+              @for (act of activities(); track act._id) {
+                <div class="activity-full-row">
+                  <div class="act-main-col">
+                    <h4 class="act-route-heading">{{ act.rutaNombre || 'Caminata Libre por Junín' }}</h4>
+                    <div class="act-badges-row">
+                      <span class="tag-pill tag-dist">🏃 {{ act.distanciaKm }} km recorridos</span>
+                      <span class="tag-pill tag-steps">👟 ~{{ calcSteps(act.distanciaKm) | number }} pasos</span>
+                      <span class="tag-pill tag-calories">🔥 ~{{ calcCalories(act.distanciaKm) }} kcal</span>
+                      <span class="tag-pill tag-time">⏱️ {{ act.duracionMinutos }} minutos</span>
+                      @if (act.acompanado) {
+                        <span class="tag-pill tag-friend">👥 +20% Bonus Compañía</span>
+                      }
+                      @if (act.esLugarNuevo) {
+                        <span class="tag-pill tag-new">⭐ +50 XP Primer Descubrimiento</span>
+                      }
+                      @if (act.validadoPorGPS) {
+                        <span class="tag-pill tag-gps">📍 Coordenadas GPS Verificadas</span>
+                      }
+                      @if (act.validadoPorQR) {
+                        <span class="tag-pill tag-qr">📱 QR Oficial Escaneado</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="act-xp-col">
+                    <span class="xp-number">+{{ act.xpGanada }}</span>
+                    <span class="xp-label">XP Acreditada</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ========================================== -->
+    <!-- CONTENIDO: PESTAÑA MURO DE COMENTARIOS     -->
+    <!-- ========================================== -->
+    @if (activeTab() === 'comentarios') {
+      <div class="steam-tab-content fade-in">
+        <section class="steam-showcase-card">
+          <div class="pixel-corner corner-tl"></div>
+          <div class="pixel-corner corner-tr"></div>
+          <div class="pixel-corner corner-bl"></div>
+          <div class="pixel-corner corner-br"></div>
+          <div class="showcase-header">
+            <div class="showcase-title-wrap">
+              <span class="showcase-icon">💬</span>
+              <h3 class="showcase-title">TABLÓN SOCIAL DEL AVENTURERO ({{ comments().length }})</h3>
+            </div>
+          </div>
+
+          <div class="showcase-body">
+            <!-- Formulario de Comentario -->
+            <div class="steam-comment-form full-width">
+              <div class="form-avatar-mini">
+                <span>{{ getRankEmoji(currentUser()?.currentRank) }}</span>
+              </div>
+              <div class="form-input-wrap">
+                <input 
+                  type="text" 
+                  class="steam-comment-input" 
+                  placeholder="Deja un mensaje en el perfil..."
+                  [(ngModel)]="newCommentText"
+                  (keydown.enter)="postComment()" />
+                <button type="button" class="steam-btn steam-btn-primary" (click)="postComment()">
+                  Publicar Comentario
+                </button>
+              </div>
+            </div>
+
+            <!-- Listado Completo -->
+            <div class="comments-stream">
+              @for (cmt of comments(); track cmt.id) {
+                <div class="comment-item full">
+                  <div class="cmt-avatar-frame">
+                    <span>{{ cmt.authorAvatar || '🐣' }}</span>
+                  </div>
+                  <div class="cmt-bubble">
+                    <div class="cmt-meta">
+                      <span class="cmt-author">{{ cmt.authorName }}</span>
+                      <span class="cmt-badge">{{ cmt.authorRank || 'Aventurero' }}</span>
+                      <span class="cmt-date">{{ cmt.date }}</span>
+                      <button type="button" class="btn-del-cmt" (click)="deleteComment(cmt.id)" title="Eliminar comentario">✕</button>
+                    </div>
+                    <p class="cmt-text">{{ cmt.content }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: EDITAR PERFIL (STEAM SETTINGS)      -->
+  <!-- ========================================== -->
+  @if (isEditModalOpen()) {
+    <div class="steam-modal-overlay" (click)="closeEditModal()">
+      <div class="steam-modal-dialog" (click)="$event.stopPropagation()">
+        
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">⚙️</span>
+            <h3>EDITAR PERFIL ESTILO STEAM</h3>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeEditModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          
+          <!-- Nombre de Aventurero -->
+          <div class="form-field">
+            <label class="form-label">Nombre del Aventurero / Alias</label>
+            <input type="text" class="steam-input" [(ngModel)]="editForm.name" placeholder="Tu nombre en Vamoo" />
+          </div>
+
+          <!-- Ubicación / País -->
+          <div class="form-field">
+            <label class="form-label">Ubicación / Región</label>
+            <input type="text" class="steam-input" [(ngModel)]="editForm.location" placeholder="Ej. Huancayo, Junín, Perú" />
+          </div>
+
+          <!-- Estado / Frase en curso -->
+          <div class="form-field">
+            <label class="form-label">Estado actual de expedición</label>
+            <input type="text" class="steam-input" [(ngModel)]="editForm.statusMessage" placeholder="Ej. Explorando: Parque de la Identidad Huanca" />
+          </div>
+
+          <!-- Biografía / Resumen de perfil -->
+          <div class="form-field">
+            <label class="form-label">Resumen personal / Cita de perfil</label>
+            <textarea class="steam-textarea" rows="3" [(ngModel)]="editForm.bio" placeholder="Escribe unas palabras sobre tu travesía..."></textarea>
+          </div>
+
+          <!-- Ruta Favorita -->
+          <div class="form-field">
+            <label class="form-label">Expedición favorita en vitrina</label>
+            <input type="text" class="steam-input" [(ngModel)]="editForm.favoriteRouteName" placeholder="Ej. Circuito Mirador Torre Torre" />
+          </div>
+
+          <!-- Selector de Avatar Preset -->
+          <div class="form-field">
+            <label class="form-label">Selecciona tu Avatar de Fauna</label>
+            <div class="avatar-presets-grid">
+              @for (preset of avatarPresets; track preset.label) {
+                <button 
+                  type="button" 
+                  class="preset-avatar-btn" 
+                  [class.selected]="editForm.picture === preset.url"
+                  (click)="selectAvatarPreset(preset.url)"
+                  [title]="preset.label">
+                  <span class="preset-emoji">{{ preset.url }}</span>
+                  <span class="preset-label">{{ preset.label }}</span>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- O URL personalizada de avatar -->
+          <div class="form-field">
+            <label class="form-label">O ingresa URL de imagen externa</label>
+            <input type="text" class="steam-input" [(ngModel)]="editForm.picture" placeholder="https://ejemplo.com/mi-avatar.png" />
+          </div>
+
+          <!-- Modo de Iluminación (Oscuro / Claro) -->
+          <div class="form-field">
+            <label class="form-label">Modo de Iluminación Global</label>
+            <div class="theme-mode-switch-group">
+              <button 
+                type="button" 
+                class="theme-mode-btn" 
+                [class.active]="themeService.isDark()" 
+                (click)="themeService.setTheme('dark')">
+                🌙 Modo Oscuro (Noche)
+              </button>
+              <button 
+                type="button" 
+                class="theme-mode-btn" 
+                [class.active]="!themeService.isDark()" 
+                (click)="themeService.setTheme('light')">
+                ☀️ Modo Claro (Día)
+              </button>
+            </div>
+          </div>
+
+          <!-- Tema Visual de Acento Vamoo / Steam -->
+          <div class="form-field">
+            <label class="form-label">Paleta de Acento del Aventurero</label>
+            <select class="steam-select" [(ngModel)]="editForm.steamTheme">
+              <option value="forest-rpg">Valle del Mantaro (Verde Andino & Esmeralda)</option>
+              <option value="steam-classic">Vamoo RPG Obsidian (Oro & Pizarra Clásica)</option>
+              <option value="midnight-blue">Nocturno Huanca (Azul Cobalto & Nieve)</option>
+              <option value="cyber-neon">Ciber-Aventura (Cian Neón & Rubí)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="steam-btn steam-btn-secondary" (click)="closeEditModal()">
+            Cancelar
+          </button>
+          <button type="button" class="steam-btn steam-btn-primary" (click)="saveProfileChanges()">
+            Guardar Cambios
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- ========================================== -->
+  <!-- MODAL: SELECCIONAR INSIGNIAS DESTACADAS    -->
+  <!-- ========================================== -->
+  @if (isBadgeModalOpen()) {
+    <div class="steam-modal-overlay" (click)="closeBadgeModal()">
+      <div class="steam-modal-dialog" (click)="$event.stopPropagation()">
+        
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">🏆</span>
+            <h3>SELECCIONAR HASTA 3 INSIGNIAS DESTACADAS</h3>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeBadgeModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p class="modal-instructions">
+            Elige las condecoraciones que deseas lucir en tu vitrina principal de aventurero. (Seleccionadas: {{ selectedBadgeIds.length }} / 3)
+          </p>
+
+          <div class="badge-picker-grid">
+            @for (badge of achievements(); track badge._id) {
+              <div 
+                class="badge-picker-card" 
+                [class.selected]="isBadgeSelected(badge._id)"
+                (click)="toggleBadgeSelection(badge._id)">
+                <div class="picker-check">
+                  {{ isBadgeSelected(badge._id) ? '✓' : '+' }}
+                </div>
+                <div class="picker-icon">{{ badge.iconoUrl || '🏅' }}</div>
+                <div class="picker-info">
+                  <span class="picker-title">{{ badge.titulo }}</span>
+                  <span class="picker-desc">{{ badge.descripcion }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="steam-btn steam-btn-secondary" (click)="closeBadgeModal()">
+            Cancelar
+          </button>
+          <button type="button" class="steam-btn steam-btn-primary" (click)="saveFeaturedBadges()">
+            Guardar Vitrina
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+</div>
+
