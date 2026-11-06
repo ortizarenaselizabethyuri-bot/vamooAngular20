@@ -201,6 +201,22 @@ export class AuthService {
   }
 
   /**
+   * Actualiza los datos del usuario en sesión localmente y en el almacenamiento persistente.
+   *
+   * @param partialUser - Propiedades a fusionar con el usuario actual.
+   * @returns void
+   */
+  updateUser(partialUser: Partial<UserProfile>): void {
+    const current = this.currentUser();
+    if (!current) return;
+    const updated: UserProfile = { ...current, ...partialUser };
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.userKey, JSON.stringify(updated));
+    }
+    this.currentUser.set(updated);
+  }
+
+  /**
    * Recupera el usuario almacenado en localStorage al iniciar la aplicación.
    *
    * @returns UserProfile | null Perfil recuperado o null.

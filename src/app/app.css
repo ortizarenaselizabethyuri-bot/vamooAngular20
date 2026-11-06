@@ -31,6 +31,27 @@
     #bfdbfe 80%,
     #93c5fd 100%
   );
+  transition: background 0.4s ease;
+}
+
+/* Modo Oscuro: Cielo Nocturno Estrellado */
+body.theme-dark .bg-sky-backdrop,
+[data-theme='dark'] .bg-sky-backdrop {
+  background: linear-gradient(
+    180deg,
+    #060a12 0%,
+    #0d1424 25%,
+    #121d33 55%,
+    #182640 80%,
+    #1e2f4d 100%
+  );
+}
+
+body.theme-dark .bg-pixel-cloud,
+[data-theme='dark'] .bg-pixel-cloud {
+  background: #26354b;
+  box-shadow: 0 4px 0 #141d2a;
+  opacity: 0.6;
 }
 
 /* 2. Nubes flotantes animadas */

@@ -30,6 +30,43 @@
   --btn-register-bottom: #78350f;
 
   --border-pixel-dark: #121820;
+
+  /* Tokens de color de Vamoo */
+  --vamoo-gold: #facc15;
+  --vamoo-gold-dark: #713f12;
+  --vamoo-emerald: #22c55e;
+  --vamoo-emerald-dark: #14532d;
+  --vamoo-cyan: #38bdf8;
+  --vamoo-cyan-dark: #0369a1;
+
+  /* MODO OSCURO (Predeterminado) */
+  --bg-page: #0b111c;
+  --bg-card: #152032;
+  --bg-card-header: #1c2b42;
+  --bg-card-sub: #0f1724;
+  --border-card: #2c425e;
+  --border-bevel-light: #3c5a7f;
+  --border-bevel-dark: #080d15;
+  --text-main: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --shadow-card: 0 14px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* MODO CLARO (Light Mode) */
+[data-theme='light'],
+body.theme-light {
+  --bg-page: #e8f4fc;
+  --bg-card: #ffffff;
+  --bg-card-header: #eef5fb;
+  --bg-card-sub: #f8fafc;
+  --border-card: #cbd5e1;
+  --border-bevel-light: #ffffff;
+  --border-bevel-dark: #94a3b8;
+  --text-main: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --shadow-card: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 * {

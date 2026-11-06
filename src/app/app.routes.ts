@@ -22,6 +22,11 @@ export const routes: Routes = [
       import('./pages/jugar/jugar.component.js').then((m) => m.JugarComponent),
   },
   { path: 'comunidad', component: ComunidadComponent },
+  {
+    path: 'perfil',
+    loadComponent: () =>
+      import('./pages/perfil/perfil.component.js').then((m) => m.PerfilComponent),
+  },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: '', redirectTo: 'inicio', pathMatch: 'full' },
