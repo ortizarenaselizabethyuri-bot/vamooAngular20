@@ -397,5 +397,29 @@ describe('RpgMapEngine', () => {
     expect(engine.isDirectLineOnRoad(p1, p2, 8)).toBe(true);
     expect(engine.isStraightRoadSegmentClear(p1, p2, 8)).toBe(true);
   });
+
+  it('debe calcular la distancia acumulada en metros sobre las calles con getNavigationRouteDistanceMeters', () => {
+    expect(engine.getNavigationRouteDistanceMeters()).toBe(0);
+
+    const targetCoords = { lat: -12.0681, lng: -75.2100 };
+    engine.setNavigationTarget(targetCoords);
+    const dist = engine.getNavigationRouteDistanceMeters();
+    expect(typeof dist).toBe('number');
+    expect(dist).toBeGreaterThanOrEqual(0);
+  });
+
+  it('debe consultar o simular el servicio de enrutamiento vial fetchOnlineStreetRoute sin excepciones', async () => {
+    const start = { lat: -12.06805, lng: -75.21007 };
+    const end = { lat: -12.07367, lng: -75.20703 };
+    const result = await engine.fetchOnlineStreetRoute(start, end);
+    // En entorno de test con acceso de red puede resolver un arreglo o null si se cancela por timeout
+    if (result) {
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      expect(result[0].lat).toBeCloseTo(start.lat, 4);
+    } else {
+      expect(result).toBeNull();
+    }
+  });
 });
 

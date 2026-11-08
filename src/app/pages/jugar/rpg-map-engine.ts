@@ -228,6 +228,12 @@ export class RpgMapEngine {
   /** Puntos geográficos que componen el trazado de navegación guiado por las pistas */
   private navigationRoutePath: GeoCoordinates[] = [];
 
+  /** Caché en memoria para almacenar rutas de calles reales ya calculadas */
+  private readonly navigationRouteCache = new Map<string, GeoCoordinates[]>();
+
+  /** Identificador secuencial para evitar condiciones de carrera en peticiones asíncronas de ruta */
+  private currentNavigationRequestId: number = 0;
+
   /** Capa gráfica dedicada para el halo satelital de precisión */
   private accuracyGraphics: Graphics | null = null;
 
@@ -2382,37 +2388,34 @@ export class RpgMapEngine {
 
   /**
    * Evalúa si una línea recta entre dos puntos discurre estrictamente sobre la calzada (calles y avenidas)
-   * sin atravesar manzanas urbanas, tejados, casas ni edificaciones.
+   * sin atravesar manzanas urbanas, tejados, casas ni edificaciones residenciales.
    *
    * @param p1 - Punto inicial en píxeles del mundo.
    * @param p2 - Punto final en píxeles del mundo.
-   * @param roadToleranceRadius - Radio de tolerancia de calzada en píxeles.
-   * @returns boolean - true si la línea recta es transitable sobre calles y avenidas.
+   * @param roadToleranceRadius - Radio de tolerancia de calzada en píxeles (estricto por defecto 3px).
+   * @returns boolean - true si la línea recta es 100% transitable sobre calles y avenidas.
    */
   public isDirectLineOnRoad(
     p1: { x: number; y: number },
     p2: { x: number; y: number },
-    roadToleranceRadius: number = 5,
+    roadToleranceRadius: number = 3,
   ): boolean {
     const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
     if (dist <= 10) return true;
 
-    const sampleStep = 4;
+    // Muestreo denso de alta precisión cada 2.5 píxeles a lo largo del segmento
+    const sampleStep = 2.5;
     const numSamples = Math.floor(dist / sampleStep);
 
-    let nonRoadCount = 0;
     for (let i = 1; i < numSamples; i++) {
       const t = i / numSamples;
       const sx = p1.x + (p2.x - p1.x) * t;
       const sy = p1.y + (p2.y - p1.y) * t;
 
+      // Si cualquier punto intermedio cae fuera de la calzada (casas, manzanas residenciales, parques),
+      // se rechaza de inmediato la línea recta para obligar a doblar por las calles y avenidas
       if (!this.isRoadNearWorldPixel(sx, sy, roadToleranceRadius)) {
-        nonRoadCount++;
-        // Si más de una muestra cae fuera de la calzada, se rechaza la línea directa
-        // para garantizar que la ruta no corte manzanas residenciales ni casas
-        if (nonRoadCount > 1) {
-          return false;
-        }
+        return false;
       }
     }
 
@@ -2421,17 +2424,25 @@ export class RpgMapEngine {
 
   /**
    * Alias de compatibilidad para evaluar si un tramo recto entre dos puntos discurre por la calzada.
+   *
+   * @param p1 - Punto inicial en píxeles del mundo.
+   * @param p2 - Punto final en píxeles del mundo.
+   * @param roadToleranceRadius - Radio de tolerancia de calzada en píxeles.
+   * @returns boolean - true si el tramo discurre sin colisionar con zonas residenciales.
    */
   public isStraightRoadSegmentClear(
     p1: { x: number; y: number },
     p2: { x: number; y: number },
-    roadToleranceRadius: number = 5,
+    roadToleranceRadius: number = 3,
   ): boolean {
     return this.isDirectLineOnRoad(p1, p2, roadToleranceRadius);
   }
 
   /**
    * Elimina waypoints consecutivos prácticamente idénticos (< 2 metros) para evitar artefactos visuales.
+   *
+   * @param points - Lista secuencial de coordenadas geográficas.
+   * @returns GeoCoordinates[] Lista depurada sin waypoints duplicados o redundantes.
    */
   private removeDuplicateWaypoints(points: GeoCoordinates[]): GeoCoordinates[] {
     if (points.length <= 1) return points;
@@ -2449,7 +2460,7 @@ export class RpgMapEngine {
 
   /**
    * Calcula un trazado de navegación con tramos rectos limpios estilo Google Maps
-   * que transcurren a lo largo de las calles y avenidas de la ciudad.
+   * que transcurren estrictamente a lo largo de las calles y avenidas de la ciudad sin atravesar manzanas ni casas.
    *
    * @param startCoords - Coordenadas de inicio (ubicación del aventurero).
    * @param endCoords - Coordenadas del punto de interés seleccionado.
@@ -2474,7 +2485,7 @@ export class RpgMapEngine {
     const roadEnd = this.findNearestRoadWorldPixel(wEnd.x, wEnd.y, 48);
 
     // 2. Si entre roadStart y roadEnd ya se puede trazar una línea recta limpia por la calle/avenida:
-    if (this.isDirectLineOnRoad(roadStart, roadEnd, 5)) {
+    if (this.isDirectLineOnRoad(roadStart, roadEnd, 3)) {
       const waypoints = [
         { ...startCoords },
         this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
@@ -2495,13 +2506,15 @@ export class RpgMapEngine {
     const spanY = Math.abs(roadEnd.y - roadStart.y);
     const maxSpan = Math.max(spanX, spanY);
 
-    const step = Math.max(5, Math.min(8, Math.floor(maxSpan / 45)));
+    // Paso adaptativo: garantiza que la cuadrícula siempre tenga dimensiones razonables (<= 64 x 64)
+    // para que A* siempre explore y encuentre la ruta vial completa en tiempo récord sin exceder memoria
+    const step = Math.max(4, Math.ceil((maxSpan + pad * 2) / 60));
 
     const cols = Math.floor((maxX - minX) / step) + 1;
     const rows = Math.floor((maxY - minY) / step) + 1;
     const totalCells = cols * rows;
 
-    if (totalCells <= 1 || totalCells > 12000) {
+    if (totalCells <= 1) {
       return this.removeDuplicateWaypoints([
         { ...startCoords },
         this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
@@ -2518,7 +2531,7 @@ export class RpgMapEngine {
     const isRoadCell = (c: number, r: number): boolean => {
       const wx = minX + c * step;
       const wy = minY + r * step;
-      return this.isRoadNearWorldPixel(wx, wy, 4);
+      return this.isRoadNearWorldPixel(wx, wy, 3);
     };
 
     const startIndex = startRow * cols + startCol;
@@ -2544,7 +2557,7 @@ export class RpgMapEngine {
     const heap = new NavigationRouteMinHeap(fScore);
     heap.push(startIndex);
 
-    // 8 direcciones para adaptarse fielmente a calles ortogonales, diagonales y curvadas
+    // 4 direcciones ortogonales primarias más 4 diagonales
     const dCols = [0, 0, -1, 1, -1, 1, -1, 1];
     const dRows = [-1, 1, 0, 0, -1, -1, 1, 1];
     const dDists = [1.0, 1.0, 1.0, 1.0, 1.414, 1.414, 1.414, 1.414];
@@ -2553,7 +2566,7 @@ export class RpgMapEngine {
     let closestNode = startIndex;
     let minH = startH;
     let iters = 0;
-    const maxIters = 6000;
+    const maxIters = 5000;
 
     while (heap.size > 0 && iters < maxIters) {
       iters++;
@@ -2584,9 +2597,24 @@ export class RpgMapEngine {
         const neighbor = nRow * cols + nCol;
         if (closed[neighbor]) continue;
 
+        // PREVENCIÓN ESTRICTA DE CORTE DE ESQUINAS:
+        // Si el movimiento es diagonal (índices 4 a 7), EXIGIR que ambas celdas ortogonales adyacentes
+        // sean también calzadas transitables para evitar cortar a través de la esquina de las casas
+        if (i >= 4) {
+          const orthoCol = isRoadCell(nCol, curRow);
+          const orthoRow = isRoadCell(curCol, nRow);
+          if (!orthoCol || !orthoRow) {
+            continue; // Prohibido cortar esquinas de edificios
+          }
+        }
+
         const onRoad = isRoadCell(nCol, nRow);
-        // Costo vial preferencial: 1x sobre pista/avenida vs 80x fuera de vía
-        const terrainCost = onRoad ? 1.0 : 80.0;
+        // Costo vial intransitable fuera de calzada para impedir atravesar manzanas residenciales
+        if (!onRoad && neighbor !== endIndex && neighbor !== startIndex) {
+          continue; // No permitir transitar sobre manzanas urbanas / casas
+        }
+
+        const terrainCost = onRoad ? 1.0 : 5000.0;
         const tentativeG = currentG + step * dDists[i] * terrainCost;
 
         if (tentativeG < gScore[neighbor]) {
@@ -2599,57 +2627,178 @@ export class RpgMapEngine {
       }
     }
 
-    const targetEnd = found ? endIndex : closestNode;
-    const rawPoints: { x: number; y: number }[] = [];
-    let curr = targetEnd;
-    while (curr !== -1) {
-      const c = curr % cols;
-      const r = Math.floor(curr / cols);
-      rawPoints.push({
-        x: minX + c * step,
-        y: minY + r * step,
-      });
-      if (curr === startIndex) break;
-      curr = cameFrom[curr];
-    }
-    rawPoints.reverse();
-
-    if (rawPoints.length === 0) {
-      return [{ ...startCoords }, { ...endCoords }];
-    }
-
-    rawPoints[0] = { x: roadStart.x, y: roadStart.y };
+    // Si A* encontró la ruta continua por las calzadas:
     if (found) {
+      const rawPoints: { x: number; y: number }[] = [];
+      let curr = endIndex;
+      while (curr !== -1) {
+        const c = curr % cols;
+        const r = Math.floor(curr / cols);
+        rawPoints.push({
+          x: minX + c * step,
+          y: minY + r * step,
+        });
+        if (curr === startIndex) break;
+        curr = cameFrom[curr];
+      }
+      rawPoints.reverse();
+
+      rawPoints[0] = { x: roadStart.x, y: roadStart.y };
       rawPoints[rawPoints.length - 1] = { x: roadEnd.x, y: roadEnd.y };
-    }
 
-    // 4. Raycasting Greedy / String Pulling sobre las calzadas:
-    // Conecta con un tramo recto continuo cada calle hasta la esquina o giro real de la vía
-    const smoothPoints: { x: number; y: number }[] = [rawPoints[0]];
-    let currentIdx = 0;
+      // Raycasting estricto de tramos rectos por calzada:
+      // Conserva giros en intersecciones de 90° sin recortar esquinas ni atravesar manzanas
+      const smoothPoints: { x: number; y: number }[] = [rawPoints[0]];
+      let currentIdx = 0;
 
-    while (currentIdx < rawPoints.length - 1) {
-      let furthestIdx = currentIdx + 1;
-
-      // Buscar desde el punto más lejano posible hacia atrás el que mantenga visibilidad directa por pista
-      for (let nextIdx = rawPoints.length - 1; nextIdx > currentIdx; nextIdx--) {
-        if (this.isDirectLineOnRoad(rawPoints[currentIdx], rawPoints[nextIdx], 5)) {
-          furthestIdx = nextIdx;
-          break;
+      while (currentIdx < rawPoints.length - 1) {
+        let furthestIdx = currentIdx + 1;
+        for (let nextIdx = rawPoints.length - 1; nextIdx > currentIdx; nextIdx--) {
+          if (this.isDirectLineOnRoad(rawPoints[currentIdx], rawPoints[nextIdx], 3)) {
+            furthestIdx = nextIdx;
+            break;
+          }
         }
+        smoothPoints.push(rawPoints[furthestIdx]);
+        currentIdx = furthestIdx;
       }
 
-      smoothPoints.push(rawPoints[furthestIdx]);
-      currentIdx = furthestIdx;
+      const waypoints: GeoCoordinates[] = [
+        { ...startCoords },
+        ...smoothPoints.map((p) => this.worldPixelsToLatLng(p.x, p.y, this.zoom)),
+        { ...endCoords },
+      ];
+
+      return this.removeDuplicateWaypoints(waypoints);
     }
 
-    const waypoints: GeoCoordinates[] = [
+    // Si A* no pudo conectar de forma continua debido a vacíos de teselas no cargadas,
+    // generar un trazado ortogonal limpio por los ejes viales principales (estilo Manhattan / Damero)
+    // girando en las esquinas de avenidas y NUNCA en diagonal cortando manzanas
+    const cornerA = { x: roadStart.x, y: roadEnd.y };
+    const cornerB = { x: roadEnd.x, y: roadStart.y };
+
+    const isRoadA = this.isRoadNearWorldPixel(cornerA.x, cornerA.y, 12);
+    const corner = isRoadA ? cornerA : cornerB;
+
+    const orthogonalWaypoints: GeoCoordinates[] = [
       { ...startCoords },
-      ...smoothPoints.map((p) => this.worldPixelsToLatLng(p.x, p.y, this.zoom)),
+      this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+      this.worldPixelsToLatLng(corner.x, corner.y, this.zoom),
+      this.worldPixelsToLatLng(roadEnd.x, roadEnd.y, this.zoom),
       { ...endCoords },
     ];
 
-    return this.removeDuplicateWaypoints(waypoints);
+    return this.removeDuplicateWaypoints(orthogonalWaypoints);
+  }
+
+  /**
+   * Solicita de forma asíncrona la ruta de navegación real por las calzadas y avenidas
+   * a través del servicio oficial de enrutamiento peatonal de OpenStreetMap (OSRM).
+   * Al recibir la respuesta, actualiza la trayectoria con la geometría exacta de las calles.
+   *
+   * @param startCoords - Coordenadas iniciales del aventurero.
+   * @param targetCoords - Coordenadas del punto de interés de destino.
+   * @returns Promise<void>
+   */
+  public async requestStreetNavigationRoute(
+    startCoords: GeoCoordinates,
+    targetCoords: GeoCoordinates,
+  ): Promise<void> {
+    if (!startCoords || !targetCoords) return;
+
+    const reqId = ++this.currentNavigationRequestId;
+    const cacheKey = `${startCoords.lat.toFixed(4)},${startCoords.lng.toFixed(4)}_${targetCoords.lat.toFixed(4)},${targetCoords.lng.toFixed(4)}`;
+
+    if (this.navigationRouteCache.has(cacheKey)) {
+      const cached = this.navigationRouteCache.get(cacheKey)!;
+      if (this.navigationTargetCoords && reqId === this.currentNavigationRequestId) {
+        this.navigationRoutePath = [...cached];
+        this.renderNavigationRoute();
+      }
+      return;
+    }
+
+    const onlineRoute = await this.fetchOnlineStreetRoute(startCoords, targetCoords);
+    if (onlineRoute && onlineRoute.length >= 2 && reqId === this.currentNavigationRequestId && this.navigationTargetCoords) {
+      this.navigationRouteCache.set(cacheKey, onlineRoute);
+      // Limitar caché a 32 rutas recientes
+      if (this.navigationRouteCache.size > 32) {
+        const oldest = this.navigationRouteCache.keys().next().value;
+        if (oldest) this.navigationRouteCache.delete(oldest);
+      }
+      this.navigationRoutePath = onlineRoute;
+      this.renderNavigationRoute();
+    }
+  }
+
+  /**
+   * Consulta el servicio de enrutamiento vial de OpenStreetMap (OSRM) para obtener la secuencia
+   * exacta de puntos geográficos que recorren las aceras, calzadas y avenidas de la ciudad.
+   *
+   * @param startCoords - Coordenadas de origen.
+   * @param targetCoords - Coordenadas de destino.
+   * @returns Promise<GeoCoordinates[] | null> Lista de waypoints por las calles o null si no está disponible.
+   */
+  public async fetchOnlineStreetRoute(
+    startCoords: GeoCoordinates,
+    targetCoords: GeoCoordinates,
+  ): Promise<GeoCoordinates[] | null> {
+    if (typeof fetch === 'undefined') return null;
+
+    const url = `https://router.project-osrm.org/route/v1/foot/${startCoords.lng},${startCoords.lat};${targetCoords.lng},${targetCoords.lat}?overview=full&geometries=geojson`;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+
+    try {
+      const res = await fetch(url, {
+        signal: controller ? controller.signal : undefined,
+        headers: { 'User-Agent': 'VamooGame/1.0' },
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+        return null;
+      }
+
+      const rawCoords: [number, number][] = data.routes[0].geometry.coordinates;
+      if (!Array.isArray(rawCoords) || rawCoords.length < 2) {
+        return null;
+      }
+
+      const waypoints: GeoCoordinates[] = rawCoords.map(([lng, lat]) => ({
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+      }));
+
+      // Anclar fielmente el inicio en la posición del aventurero y el final en el POI exacto
+      waypoints[0] = { ...startCoords };
+      waypoints[waypoints.length - 1] = { ...targetCoords };
+
+      return this.removeDuplicateWaypoints(waypoints);
+    } catch {
+      if (timeoutId) clearTimeout(timeoutId);
+      return null;
+    }
+  }
+
+  /**
+   * Calcula la distancia total en metros acumulada a lo largo del trazado de navegación vial activo.
+   *
+   * @returns number Distancia acumulada en metros sobre las calles.
+   */
+  public getNavigationRouteDistanceMeters(): number {
+    if (this.navigationRoutePath.length < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < this.navigationRoutePath.length - 1; i++) {
+      total += RpgMapEngine.calculateDistanceMeters(
+        this.navigationRoutePath[i],
+        this.navigationRoutePath[i + 1],
+      );
+    }
+    return Math.round(total);
   }
 
   /**
@@ -2800,6 +2949,7 @@ export class RpgMapEngine {
     if (target) {
       const startCoords = this.userPosition || this.center;
       this.navigationRoutePath = this.calculateRoadNavigationRoute(startCoords, target);
+      this.requestStreetNavigationRoute(startCoords, target);
     } else {
       this.navigationRoutePath = [];
     }
@@ -2866,8 +3016,12 @@ export class RpgMapEngine {
     if (this.navigationTargetCoords) {
       const lastStart = this.navigationRoutePath[0];
       const moved = lastStart ? RpgMapEngine.calculateDistanceMeters(lastStart, coords) : 999;
-      if (moved >= 8) {
+      if (moved >= 10) {
         this.navigationRoutePath = this.calculateRoadNavigationRoute(coords, this.navigationTargetCoords);
+        this.requestStreetNavigationRoute(coords, this.navigationTargetCoords);
+        if (this.app && this.isInitialized) {
+          this.renderNavigationRoute();
+        }
       }
     }
 
@@ -3075,6 +3229,8 @@ export class RpgMapEngine {
 
     this.navRouteGraphics = null;
     this.navigationTargetCoords = null;
+    this.navigationRoutePath = [];
+    this.navigationRouteCache.clear();
 
     if (this.app) {
       try {
