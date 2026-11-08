@@ -155,6 +155,42 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Punto de interés actualmente seleccionado o inspeccionado */
   readonly selectedPoi = signal<RpgPoiLocation | null>(null);
 
+  /** Distancia en metros desde el usuario (o anclaje de búsqueda) hacia el POI seleccionado */
+  readonly selectedPoiDistanceMeters = computed(() => {
+    const poi = this.selectedPoi();
+    if (!poi) return 0;
+    const user = this.userCoords() || this.lastPoiAnchorCoords || { lat: -12.0681, lng: -75.2100 };
+    return Math.round(RpgMapEngine.calculateDistanceMeters(user, poi.coords));
+  });
+
+  /** Distancia formateada hacia el punto de interés seleccionado (ej. '95 m', '850 m') */
+  readonly selectedPoiFormattedDistance = computed(() => {
+    const m = this.selectedPoiDistanceMeters();
+    return RpgMapEngine.formatDistance(m);
+  });
+
+  /**
+   * Puntos de experiencia (XP) dinámicos que ganará el aventurero al llegar al lugar seleccionado.
+   * La recompensa escala con la lejanía respecto a la ubicación del usuario (de 30 XP hasta 150 XP).
+   */
+  readonly selectedPoiRewardXp = computed(() => {
+    const meters = this.selectedPoiDistanceMeters();
+    const base = 30;
+    const scaled = Math.round((meters / 1000) * 120);
+    return Math.max(30, Math.min(150, base + scaled));
+  });
+
+  /**
+   * Nivel y denominación de la travesía según la distancia hacia el lugar.
+   */
+  readonly selectedPoiRewardTier = computed(() => {
+    const meters = this.selectedPoiDistanceMeters();
+    if (meters <= 200) return { label: 'Paseo Cercano', icon: '🚶' };
+    if (meters <= 500) return { label: 'Exploración Local', icon: '🏃' };
+    if (meters <= 800) return { label: 'Expedición Zonal', icon: '🧭' };
+    return { label: 'Gran Travesía (1 km)', icon: '🏆' };
+  });
+
   /** Filtro de categoría temática de POI activa */
   readonly activePoiCategory = signal<RpgPoiCategory | 'all'>('all');
 
@@ -551,7 +587,8 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Selecciona un punto de interés, centra suavemente la cámara del mapa en su ubicación y activa su ficha informativa.
+   * Selecciona un punto de interés, centra suavemente la cámara del mapa en su ubicación,
+   * traza una ruta luminosa animada de navegación y activa la tarjeta superior de misión con recompensa XP.
    *
    * @param poi - Punto de interés seleccionado.
    * @returns void
@@ -561,15 +598,35 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
     this.autoFollow.set(false);
     this.mapCenter.set(poi.coords);
     this.rpgEngine?.setCenter(poi.coords, 19);
+    this.rpgEngine?.setNavigationTarget(poi.coords);
   }
 
   /**
-   * Cierra la ficha de información del punto de interés seleccionado.
+   * Cierra la ficha superior de información del punto de interés y cancela la ruta de navegación trazada.
    *
    * @returns void
    */
   clearSelectedPoi(): void {
     this.selectedPoi.set(null);
+    this.rpgEngine?.setNavigationTarget(null);
+  }
+
+  /**
+   * Retorna el color hexadecimal representativo de una categoría de punto de interés.
+   *
+   * @param category - Categoría del lugar.
+   * @returns string Color hexadecimal CSS.
+   */
+  getCategoryColorHex(category: string): string {
+    switch (category) {
+      case 'pharmacy': return '#ef4444';
+      case 'park': return '#10b981';
+      case 'school': return '#3b82f6';
+      case 'hotel': return '#f59e0b';
+      case 'store': return '#8b5cf6';
+      case 'hospital': return '#ec4899';
+      default: return '#0ea5e9';
+    }
   }
 
   /**

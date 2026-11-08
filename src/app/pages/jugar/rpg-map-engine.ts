@@ -157,6 +157,12 @@ export class RpgMapEngine {
   /** Capa gráfica dedicada para el trazado de expedición (Polyline RPG) */
   private trailGraphics: Graphics | null = null;
 
+  /** Capa gráfica dedicada para la ruta de navegación activa hacia el POI seleccionado */
+  private navRouteGraphics: Graphics | null = null;
+
+  /** Coordenadas de destino para la ruta de navegación activa */
+  private navigationTargetCoords: GeoCoordinates | null = null;
+
   /** Capa gráfica dedicada para el halo satelital de precisión */
   private accuracyGraphics: Graphics | null = null;
 
@@ -318,6 +324,7 @@ export class RpgMapEngine {
       this.tileContainer = new Container();
       this.decorationsGraphics = new Graphics();
       this.trailGraphics = new Graphics();
+      this.navRouteGraphics = new Graphics();
       this.accuracyGraphics = new Graphics();
       this.playerContainer = new Container();
       this.poiContainer = new Container();
@@ -328,6 +335,7 @@ export class RpgMapEngine {
       this.worldContainer.addChild(this.tileContainer);
       this.worldContainer.addChild(this.decorationsGraphics);
       this.worldContainer.addChild(this.trailGraphics);
+      this.worldContainer.addChild(this.navRouteGraphics);
       this.worldContainer.addChild(this.accuracyGraphics);
       this.worldContainer.addChild(this.playerContainer);
       this.worldContainer.addChild(this.poiContainer);
@@ -660,6 +668,9 @@ export class RpgMapEngine {
         .fill({ color: 0x10b981, alpha: currentAlpha })
         .stroke({ color: 0x059669, width: 1.5, alpha: currentAlpha * 1.5 });
     }
+
+    // 2.5. Renderizado continuo de la ruta activa de navegación hacia el POI seleccionado
+    this.renderNavigationRoute();
 
     // 3. Renderizado y actualización continua de marcadores de POI flotantes (HUD y terreno)
     this.renderPoiMarkers();
@@ -2211,6 +2222,124 @@ export class RpgMapEngine {
   }
 
   /**
+   * Renderiza una ruta luminosa animada de navegación RPG desde la posición del usuario
+   * hacia las coordenadas del punto de interés seleccionado.
+   */
+  private renderNavigationRoute(): void {
+    if (!this.navRouteGraphics) return;
+
+    if (!this.navigationTargetCoords) {
+      this.navRouteGraphics.clear();
+      return;
+    }
+
+    const startCoords = this.userPosition || this.center;
+    const endCoords = this.navigationTargetCoords;
+
+    const p1 = this.latLngToScreenPixels(startCoords.lat, startCoords.lng);
+    const p2 = this.latLngToScreenPixels(endCoords.lat, endCoords.lng);
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const distancePx = Math.hypot(dx, dy);
+
+    this.navRouteGraphics.clear();
+
+    if (distancePx < 6) return;
+
+    const ux = dx / distancePx;
+    const uy = dy / distancePx;
+
+    // 1. Sombra exterior oscura de alto contraste para destacar sobre cualquier terreno
+    this.navRouteGraphics.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).stroke({
+      color: 0x0f172a,
+      width: 7.5,
+      alpha: 0.75,
+      cap: 'round',
+    });
+
+    // 2. Línea guía base cian / turquesa brillante
+    this.navRouteGraphics.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).stroke({
+      color: 0x0284c7,
+      width: 4,
+      alpha: 0.85,
+      cap: 'round',
+    });
+
+    // 3. Segmentos animados de energía dorada / cian viajando a lo largo de la ruta
+    const dashLength = 14;
+    const gapLength = 10;
+    const totalCycle = dashLength + gapLength;
+    const animationSpeed = 35; // píxeles por segundo
+    const offset = (this.animationTime * animationSpeed) % totalCycle;
+
+    for (let d = offset; d < distancePx - 8; d += totalCycle) {
+      const segStart = Math.max(0, d);
+      const segEnd = Math.min(distancePx, d + dashLength);
+      if (segEnd > segStart) {
+        const sx = p1.x + ux * segStart;
+        const sy = p1.y + uy * segStart;
+        const ex = p1.x + ux * segEnd;
+        const ey = p1.y + uy * segEnd;
+
+        this.navRouteGraphics.moveTo(sx, sy).lineTo(ex, ey).stroke({
+          color: 0x38bdf8,
+          width: 2.6,
+          alpha: 0.95,
+          cap: 'round',
+        });
+      }
+    }
+
+    // 4. Baliza o anillo de destino pulsante en el objetivo
+    const pulsePhase = (Math.sin(this.animationTime * 4.5) + 1) / 2;
+    const targetRingRadius = 14 + pulsePhase * 8;
+    const targetRingAlpha = 0.8 - pulsePhase * 0.5;
+
+    this.navRouteGraphics.circle(p2.x, p2.y, targetRingRadius).stroke({
+      color: 0x38bdf8,
+      width: 2,
+      alpha: targetRingAlpha,
+    });
+    this.navRouteGraphics.circle(p2.x, p2.y, 6).fill({
+      color: 0x38bdf8,
+      alpha: 0.85,
+    }).stroke({
+      color: 0xffffff,
+      width: 1.5,
+    });
+
+    // 5. Pequeño punto de salida en la posición del aventurero
+    this.navRouteGraphics.circle(p1.x, p1.y, 4).fill({
+      color: 0xfacc15,
+      alpha: 0.9,
+    });
+  }
+
+  /**
+   * Establece las coordenadas objetivo para trazar una ruta luminosa activa de navegación.
+   * Si se pasa null, la ruta de navegación se elimina.
+   *
+   * @param target - Coordenadas geográficas del objetivo o null.
+   * @returns void
+   */
+  public setNavigationTarget(target: GeoCoordinates | null): void {
+    this.navigationTargetCoords = target ? { ...target } : null;
+    if (this.app && this.isInitialized) {
+      this.renderNavigationRoute();
+    }
+  }
+
+  /**
+   * Retorna las coordenadas del objetivo de navegación actual, o null si no hay ruta activa.
+   *
+   * @returns GeoCoordinates | null
+   */
+  public getNavigationTarget(): GeoCoordinates | null {
+    return this.navigationTargetCoords ? { ...this.navigationTargetCoords } : null;
+  }
+
+  /**
    * Actualiza la posición del contenedor del jugador sobre la pantalla en función de su GPS actual.
    *
    * @returns void
@@ -2448,6 +2577,9 @@ export class RpgMapEngine {
       }
       this.decorationsGraphics = null;
     }
+
+    this.navRouteGraphics = null;
+    this.navigationTargetCoords = null;
 
     if (this.app) {
       try {

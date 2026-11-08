@@ -350,5 +350,17 @@ describe('RpgMapEngine', () => {
     engine.clearPoiLocations();
     expect(engine.getPoiLocations().length).toBe(0);
   });
+
+  it('debe establecer y limpiar las coordenadas objetivo para la ruta de navegación activa', () => {
+    expect(engine.getNavigationTarget()).toBeNull();
+
+    const targetCoords = { lat: -12.0681, lng: -75.2100 };
+    engine.setNavigationTarget(targetCoords);
+    expect(engine.getNavigationTarget()?.lat).toBe(targetCoords.lat);
+    expect(engine.getNavigationTarget()?.lng).toBe(targetCoords.lng);
+
+    engine.setNavigationTarget(null);
+    expect(engine.getNavigationTarget()).toBeNull();
+  });
 });
 

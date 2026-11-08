@@ -154,17 +154,58 @@
               <!-- Malla de micro-píxeles y scanlines estilo pantalla GameBoy Advance / Nintendo DS -->
               <div class="pokemon-dither-overlay" aria-hidden="true"></div>
 
-              <!-- Cartel Clásico de Ruta / Pueblo Pokémon -->
-              <div class="pokemon-route-banner" role="status" aria-label="Ruta Actual">
-                <div class="route-banner-border">
-                  <span class="route-icon">🌿</span>
-                  <div class="route-info">
-                    <span class="route-town-title">HUANCAYO • VALLE ANDINO</span>
-                    <span class="route-street-label">📍 ZONA DE EXPEDICIÓN • SECTOR SANTA ISABEL</span>
+              <!-- Cartel Superior: Ruta Activa hacia el Lugar Seleccionado O Cartel Clásico de Ruta Pokémon -->
+              @if (selectedPoi(); as poi) {
+                <div class="poi-active-route-hud animate-slide-down" role="region" aria-label="Ruta activa hacia el lugar seleccionado">
+                  <div class="route-hud-inner">
+                    <!-- Icono temático del lugar -->
+                    <div class="route-hud-badge" [style.background-color]="getCategoryColorHex(poi.category)">
+                      <span class="route-hud-icon">{{ poi.icon || '📍' }}</span>
+                    </div>
+
+                    <!-- Datos principales: Nombre, Distancia y Breve Descripción -->
+                    <div class="route-hud-details">
+                      <div class="route-hud-meta">
+                        <span class="route-hud-tag">🎯 RUTA ACTIVA</span>
+                        <span class="route-hud-distance">📍 A {{ selectedPoiFormattedDistance() }}</span>
+                        <span class="route-hud-tier">{{ selectedPoiRewardTier().icon }} {{ selectedPoiRewardTier().label }}</span>
+                      </div>
+                      <h3 class="route-hud-title">{{ poi.name }}</h3>
+                      <p class="route-hud-desc">{{ poi.subtitle || 'Punto de interés georreferenciado dentro del radio de 1 km' }}</p>
+                    </div>
+
+                    <!-- Caja de Recompensa XP según lejanía del usuario -->
+                    <div class="route-hud-reward">
+                      <span class="reward-title">AL LLEGAR:</span>
+                      <div class="reward-xp-pill">
+                        <span class="star-icon">⭐</span>
+                        <span class="xp-val">+{{ selectedPoiRewardXp() }} XP</span>
+                      </div>
+                    </div>
+
+                    <!-- Botón de cancelar ruta -->
+                    <button 
+                      type="button" 
+                      class="btn-cancel-route" 
+                      (click)="clearSelectedPoi()" 
+                      title="Cancelar ruta guiada">
+                      ✕
+                    </button>
                   </div>
-                  <span class="route-badge-lvl">LV. {{ mapZoom() }}</span>
                 </div>
-              </div>
+              } @else {
+                <!-- Cartel Clásico de Ruta / Pueblo Pokémon -->
+                <div class="pokemon-route-banner" role="status" aria-label="Ruta Actual">
+                  <div class="route-banner-border">
+                    <span class="route-icon">🌿</span>
+                    <div class="route-info">
+                      <span class="route-town-title">HUANCAYO • VALLE ANDINO</span>
+                      <span class="route-street-label">📍 ZONA DE EXPEDICIÓN • SECTOR SANTA ISABEL</span>
+                    </div>
+                    <span class="route-badge-lvl">LV. {{ mapZoom() }}</span>
+                  </div>
+                </div>
+              }
 
               <!-- Mini Brújula Pokéball de Orientación Norte -->
               <div class="pokemon-compass" title="Brújula de Orientación Norte">
@@ -221,24 +262,7 @@
                 </button>
               </div>
 
-              <!-- Tarjeta Flotante al Seleccionar un Punto de Interés (POI) -->
-              @if (selectedPoi(); as poi) {
-                <div class="poi-floating-card animate-pop-in" role="dialog" aria-label="Lugar de Interés">
-                  <div class="poi-card-header">
-                    <span class="poi-card-icon">{{ poi.icon || '📍' }}</span>
-                    <div class="poi-card-info">
-                      <span class="poi-card-name">{{ poi.name }}</span>
-                      <span class="poi-card-subtitle">{{ poi.subtitle || 'Punto de interés cercano' }}</span>
-                    </div>
-                    <button type="button" class="btn-close-poi" (click)="clearSelectedPoi()" title="Cerrar">✕</button>
-                  </div>
-                  <div class="poi-card-actions">
-                    <button type="button" class="btn-focus-poi" (click)="selectPoi(poi)">
-                      <span>🎯 ENFOCAR EN MAPA</span>
-                    </button>
-                  </div>
-                </div>
-              }
+
 
               <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
               <div class="map-overlay-drag-hint">

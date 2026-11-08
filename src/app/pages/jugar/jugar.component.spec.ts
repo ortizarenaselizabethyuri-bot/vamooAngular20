@@ -188,4 +188,37 @@ describe('JugarComponent', () => {
       expect(d).toBeLessThanOrEqual(1000);
     }
   });
+
+  it('debe calcular la distancia formateada y la recompensa dinámica en XP al seleccionar un POI', () => {
+    component.geoService.recordLocation({ lat: -12.0681, lng: -75.2100 });
+    component.mapCenter.set({ lat: -12.0681, lng: -75.2100 });
+    const targetPoi = {
+      id: 'poi-test',
+      name: 'Lugar de Prueba',
+      category: 'park' as const,
+      coords: { lat: -12.0721, lng: -75.2100 }, // ~440 metros al sur
+      icon: '🌳',
+      subtitle: 'Descripción breve de prueba',
+    };
+
+    component.selectPoi(targetPoi);
+
+    expect(component.selectedPoi()?.id).toBe('poi-test');
+    expect(component.selectedPoiDistanceMeters()).toBeGreaterThan(300);
+    expect(component.selectedPoiDistanceMeters()).toBeLessThan(600);
+    expect(component.selectedPoiFormattedDistance()).toContain('m');
+
+    // La recompensa en XP debe escalar con la distancia (mínimo 30 XP, mayor a mayor distancia)
+    const xpReward = component.selectedPoiRewardXp();
+    expect(xpReward).toBeGreaterThanOrEqual(30);
+    expect(xpReward).toBeLessThanOrEqual(150);
+
+    const tier = component.selectedPoiRewardTier();
+    expect(tier.label.length).toBeGreaterThan(0);
+    expect(tier.icon.length).toBeGreaterThan(0);
+
+    // Al limpiar la selección, la distancia es 0
+    component.clearSelectedPoi();
+    expect(component.selectedPoiDistanceMeters()).toBe(0);
+  });
 });
