@@ -390,5 +390,12 @@ describe('RpgMapEngine', () => {
       expect(Number.isFinite(pt.lng)).toBe(true);
     }
   });
+
+  it('debe evaluar visibilidad directa vial con isDirectLineOnRoad y isStraightRoadSegmentClear', () => {
+    const p1 = { x: 100, y: 100 };
+    const p2 = { x: 105, y: 105 };
+    expect(engine.isDirectLineOnRoad(p1, p2, 8)).toBe(true);
+    expect(engine.isStraightRoadSegmentClear(p1, p2, 8)).toBe(true);
+  });
 });
 
