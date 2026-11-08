@@ -378,5 +378,17 @@ describe('RpgMapEngine', () => {
     expect(route[0].lat).toBeCloseTo(start.lat, 4);
     expect(route[route.length - 1].lat).toBeCloseTo(end.lat, 4);
   });
+
+  it('debe calcular tramos rectos de navegación como Google Maps conectando esquinas', () => {
+    const start = { lat: -12.0681, lng: -75.2100 };
+    const end = { lat: -12.0710, lng: -75.2140 };
+    const route = engine.calculateRoadNavigationRoute(start, end);
+
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    for (const pt of route) {
+      expect(Number.isFinite(pt.lat)).toBe(true);
+      expect(Number.isFinite(pt.lng)).toBe(true);
+    }
+  });
 });
 

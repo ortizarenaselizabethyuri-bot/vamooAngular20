@@ -2287,14 +2287,112 @@ export class RpgMapEngine {
   }
 
   /**
-   * Calcula un trazado de navegación guiado por las pistas (calzadas y calles de OpenStreetMap)
-   * conectando de forma directa y óptima el punto de origen con el objetivo.
-   * Utiliza el muestreo de terreno del motor para priorizar el tránsito sobre carreteras
-   * evitando atravesar manzanas de casas o edificios de manera diagonal irreal.
+   * Verifica si un punto en píxeles del mundo en el nivel de zoom actual corresponde a una calzada o calle.
+   *
+   * @param wx - Coordenada X absoluta en proyección Web Mercator.
+   * @param wy - Coordenada Y absoluta en proyección Web Mercator.
+   * @param zoom - Nivel de zoom a evaluar.
+   * @returns boolean - true si el píxel corresponde a carretera o calle.
+   */
+  public isRoadAtWorldPixel(wx: number, wy: number, zoom: number = this.zoom): boolean {
+    const tileX = Math.floor(wx / 256);
+    const tileY = Math.floor(wy / 256);
+    const localX = Math.floor(((wx % 256) + 256) % 256);
+    const localY = Math.floor(((wy % 256) + 256) % 256);
+    const key = `${zoom}_${tileX}_${tileY}`;
+    return this.sampleTileTerrain(key, localX, localY) === 'road';
+  }
+
+  /**
+   * Busca el punto de calzada o calle más cercano alrededor de una coordenada del mundo (street snapping).
+   *
+   * @param wx - Coordenada X de origen.
+   * @param wy - Coordenada Y de origen.
+   * @param maxRadius - Radio máximo de búsqueda en píxeles.
+   * @returns { x: number, y: number } Coordenadas de la calzada más cercana.
+   */
+  public findNearestRoadWorldPixel(
+    wx: number,
+    wy: number,
+    maxRadius: number = 48,
+  ): { x: number; y: number } {
+    if (this.isRoadAtWorldPixel(wx, wy)) {
+      return { x: wx, y: wy };
+    }
+
+    const step = 6;
+    for (let r = step; r <= maxRadius; r += step) {
+      const samples = Math.max(8, Math.floor((2 * Math.PI * r) / step));
+      for (let i = 0; i < samples; i++) {
+        const angle = (i * 2 * Math.PI) / samples;
+        const cx = Math.round(wx + Math.cos(angle) * r);
+        const cy = Math.round(wy + Math.sin(angle) * r);
+        if (this.isRoadAtWorldPixel(cx, cy)) {
+          return { x: cx, y: cy };
+        }
+      }
+    }
+
+    return { x: wx, y: wy };
+  }
+
+  /**
+   * Evalúa si un tramo recto entre dos puntos del mapa transcurre predominantemente sobre calzadas o calles
+   * sin atravesar manzanas residenciales, casas o edificios de manera irregular.
+   *
+   * @param p1 - Punto inicial en píxeles del mundo.
+   * @param p2 - Punto final en píxeles del mundo.
+   * @returns boolean - true si el tramo es recto y viable sobre la red de calles.
+   */
+  public isStraightRoadSegmentClear(
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
+  ): boolean {
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (dist <= 16) return true;
+
+    const sampleStep = 10;
+    const numSamples = Math.max(2, Math.floor(dist / sampleStep));
+    let roadHits = 0;
+
+    for (let i = 1; i < numSamples; i++) {
+      const t = i / numSamples;
+      const sx = p1.x + (p2.x - p1.x) * t;
+      const sy = p1.y + (p2.y - p1.y) * t;
+
+      if (this.isRoadAtWorldPixel(sx, sy)) {
+        roadHits++;
+      }
+    }
+
+    const interiorSamples = numSamples - 1;
+    return interiorSamples === 0 || roadHits / interiorSamples >= 0.65;
+  }
+
+  /**
+   * Elimina waypoints consecutivos prácticamente idénticos (< 2 metros) para evitar artefactos visuales.
+   */
+  private removeDuplicateWaypoints(points: GeoCoordinates[]): GeoCoordinates[] {
+    if (points.length <= 1) return points;
+    const clean: GeoCoordinates[] = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      const prev = clean[clean.length - 1];
+      const curr = points[i];
+      const d = RpgMapEngine.calculateDistanceMeters(prev, curr);
+      if (d >= 2 || i === points.length - 1) {
+        clean.push(curr);
+      }
+    }
+    return clean;
+  }
+
+  /**
+   * Calcula un trazado de navegación con tramos rectos limpios estilo Google Maps
+   * que transcurren a lo largo de las calles y avenidas de la ciudad.
    *
    * @param startCoords - Coordenadas de inicio (ubicación del aventurero).
    * @param endCoords - Coordenadas del punto de interés seleccionado.
-   * @returns GeoCoordinates[] Lista de puntos ordenados que forman la ruta por las pistas.
+   * @returns GeoCoordinates[] Lista de puntos ordenados que forman tramos rectos por las calles.
    */
   public calculateRoadNavigationRoute(
     startCoords: GeoCoordinates,
@@ -2303,54 +2401,111 @@ export class RpgMapEngine {
     if (!startCoords || !endCoords) return [];
 
     const distMeters = RpgMapEngine.calculateDistanceMeters(startCoords, endCoords);
-    if (distMeters < 5) {
+    if (distMeters < 8) {
       return [{ ...startCoords }, { ...endCoords }];
     }
 
     const wStart = this.latLngToWorldPixels(startCoords.lat, startCoords.lng, this.zoom);
     const wEnd = this.latLngToWorldPixels(endCoords.lat, endCoords.lng, this.zoom);
 
-    const pad = 120;
-    const minX = Math.min(wStart.x, wEnd.x) - pad;
-    const maxX = Math.max(wStart.x, wEnd.x) + pad;
-    const minY = Math.min(wStart.y, wEnd.y) - pad;
-    const maxY = Math.max(wStart.y, wEnd.y) + pad;
+    // 1. Encontrar los puntos de enganche a la calzada más cercanos (street snapping)
+    const roadStart = this.findNearestRoadWorldPixel(wStart.x, wStart.y, 40);
+    const roadEnd = this.findNearestRoadWorldPixel(wEnd.x, wEnd.y, 40);
 
-    const spanX = Math.abs(wEnd.x - wStart.x);
-    const spanY = Math.abs(wEnd.y - wStart.y);
+    // 2. Si entre roadStart y roadEnd ya se puede trazar una línea recta limpia por la calle:
+    if (this.isStraightRoadSegmentClear(roadStart, roadEnd)) {
+      const waypoints = [
+        { ...startCoords },
+        this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+        this.worldPixelsToLatLng(roadEnd.x, roadEnd.y, this.zoom),
+        { ...endCoords },
+      ];
+      return this.removeDuplicateWaypoints(waypoints);
+    }
+
+    // 3. Evaluar esquinas directas ortogonales de 2 tramos rectos estilo Google Maps:
+    // Opción A: horizontal por calle de origen hasta la avenida del destino, luego vertical
+    // Opción B: vertical por avenida de origen hasta la calle del destino, luego horizontal
+    const cornerA = { x: roadEnd.x, y: roadStart.y };
+    const cornerB = { x: roadStart.x, y: roadEnd.y };
+
+    const clearA1 = this.isStraightRoadSegmentClear(roadStart, cornerA);
+    const clearA2 = this.isStraightRoadSegmentClear(cornerA, roadEnd);
+
+    const clearB1 = this.isStraightRoadSegmentClear(roadStart, cornerB);
+    const clearB2 = this.isStraightRoadSegmentClear(cornerB, roadEnd);
+
+    if (clearA1 && clearA2) {
+      const waypoints = [
+        { ...startCoords },
+        this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+        this.worldPixelsToLatLng(cornerA.x, cornerA.y, this.zoom),
+        this.worldPixelsToLatLng(roadEnd.x, roadEnd.y, this.zoom),
+        { ...endCoords },
+      ];
+      return this.removeDuplicateWaypoints(waypoints);
+    }
+
+    if (clearB1 && clearB2) {
+      const waypoints = [
+        { ...startCoords },
+        this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+        this.worldPixelsToLatLng(cornerB.x, cornerB.y, this.zoom),
+        this.worldPixelsToLatLng(roadEnd.x, roadEnd.y, this.zoom),
+        { ...endCoords },
+      ];
+      return this.removeDuplicateWaypoints(waypoints);
+    }
+
+    // 4. Si requiere atravesar más intersecciones (múltiples manzanas),
+    // ejecutar búsqueda A* ortogonal (4 direcciones cardinales) sobre las pistas
+    const pad = 96;
+    const minX = Math.min(roadStart.x, roadEnd.x) - pad;
+    const maxX = Math.max(roadStart.x, roadEnd.x) + pad;
+    const minY = Math.min(roadStart.y, roadEnd.y) - pad;
+    const maxY = Math.max(roadStart.y, roadEnd.y) + pad;
+
+    const spanX = Math.abs(roadEnd.x - roadStart.x);
+    const spanY = Math.abs(roadEnd.y - roadStart.y);
     const maxSpan = Math.max(spanX, spanY);
 
-    const step = Math.max(14, Math.min(28, Math.floor(maxSpan / 45)));
+    const step = Math.max(14, Math.min(24, Math.floor(maxSpan / 35)));
 
     const cols = Math.floor((maxX - minX) / step) + 1;
     const rows = Math.floor((maxY - minY) / step) + 1;
     const totalCells = cols * rows;
 
     if (totalCells <= 1 || totalCells > 9000) {
-      return [{ ...startCoords }, { ...endCoords }];
+      const corner = Math.abs(roadEnd.x - roadStart.x) > Math.abs(roadEnd.y - roadStart.y) ? cornerA : cornerB;
+      return this.removeDuplicateWaypoints([
+        { ...startCoords },
+        this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+        this.worldPixelsToLatLng(corner.x, corner.y, this.zoom),
+        this.worldPixelsToLatLng(roadEnd.x, roadEnd.y, this.zoom),
+        { ...endCoords },
+      ]);
     }
 
-    const startCol = Math.max(0, Math.min(cols - 1, Math.round((wStart.x - minX) / step)));
-    const startRow = Math.max(0, Math.min(rows - 1, Math.round((wStart.y - minY) / step)));
-    const endCol = Math.max(0, Math.min(cols - 1, Math.round((wEnd.x - minX) / step)));
-    const endRow = Math.max(0, Math.min(rows - 1, Math.round((wEnd.y - minY) / step)));
+    const startCol = Math.max(0, Math.min(cols - 1, Math.round((roadStart.x - minX) / step)));
+    const startRow = Math.max(0, Math.min(rows - 1, Math.round((roadStart.y - minY) / step)));
+    const endCol = Math.max(0, Math.min(cols - 1, Math.round((roadEnd.x - minX) / step)));
+    const endRow = Math.max(0, Math.min(rows - 1, Math.round((roadEnd.y - minY) / step)));
 
     const isRoadCell = (c: number, r: number): boolean => {
       const wx = minX + c * step;
       const wy = minY + r * step;
-      const tileX = Math.floor(wx / 256);
-      const tileY = Math.floor(wy / 256);
-      const localX = Math.floor(((wx % 256) + 256) % 256);
-      const localY = Math.floor(((wy % 256) + 256) % 256);
-      const key = `${this.zoom}_${tileX}_${tileY}`;
-      return this.sampleTileTerrain(key, localX, localY) === 'road';
+      return this.isRoadAtWorldPixel(wx, wy);
     };
 
     const startIndex = startRow * cols + startCol;
     const endIndex = endRow * cols + endCol;
 
     if (startIndex === endIndex) {
-      return [{ ...startCoords }, { ...endCoords }];
+      return this.removeDuplicateWaypoints([
+        { ...startCoords },
+        this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
+        { ...endCoords },
+      ]);
     }
 
     const gScore = new Float32Array(totalCells).fill(Infinity);
@@ -2359,20 +2514,21 @@ export class RpgMapEngine {
     const closed = new Uint8Array(totalCells);
 
     gScore[startIndex] = 0;
-    fScore[startIndex] = Math.hypot(endCol - startCol, endRow - startRow) * step;
+    // Heurística Manhattan (|dx| + |dy|) que favorece tramos ortogonales rectos a lo largo de calles
+    fScore[startIndex] = (Math.abs(endCol - startCol) + Math.abs(endRow - startRow)) * step;
 
     const heap = new NavigationRouteMinHeap(fScore);
     heap.push(startIndex);
 
-    const dCols = [0, 0, -1, 1, -1, 1, -1, 1];
-    const dRows = [-1, 1, 0, 0, -1, -1, 1, 1];
-    const dCosts = [1.0, 1.0, 1.0, 1.0, 1.414, 1.414, 1.414, 1.414];
+    // SOLO 4 DIRECCIONES CARDINALES (ORTOGONALES): Sin diagonales que provoquen "escaleras" o irregularidades
+    const dCols = [0, 0, -1, 1];
+    const dRows = [-1, 1, 0, 0];
 
     let found = false;
     let closestNode = startIndex;
     let minH = fScore[startIndex];
     let iters = 0;
-    const maxIters = 4500;
+    const maxIters = 4000;
 
     while (heap.size > 0 && iters < maxIters) {
       iters++;
@@ -2389,13 +2545,13 @@ export class RpgMapEngine {
       const curRow = Math.floor(current / cols);
       const currentG = gScore[current];
 
-      const hCurrent = Math.hypot(endCol - curCol, endRow - curRow);
+      const hCurrent = (Math.abs(endCol - curCol) + Math.abs(endRow - curRow)) * step;
       if (hCurrent < minH) {
         minH = hCurrent;
         closestNode = current;
       }
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 4; i++) {
         const nCol = curCol + dCols[i];
         const nRow = curRow + dRows[i];
 
@@ -2404,13 +2560,13 @@ export class RpgMapEngine {
         if (closed[neighbor]) continue;
 
         const onRoad = isRoadCell(nCol, nRow);
-        const terrainCost = onRoad ? 1.0 : 20.0;
-        const tentativeG = currentG + dCosts[i] * step * terrainCost;
+        const terrainCost = onRoad ? 1.0 : 25.0;
+        const tentativeG = currentG + step * terrainCost;
 
         if (tentativeG < gScore[neighbor]) {
           cameFrom[neighbor] = current;
           gScore[neighbor] = tentativeG;
-          const h = Math.hypot(endCol - nCol, endRow - nRow) * step;
+          const h = (Math.abs(endCol - nCol) + Math.abs(endRow - nRow)) * step;
           fScore[neighbor] = tentativeG + h;
           heap.push(neighbor);
         }
@@ -2436,37 +2592,59 @@ export class RpgMapEngine {
       return [{ ...startCoords }, { ...endCoords }];
     }
 
-    const simplified: { x: number; y: number }[] = [rawPoints[0]];
-    for (let i = 1; i < rawPoints.length - 1; i++) {
-      const prev = simplified[simplified.length - 1];
-      const cur = rawPoints[i];
-      const next = rawPoints[i + 1];
+    // 5. Raycasting Greedy / String Pulling:
+    // Elimina todas las celdas intermedias y traza líneas rectas continuas máximas
+    // conectando esquinas directamente (estilo Google Maps)
+    const smoothPoints: { x: number; y: number }[] = [rawPoints[0]];
+    let currentIdx = 0;
 
-      const dx1 = cur.x - prev.x;
-      const dy1 = cur.y - prev.y;
-      const dx2 = next.x - cur.x;
-      const dy2 = next.y - cur.y;
+    while (currentIdx < rawPoints.length - 1) {
+      let nextIdx = rawPoints.length - 1;
+      let connected = false;
 
-      const cross = Math.abs(dx1 * dy2 - dy1 * dx2);
-      const dot = dx1 * dx2 + dy1 * dy2;
-      const lenSq1 = dx1 * dx1 + dy1 * dy1;
-      const lenSq2 = dx2 * dx2 + dy2 * dy2;
+      while (nextIdx > currentIdx + 1) {
+        if (this.isStraightRoadSegmentClear(rawPoints[currentIdx], rawPoints[nextIdx])) {
+          smoothPoints.push(rawPoints[nextIdx]);
+          currentIdx = nextIdx;
+          connected = true;
+          break;
+        }
+        nextIdx--;
+      }
 
-      if (cross / Math.sqrt(Math.max(1, lenSq1 * lenSq2)) > 0.12 || dot < 0) {
-        simplified.push(cur);
+      if (!connected) {
+        smoothPoints.push(rawPoints[currentIdx + 1]);
+        currentIdx++;
       }
     }
-    if (rawPoints.length > 1) {
-      simplified.push(rawPoints[rawPoints.length - 1]);
+
+    // 6. Ortogonalización y enderezado final de tramos rectos
+    for (let i = 1; i < smoothPoints.length - 1; i++) {
+      const pPrev = smoothPoints[i - 1];
+      const pCur = smoothPoints[i];
+      const pNext = smoothPoints[i + 1];
+
+      const dxPrev = Math.abs(pCur.x - pPrev.x);
+      const dyPrev = Math.abs(pCur.y - pPrev.y);
+      const dxNext = Math.abs(pNext.x - pCur.x);
+      const dyNext = Math.abs(pNext.y - pCur.y);
+
+      if (dxPrev > dyPrev * 2 && dyNext > dxNext * 2) {
+        pCur.y = pPrev.y;
+        pCur.x = pNext.x;
+      } else if (dyPrev > dxPrev * 2 && dxNext > dyNext * 2) {
+        pCur.x = pPrev.x;
+        pCur.y = pNext.y;
+      }
     }
 
     const waypoints: GeoCoordinates[] = [
       { ...startCoords },
-      ...simplified.map((p) => this.worldPixelsToLatLng(p.x, p.y, this.zoom)),
+      ...smoothPoints.map((p) => this.worldPixelsToLatLng(p.x, p.y, this.zoom)),
       { ...endCoords },
     ];
 
-    return waypoints;
+    return this.removeDuplicateWaypoints(waypoints);
   }
 
   /**
@@ -2497,20 +2675,33 @@ export class RpgMapEngine {
     this.navRouteGraphics.stroke({
       color: 0x0f172a,
       width: 7.5,
-      alpha: 0.75,
+      alpha: 0.8,
       cap: 'round',
       join: 'round',
     });
 
-    // 2. Línea guía base cian / turquesa brillante sobre las pistas
+    // 2. Línea vial sólida azul estilo Google Maps sobre las pistas y avenidas
     this.navRouteGraphics.moveTo(screenPoints[0].x, screenPoints[0].y);
     for (let i = 1; i < screenPoints.length; i++) {
       this.navRouteGraphics.lineTo(screenPoints[i].x, screenPoints[i].y);
     }
     this.navRouteGraphics.stroke({
-      color: 0x0284c7,
-      width: 4,
-      alpha: 0.85,
+      color: 0x2563eb,
+      width: 4.8,
+      alpha: 0.95,
+      cap: 'round',
+      join: 'round',
+    });
+
+    // 2b. Filamento central cian luminoso
+    this.navRouteGraphics.moveTo(screenPoints[0].x, screenPoints[0].y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      this.navRouteGraphics.lineTo(screenPoints[i].x, screenPoints[i].y);
+    }
+    this.navRouteGraphics.stroke({
+      color: 0x38bdf8,
+      width: 2.2,
+      alpha: 0.9,
       cap: 'round',
       join: 'round',
     });
