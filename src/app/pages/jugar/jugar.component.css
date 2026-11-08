@@ -1203,22 +1203,18 @@
 }
 
 /* ==========================================================================
-   BANNER SUPERIOR DE RUTA ACTIVA & RECOMPENSA XP (POI SELECCIONADO)
+   PANEL SUPERIOR: DATOS DEL LUGAR & RUTA ACTIVA (FUERA DEL MAPA)
    ========================================================================== */
-.poi-active-route-hud {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
-  max-width: 640px;
-  margin: 0 auto;
-  z-index: 25;
-  animation: slideDownHud 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+.poi-route-top-panel {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+  animation: slideDownPanel 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideDownHud {
+@keyframes slideDownPanel {
   from {
-    transform: translateY(-20px);
+    transform: translateY(-12px);
     opacity: 0;
   }
   to {
@@ -1227,7 +1223,7 @@
   }
 }
 
-.route-hud-inner {
+.route-panel-inner {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1236,12 +1232,11 @@
   border-radius: 8px;
   padding: 8px 12px;
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.65),
-    0 0 16px rgba(56, 189, 248, 0.3);
-  backdrop-filter: blur(8px);
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    0 0 14px rgba(56, 189, 248, 0.25);
 }
 
-.route-hud-badge {
+.route-panel-badge {
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -1253,11 +1248,11 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-.route-hud-icon {
+.route-panel-icon {
   font-size: 1.25rem;
 }
 
-.route-hud-details {
+.route-panel-details {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1265,14 +1260,14 @@
   gap: 2px;
 }
 
-.route-hud-meta {
+.route-panel-meta {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.route-hud-tag {
+.route-panel-tag {
   font-family: var(--font-pixel), monospace;
   font-size: 0.5rem;
   font-weight: bold;
@@ -1284,20 +1279,20 @@
   letter-spacing: 0.3px;
 }
 
-.route-hud-distance {
+.route-panel-distance {
   font-family: var(--font-pixel), monospace;
   font-size: 0.55rem;
   font-weight: bold;
   color: #facc15;
 }
 
-.route-hud-tier {
+.route-panel-tier {
   font-family: var(--font-pixel), monospace;
   font-size: 0.5rem;
   color: #94a3b8;
 }
 
-.route-hud-title {
+.route-panel-title {
   margin: 0;
   font-family: var(--font-pixel), monospace;
   font-size: 0.72rem;
@@ -1309,7 +1304,7 @@
   letter-spacing: 0.2px;
 }
 
-.route-hud-desc {
+.route-panel-desc {
   margin: 0;
   font-family: var(--font-pixel), monospace;
   font-size: 0.52rem;
@@ -1319,7 +1314,7 @@
   text-overflow: ellipsis;
 }
 
-.route-hud-reward {
+.route-panel-reward {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1358,6 +1353,28 @@
   text-shadow: 0 0 6px rgba(250, 204, 21, 0.5);
 }
 
+.btn-focus-poi {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.55rem;
+  font-weight: bold;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.btn-focus-poi:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
 .btn-cancel-route {
   background: transparent;
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -1382,26 +1399,24 @@
 }
 
 @media (max-width: 600px) {
-  .poi-active-route-hud {
-    top: 6px;
-    left: 6px;
-    right: 6px;
-  }
-  .route-hud-inner {
+  .route-panel-inner {
     padding: 6px 8px;
     gap: 6px;
   }
-  .route-hud-badge {
+  .route-panel-badge {
     width: 28px;
     height: 28px;
   }
-  .route-hud-icon {
+  .route-panel-icon {
     font-size: 1rem;
   }
-  .route-hud-title {
+  .route-panel-title {
     font-size: 0.65rem;
   }
-  .route-hud-desc {
+  .route-panel-desc {
+    display: none;
+  }
+  .btn-focus-poi .btn-focus-text {
     display: none;
   }
   .reward-xp-pill .xp-val {

@@ -115,6 +115,68 @@ export interface TileCoordinate {
 }
 
 /**
+ * Min-Heap eficiente para búsqueda de caminos A* sobre la red vial.
+ */
+class NavigationRouteMinHeap {
+  private data: number[] = [];
+  private scores: Float32Array;
+
+  constructor(scores: Float32Array) {
+    this.scores = scores;
+  }
+
+  get size(): number {
+    return this.data.length;
+  }
+
+  push(idx: number): void {
+    this.data.push(idx);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.scores[this.data[i]] < this.scores[this.data[p]]) {
+        const tmp = this.data[i];
+        this.data[i] = this.data[p];
+        this.data[p] = tmp;
+        i = p;
+      } else {
+        break;
+      }
+    }
+  }
+
+  pop(): number {
+    const top = this.data[0];
+    const last = this.data.pop()!;
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      let i = 0;
+      const len = this.data.length;
+      while (true) {
+        let best = i;
+        const left = (i << 1) + 1;
+        const right = left + 1;
+        if (left < len && this.scores[this.data[left]] < this.scores[this.data[best]]) {
+          best = left;
+        }
+        if (right < len && this.scores[this.data[right]] < this.scores[this.data[best]]) {
+          best = right;
+        }
+        if (best !== i) {
+          const tmp = this.data[i];
+          this.data[i] = this.data[best];
+          this.data[best] = tmp;
+          i = best;
+        } else {
+          break;
+        }
+      }
+    }
+    return top;
+  }
+}
+
+/**
  * Motor de Renderizado Cartográfico 16-bits RPG basado en Pixi.js y OpenStreetMap (RpgMapEngine).
  *
  * Propósito: Ofrecer una experiencia visual auténtica de videojuego RPG retro (SNES / GameBoy Advance)
@@ -162,6 +224,9 @@ export class RpgMapEngine {
 
   /** Coordenadas de destino para la ruta de navegación activa */
   private navigationTargetCoords: GeoCoordinates | null = null;
+
+  /** Puntos geográficos que componen el trazado de navegación guiado por las pistas */
+  private navigationRoutePath: GeoCoordinates[] = [];
 
   /** Capa gráfica dedicada para el halo satelital de precisión */
   private accuracyGraphics: Graphics | null = null;
@@ -2222,86 +2287,296 @@ export class RpgMapEngine {
   }
 
   /**
-   * Renderiza una ruta luminosa animada de navegación RPG desde la posición del usuario
-   * hacia las coordenadas del punto de interés seleccionado.
+   * Calcula un trazado de navegación guiado por las pistas (calzadas y calles de OpenStreetMap)
+   * conectando de forma directa y óptima el punto de origen con el objetivo.
+   * Utiliza el muestreo de terreno del motor para priorizar el tránsito sobre carreteras
+   * evitando atravesar manzanas de casas o edificios de manera diagonal irreal.
+   *
+   * @param startCoords - Coordenadas de inicio (ubicación del aventurero).
+   * @param endCoords - Coordenadas del punto de interés seleccionado.
+   * @returns GeoCoordinates[] Lista de puntos ordenados que forman la ruta por las pistas.
+   */
+  public calculateRoadNavigationRoute(
+    startCoords: GeoCoordinates,
+    endCoords: GeoCoordinates,
+  ): GeoCoordinates[] {
+    if (!startCoords || !endCoords) return [];
+
+    const distMeters = RpgMapEngine.calculateDistanceMeters(startCoords, endCoords);
+    if (distMeters < 5) {
+      return [{ ...startCoords }, { ...endCoords }];
+    }
+
+    const wStart = this.latLngToWorldPixels(startCoords.lat, startCoords.lng, this.zoom);
+    const wEnd = this.latLngToWorldPixels(endCoords.lat, endCoords.lng, this.zoom);
+
+    const pad = 120;
+    const minX = Math.min(wStart.x, wEnd.x) - pad;
+    const maxX = Math.max(wStart.x, wEnd.x) + pad;
+    const minY = Math.min(wStart.y, wEnd.y) - pad;
+    const maxY = Math.max(wStart.y, wEnd.y) + pad;
+
+    const spanX = Math.abs(wEnd.x - wStart.x);
+    const spanY = Math.abs(wEnd.y - wStart.y);
+    const maxSpan = Math.max(spanX, spanY);
+
+    const step = Math.max(14, Math.min(28, Math.floor(maxSpan / 45)));
+
+    const cols = Math.floor((maxX - minX) / step) + 1;
+    const rows = Math.floor((maxY - minY) / step) + 1;
+    const totalCells = cols * rows;
+
+    if (totalCells <= 1 || totalCells > 9000) {
+      return [{ ...startCoords }, { ...endCoords }];
+    }
+
+    const startCol = Math.max(0, Math.min(cols - 1, Math.round((wStart.x - minX) / step)));
+    const startRow = Math.max(0, Math.min(rows - 1, Math.round((wStart.y - minY) / step)));
+    const endCol = Math.max(0, Math.min(cols - 1, Math.round((wEnd.x - minX) / step)));
+    const endRow = Math.max(0, Math.min(rows - 1, Math.round((wEnd.y - minY) / step)));
+
+    const isRoadCell = (c: number, r: number): boolean => {
+      const wx = minX + c * step;
+      const wy = minY + r * step;
+      const tileX = Math.floor(wx / 256);
+      const tileY = Math.floor(wy / 256);
+      const localX = Math.floor(((wx % 256) + 256) % 256);
+      const localY = Math.floor(((wy % 256) + 256) % 256);
+      const key = `${this.zoom}_${tileX}_${tileY}`;
+      return this.sampleTileTerrain(key, localX, localY) === 'road';
+    };
+
+    const startIndex = startRow * cols + startCol;
+    const endIndex = endRow * cols + endCol;
+
+    if (startIndex === endIndex) {
+      return [{ ...startCoords }, { ...endCoords }];
+    }
+
+    const gScore = new Float32Array(totalCells).fill(Infinity);
+    const fScore = new Float32Array(totalCells).fill(Infinity);
+    const cameFrom = new Int32Array(totalCells).fill(-1);
+    const closed = new Uint8Array(totalCells);
+
+    gScore[startIndex] = 0;
+    fScore[startIndex] = Math.hypot(endCol - startCol, endRow - startRow) * step;
+
+    const heap = new NavigationRouteMinHeap(fScore);
+    heap.push(startIndex);
+
+    const dCols = [0, 0, -1, 1, -1, 1, -1, 1];
+    const dRows = [-1, 1, 0, 0, -1, -1, 1, 1];
+    const dCosts = [1.0, 1.0, 1.0, 1.0, 1.414, 1.414, 1.414, 1.414];
+
+    let found = false;
+    let closestNode = startIndex;
+    let minH = fScore[startIndex];
+    let iters = 0;
+    const maxIters = 4500;
+
+    while (heap.size > 0 && iters < maxIters) {
+      iters++;
+      const current = heap.pop();
+      if (current === endIndex) {
+        found = true;
+        break;
+      }
+
+      if (closed[current]) continue;
+      closed[current] = 1;
+
+      const curCol = current % cols;
+      const curRow = Math.floor(current / cols);
+      const currentG = gScore[current];
+
+      const hCurrent = Math.hypot(endCol - curCol, endRow - curRow);
+      if (hCurrent < minH) {
+        minH = hCurrent;
+        closestNode = current;
+      }
+
+      for (let i = 0; i < 8; i++) {
+        const nCol = curCol + dCols[i];
+        const nRow = curRow + dRows[i];
+
+        if (nCol < 0 || nCol >= cols || nRow < 0 || nRow >= rows) continue;
+        const neighbor = nRow * cols + nCol;
+        if (closed[neighbor]) continue;
+
+        const onRoad = isRoadCell(nCol, nRow);
+        const terrainCost = onRoad ? 1.0 : 20.0;
+        const tentativeG = currentG + dCosts[i] * step * terrainCost;
+
+        if (tentativeG < gScore[neighbor]) {
+          cameFrom[neighbor] = current;
+          gScore[neighbor] = tentativeG;
+          const h = Math.hypot(endCol - nCol, endRow - nRow) * step;
+          fScore[neighbor] = tentativeG + h;
+          heap.push(neighbor);
+        }
+      }
+    }
+
+    const targetEnd = found ? endIndex : closestNode;
+    const rawPoints: { x: number; y: number }[] = [];
+    let curr = targetEnd;
+    while (curr !== -1) {
+      const c = curr % cols;
+      const r = Math.floor(curr / cols);
+      rawPoints.push({
+        x: minX + c * step,
+        y: minY + r * step,
+      });
+      if (curr === startIndex) break;
+      curr = cameFrom[curr];
+    }
+    rawPoints.reverse();
+
+    if (rawPoints.length === 0) {
+      return [{ ...startCoords }, { ...endCoords }];
+    }
+
+    const simplified: { x: number; y: number }[] = [rawPoints[0]];
+    for (let i = 1; i < rawPoints.length - 1; i++) {
+      const prev = simplified[simplified.length - 1];
+      const cur = rawPoints[i];
+      const next = rawPoints[i + 1];
+
+      const dx1 = cur.x - prev.x;
+      const dy1 = cur.y - prev.y;
+      const dx2 = next.x - cur.x;
+      const dy2 = next.y - cur.y;
+
+      const cross = Math.abs(dx1 * dy2 - dy1 * dx2);
+      const dot = dx1 * dx2 + dy1 * dy2;
+      const lenSq1 = dx1 * dx1 + dy1 * dy1;
+      const lenSq2 = dx2 * dx2 + dy2 * dy2;
+
+      if (cross / Math.sqrt(Math.max(1, lenSq1 * lenSq2)) > 0.12 || dot < 0) {
+        simplified.push(cur);
+      }
+    }
+    if (rawPoints.length > 1) {
+      simplified.push(rawPoints[rawPoints.length - 1]);
+    }
+
+    const waypoints: GeoCoordinates[] = [
+      { ...startCoords },
+      ...simplified.map((p) => this.worldPixelsToLatLng(p.x, p.y, this.zoom)),
+      { ...endCoords },
+    ];
+
+    return waypoints;
+  }
+
+  /**
+   * Renderiza una ruta luminosa animada de navegación RPG guiada por las pistas
+   * desde la posición del aventurero hacia las coordenadas del objetivo seleccionado.
    */
   private renderNavigationRoute(): void {
     if (!this.navRouteGraphics) return;
 
-    if (!this.navigationTargetCoords) {
+    if (!this.navigationTargetCoords || this.navigationRoutePath.length < 2) {
       this.navRouteGraphics.clear();
       return;
     }
 
-    const startCoords = this.userPosition || this.center;
-    const endCoords = this.navigationTargetCoords;
-
-    const p1 = this.latLngToScreenPixels(startCoords.lat, startCoords.lng);
-    const p2 = this.latLngToScreenPixels(endCoords.lat, endCoords.lng);
-
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const distancePx = Math.hypot(dx, dy);
+    const screenPoints = this.navigationRoutePath.map((pt) =>
+      this.latLngToScreenPixels(pt.lat, pt.lng),
+    );
 
     this.navRouteGraphics.clear();
 
-    if (distancePx < 6) return;
+    if (screenPoints.length < 2) return;
 
-    const ux = dx / distancePx;
-    const uy = dy / distancePx;
-
-    // 1. Sombra exterior oscura de alto contraste para destacar sobre cualquier terreno
-    this.navRouteGraphics.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).stroke({
+    // 1. Sombra exterior oscura de alto contraste para destacar sobre cualquier calzada
+    this.navRouteGraphics.moveTo(screenPoints[0].x, screenPoints[0].y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      this.navRouteGraphics.lineTo(screenPoints[i].x, screenPoints[i].y);
+    }
+    this.navRouteGraphics.stroke({
       color: 0x0f172a,
       width: 7.5,
       alpha: 0.75,
       cap: 'round',
+      join: 'round',
     });
 
-    // 2. Línea guía base cian / turquesa brillante
-    this.navRouteGraphics.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).stroke({
+    // 2. Línea guía base cian / turquesa brillante sobre las pistas
+    this.navRouteGraphics.moveTo(screenPoints[0].x, screenPoints[0].y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      this.navRouteGraphics.lineTo(screenPoints[i].x, screenPoints[i].y);
+    }
+    this.navRouteGraphics.stroke({
       color: 0x0284c7,
       width: 4,
       alpha: 0.85,
       cap: 'round',
+      join: 'round',
     });
 
-    // 3. Segmentos animados de energía dorada / cian viajando a lo largo de la ruta
-    const dashLength = 14;
-    const gapLength = 10;
-    const totalCycle = dashLength + gapLength;
-    const animationSpeed = 35; // píxeles por segundo
-    const offset = (this.animationTime * animationSpeed) % totalCycle;
+    // 3. Segmentos animados de energía viajando a lo largo del recorrido vial
+    const segLengths: number[] = [];
+    let totalLength = 0;
+    for (let i = 0; i < screenPoints.length - 1; i++) {
+      const d = Math.hypot(
+        screenPoints[i + 1].x - screenPoints[i].x,
+        screenPoints[i + 1].y - screenPoints[i].y,
+      );
+      segLengths.push(d);
+      totalLength += d;
+    }
 
-    for (let d = offset; d < distancePx - 8; d += totalCycle) {
-      const segStart = Math.max(0, d);
-      const segEnd = Math.min(distancePx, d + dashLength);
-      if (segEnd > segStart) {
-        const sx = p1.x + ux * segStart;
-        const sy = p1.y + uy * segStart;
-        const ex = p1.x + ux * segEnd;
-        const ey = p1.y + uy * segEnd;
+    if (totalLength > 10) {
+      const dashLength = 14;
+      const gapLength = 10;
+      const cycle = dashLength + gapLength;
+      const animSpeed = 40;
+      const offset = (this.animationTime * animSpeed) % cycle;
 
-        this.navRouteGraphics.moveTo(sx, sy).lineTo(ex, ey).stroke({
-          color: 0x38bdf8,
-          width: 2.6,
-          alpha: 0.95,
-          cap: 'round',
-        });
+      const getPointAtDist = (targetDist: number): { x: number; y: number } => {
+        let acc = 0;
+        for (let i = 0; i < segLengths.length; i++) {
+          if (acc + segLengths[i] >= targetDist) {
+            const ratio = segLengths[i] > 0 ? (targetDist - acc) / segLengths[i] : 0;
+            return {
+              x: screenPoints[i].x + (screenPoints[i + 1].x - screenPoints[i].x) * ratio,
+              y: screenPoints[i].y + (screenPoints[i + 1].y - screenPoints[i].y) * ratio,
+            };
+          }
+          acc += segLengths[i];
+        }
+        return screenPoints[screenPoints.length - 1];
+      };
+
+      for (let d = offset; d < totalLength - 8; d += cycle) {
+        const segStartDist = Math.max(0, d);
+        const segEndDist = Math.min(totalLength, d + dashLength);
+        if (segEndDist > segStartDist) {
+          const pStart = getPointAtDist(segStartDist);
+          const pEnd = getPointAtDist(segEndDist);
+          this.navRouteGraphics.moveTo(pStart.x, pStart.y).lineTo(pEnd.x, pEnd.y).stroke({
+            color: 0x38bdf8,
+            width: 2.6,
+            alpha: 0.95,
+            cap: 'round',
+          });
+        }
       }
     }
 
     // 4. Baliza o anillo de destino pulsante en el objetivo
+    const endPoint = screenPoints[screenPoints.length - 1];
     const pulsePhase = (Math.sin(this.animationTime * 4.5) + 1) / 2;
     const targetRingRadius = 14 + pulsePhase * 8;
     const targetRingAlpha = 0.8 - pulsePhase * 0.5;
 
-    this.navRouteGraphics.circle(p2.x, p2.y, targetRingRadius).stroke({
+    this.navRouteGraphics.circle(endPoint.x, endPoint.y, targetRingRadius).stroke({
       color: 0x38bdf8,
       width: 2,
       alpha: targetRingAlpha,
     });
-    this.navRouteGraphics.circle(p2.x, p2.y, 6).fill({
+    this.navRouteGraphics.circle(endPoint.x, endPoint.y, 6).fill({
       color: 0x38bdf8,
       alpha: 0.85,
     }).stroke({
@@ -2310,14 +2585,15 @@ export class RpgMapEngine {
     });
 
     // 5. Pequeño punto de salida en la posición del aventurero
-    this.navRouteGraphics.circle(p1.x, p1.y, 4).fill({
+    const startPoint = screenPoints[0];
+    this.navRouteGraphics.circle(startPoint.x, startPoint.y, 4).fill({
       color: 0xfacc15,
       alpha: 0.9,
     });
   }
 
   /**
-   * Establece las coordenadas objetivo para trazar una ruta luminosa activa de navegación.
+   * Establece las coordenadas objetivo para trazar una ruta luminosa activa de navegación guiada por pistas.
    * Si se pasa null, la ruta de navegación se elimina.
    *
    * @param target - Coordenadas geográficas del objetivo o null.
@@ -2325,6 +2601,12 @@ export class RpgMapEngine {
    */
   public setNavigationTarget(target: GeoCoordinates | null): void {
     this.navigationTargetCoords = target ? { ...target } : null;
+    if (target) {
+      const startCoords = this.userPosition || this.center;
+      this.navigationRoutePath = this.calculateRoadNavigationRoute(startCoords, target);
+    } else {
+      this.navigationRoutePath = [];
+    }
     if (this.app && this.isInitialized) {
       this.renderNavigationRoute();
     }
@@ -2337,6 +2619,15 @@ export class RpgMapEngine {
    */
   public getNavigationTarget(): GeoCoordinates | null {
     return this.navigationTargetCoords ? { ...this.navigationTargetCoords } : null;
+  }
+
+  /**
+   * Retorna los puntos geográficos que componen el trazado actual guiado por las pistas.
+   *
+   * @returns GeoCoordinates[]
+   */
+  public getNavigationRoutePath(): GeoCoordinates[] {
+    return [...this.navigationRoutePath];
   }
 
   /**
@@ -2374,6 +2665,14 @@ export class RpgMapEngine {
       this.userName = name;
       // Reconstruir visuales del jugador si cambió de nombre
       this.setupPlayerVisuals();
+    }
+
+    if (this.navigationTargetCoords) {
+      const lastStart = this.navigationRoutePath[0];
+      const moved = lastStart ? RpgMapEngine.calculateDistanceMeters(lastStart, coords) : 999;
+      if (moved >= 8) {
+        this.navigationRoutePath = this.calculateRoadNavigationRoute(coords, this.navigationTargetCoords);
+      }
     }
 
     this.updatePlayerScreenPosition();

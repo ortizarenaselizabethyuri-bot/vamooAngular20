@@ -147,9 +147,9 @@ describe('JugarComponent', () => {
     expect(component.activePoiCategory()).toBe('pharmacy');
     expect(component.filteredPois().every((p) => p.category === 'pharmacy')).toBe(true);
 
-    // Seleccionar un POI
+    // Seleccionar un POI (con enfoque)
     const poi = component.nearbyPois()[0];
-    component.selectPoi(poi);
+    component.selectPoi(poi, true);
     expect(component.selectedPoi()?.id).toBe(poi.id);
     expect(component.autoFollow()).toBe(false);
     expect(component.mapCenter().lat).toBe(poi.coords.lat);
@@ -220,5 +220,30 @@ describe('JugarComponent', () => {
     // Al limpiar la selección, la distancia es 0
     component.clearSelectedPoi();
     expect(component.selectedPoiDistanceMeters()).toBe(0);
+  });
+
+  it('no debe redirigir la cámara en el primer clic, pero sí tras dos clics secuenciales', () => {
+    const initialCenter = { lat: -12.0681, lng: -75.2100 };
+    component.mapCenter.set(initialCenter);
+
+    const targetPoi = {
+      id: 'poi-botica-plaza',
+      name: 'Botica Plaza Central',
+      category: 'pharmacy' as const,
+      coords: { lat: -12.0715, lng: -75.2120 },
+      icon: '💊',
+    };
+
+    // PRIMER CLIC: Debe seleccionar el POI pero NO cambiar mapCenter (no redirigir cámara)
+    component.handlePoiClick(targetPoi);
+    expect(component.selectedPoi()?.id).toBe('poi-botica-plaza');
+    expect(component.mapCenter().lat).toBe(initialCenter.lat);
+    expect(component.mapCenter().lng).toBe(initialCenter.lng);
+
+    // SEGUNDO CLIC SECUENCIAL: Ahora SÍ debe redirigir la cámara a la ubicación del POI
+    component.handlePoiClick(targetPoi);
+    expect(component.selectedPoi()?.id).toBe('poi-botica-plaza');
+    expect(component.mapCenter().lat).toBe(targetPoi.coords.lat);
+    expect(component.mapCenter().lng).toBe(targetPoi.coords.lng);
   });
 });

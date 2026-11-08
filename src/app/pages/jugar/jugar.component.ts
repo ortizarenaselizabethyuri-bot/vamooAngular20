@@ -152,6 +152,12 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Coordenadas del último anclaje utilizado para calcular lugares cercanos */
   private lastPoiAnchorCoords: GeoCoordinates | null = null;
 
+  /** ID del último POI pulsado para detectar doble clic o pulsación secuencial */
+  private lastClickedPoiId: string | null = null;
+
+  /** Marca de tiempo (timestamp) del último clic para la detección secuencial */
+  private lastPoiClickTimestamp: number = 0;
+
   /** Punto de interés actualmente seleccionado o inspeccionado */
   readonly selectedPoi = signal<RpgPoiLocation | null>(null);
 
@@ -372,7 +378,7 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
             }
           },
           onPoiClick: (poi) => {
-            this.selectPoi(poi);
+            this.handlePoiClick(poi);
           },
         })
         .then(() => {
@@ -587,13 +593,56 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Selecciona un punto de interés, centra suavemente la cámara del mapa en su ubicación,
-   * traza una ruta luminosa animada de navegación y activa la tarjeta superior de misión con recompensa XP.
+   * Gestiona el clic sobre un círculo flotante de POI:
+   * - Primer clic: selecciona el lugar, muestra el panel superior y traza la ruta guiada por las pistas
+   *   SIN redirigir la cámara para mantener la perspectiva del usuario.
+   * - Dos clics secuenciales: redirige y centra la cámara en la ubicación del lugar.
    *
-   * @param poi - Punto de interés seleccionado.
+   * @param poi - Punto de interés pulsado.
    * @returns void
    */
-  selectPoi(poi: RpgPoiLocation): void {
+  handlePoiClick(poi: RpgPoiLocation): void {
+    const now = Date.now();
+    const isSamePoi = this.lastClickedPoiId === poi.id;
+    const isSequential = isSamePoi && now - this.lastPoiClickTimestamp < 700;
+
+    this.lastClickedPoiId = poi.id;
+    this.lastPoiClickTimestamp = now;
+
+    if (isSequential) {
+      // Segundo clic secuencial: Enfocar y centrar la cámara en el lugar
+      this.centerOnPoi(poi);
+    } else {
+      // Primer clic: Solo seleccionar, mostrar datos y trazar ruta por pistas sin mover la cámara
+      this.selectPoi(poi, false);
+    }
+  }
+
+  /**
+   * Selecciona un punto de interés, muestra su información en el panel superior fuera del mapa
+   * y traza una ruta luminosa guiada por las pistas hacia su ubicación.
+   *
+   * @param poi - Punto de interés seleccionado.
+   * @param centerCamera - Si es true, enfoca la cámara en dicho lugar; si es false, conserva la vista actual.
+   * @returns void
+   */
+  selectPoi(poi: RpgPoiLocation, centerCamera: boolean = false): void {
+    this.selectedPoi.set(poi);
+    this.rpgEngine?.setNavigationTarget(poi.coords);
+    if (centerCamera) {
+      this.autoFollow.set(false);
+      this.mapCenter.set(poi.coords);
+      this.rpgEngine?.setCenter(poi.coords, 19);
+    }
+  }
+
+  /**
+   * Centra suavemente la cámara del mapa en el punto de interés seleccionado.
+   *
+   * @param poi - Punto de interés hacia el cual redirigir la vista.
+   * @returns void
+   */
+  centerOnPoi(poi: RpgPoiLocation): void {
     this.selectedPoi.set(poi);
     this.autoFollow.set(false);
     this.mapCenter.set(poi.coords);
@@ -608,6 +657,8 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   clearSelectedPoi(): void {
     this.selectedPoi.set(null);
+    this.lastClickedPoiId = null;
+    this.lastPoiClickTimestamp = 0;
     this.rpgEngine?.setNavigationTarget(null);
   }
 

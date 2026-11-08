@@ -359,8 +359,24 @@ describe('RpgMapEngine', () => {
     expect(engine.getNavigationTarget()?.lat).toBe(targetCoords.lat);
     expect(engine.getNavigationTarget()?.lng).toBe(targetCoords.lng);
 
+    const path = engine.getNavigationRoutePath();
+    expect(Array.isArray(path)).toBe(true);
+    expect(path.length).toBeGreaterThanOrEqual(2);
+
     engine.setNavigationTarget(null);
     expect(engine.getNavigationTarget()).toBeNull();
+    expect(engine.getNavigationRoutePath().length).toBe(0);
+  });
+
+  it('debe calcular la ruta de navegación guiada por pistas con A* sin errores', () => {
+    const start = { lat: -12.0681, lng: -75.2100 };
+    const end = { lat: -12.0720, lng: -75.2130 };
+    const route = engine.calculateRoadNavigationRoute(start, end);
+
+    expect(Array.isArray(route)).toBe(true);
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    expect(route[0].lat).toBeCloseTo(start.lat, 4);
+    expect(route[route.length - 1].lat).toBeCloseTo(end.lat, 4);
   });
 });
 
