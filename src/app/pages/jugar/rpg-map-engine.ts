@@ -947,47 +947,39 @@ export class RpgMapEngine {
     const diffRB = Math.abs(r - b);
     const maxDiff = Math.max(diffRG, Math.max(diffGB, diffRB));
 
-    // 1. Asfalto blanco, blanco marfil o gris claro (calzadas vehiculares principales)
-    if (r >= 205 && g >= 205 && b >= 195 && maxDiff <= 18) {
+    // 1. Asfalto blanco puro, blanco marfil o gris claro de alta luminosidad (calzadas principales como Jr. Amazonas)
+    if (r >= 205 && g >= 205 && b >= 205 && maxDiff <= 12) {
       return true;
     }
 
-    // 2. Calzadas con casing, bordes de calle y asfalto medio neutro
-    if (r >= 165 && g >= 165 && b >= 160 && maxDiff <= 16) {
+    // 2. Calzadas y bordes de asfalto medio neutro bien delimitados (evita falsos positivos en tejados)
+    if (r >= 170 && g >= 170 && b >= 170 && maxDiff <= 5) {
       return true;
     }
 
-    // 3. Textos y etiquetas con nombres de calles sobre calzadas (ej. "Pasaje Montevideo", "Avenida Primavera")
-    if (r >= 70 && r <= 180 && maxDiff <= 14) {
+    // 3. Carreteras residenciales, secundarias y calles de tono crema / melocotón suave #FFECCA (ej. Calle Ayacucho / Jr. Ayacucho)
+    // #FFECCA en RGB es exactamente (255, 236, 202) -> (r - g) = 19, (r - b) = 53
+    if (r >= 246 && g >= 225 && g <= 246 && b >= 188 && b <= 220 && (r - g) >= 10 && (r - b) >= 35) {
       return true;
     }
 
-    // 4. Carreteras arteriales y autopistas anaranjadas / corales (ej. Vía 2099 / Panamericana / carreteras primarias)
-    // R: 215-255, G: 120-185, B: 50-145, R - G >= 40, R - B >= 75
-    if (r >= 215 && g >= 120 && g <= 185 && b >= 50 && b <= 145 && (r - g) >= 40 && (r - b) >= 75) {
+    // 4. Bordes, líneas de límite y casings anaranjados / salmón / terracota de calles residenciales (ej. márgenes de Calle Ayacucho)
+    if (r >= 215 && g >= 165 && g <= 225 && b >= 135 && b <= 208 && (r - g) >= 12 && (r - b) >= 25) {
       return true;
     }
 
     // 5. Autopistas y avenidas arteriales amarillas / doradas (ej. vías principales de penetración)
-    // El componente rojo domina o empata con el verde (r >= g - 4) y es muy superior al azul (r - b >= 38)
     if (r >= 215 && g >= 160 && b <= 165 && r >= g - 4 && (r - b) >= 38) {
       return true;
     }
 
-    // 6. Carreteras residenciales, secundarias y calles de tono crema / melocotón suave #FFECCA (ej. Calle Ayacucho / Jr. Ayacucho)
-    // #FFECCA en RGB es exactamente (255, 236, 202) -> (r - g) = 19, (r - b) = 53, (g - b) = 34
-    // R: 250-255, G: 230-242, B: 195-212 con R > G > B
-    if (r >= 250 && g >= 230 && g <= 242 && b >= 195 && b <= 212 && (r - g) >= 14 && (r - b) >= 46) {
+    // 6. Carreteras arteriales y autopistas anaranjadas / corales (ej. Vía 2099 / Panamericana / carreteras primarias)
+    if (r >= 215 && g >= 120 && g <= 185 && b >= 50 && b <= 145 && (r - g) >= 40 && (r - b) >= 70) {
       return true;
     }
 
-    // 7. Bordes, líneas de límite y casings anaranjados / salmón / terracota de calles residenciales (ej. márgenes de Calle Ayacucho)
-    if (r >= 220 && g >= 155 && g <= 220 && b >= 135 && b <= 205 && (r - g) >= 16 && (r - b) >= 35) {
-      return true;
-    }
-
-    // 8. Textos y rotulaciones con nombres de calles sobre calzadas (ej. "Calle Ayacucho", numeración vial)
-    if (r >= 65 && r <= 195 && maxDiff <= 18) {
+    // 7. Textos y rotulaciones de nombres de calle directamente sobre la calzada (gama neutra estricta)
+    if (r >= 105 && r <= 145 && maxDiff <= 6) {
       return true;
     }
 
@@ -2236,6 +2228,13 @@ export class RpgMapEngine {
 
         // Refrescar decoraciones de terreno tan pronto se integra la nueva tesela
         this.renderDecorations();
+
+        // Si hay una ruta de navegación activa hacia un objetivo, recalcularla con los píxeles reales recién descargados
+        if (this.navigationTargetCoords) {
+          const startCoords = this.userPosition || this.center;
+          this.navigationRoutePath = this.calculateRoadNavigationRoute(startCoords, this.navigationTargetCoords);
+          this.renderNavigationRoute();
+        }
       }
     } catch (err) {
       // Si la tesela no pudo ser cargada (ej. desconexión), se ignora silenciosamente
@@ -2393,15 +2392,14 @@ export class RpgMapEngine {
   public isDirectLineOnRoad(
     p1: { x: number; y: number },
     p2: { x: number; y: number },
-    roadToleranceRadius: number = 8,
+    roadToleranceRadius: number = 5,
   ): boolean {
     const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    if (dist <= 12) return true;
+    if (dist <= 10) return true;
 
-    const sampleStep = 5;
+    const sampleStep = 4;
     const numSamples = Math.floor(dist / sampleStep);
 
-    let consecutiveNonRoad = 0;
     let nonRoadCount = 0;
     for (let i = 1; i < numSamples; i++) {
       const t = i / numSamples;
@@ -2410,12 +2408,11 @@ export class RpgMapEngine {
 
       if (!this.isRoadNearWorldPixel(sx, sy, roadToleranceRadius)) {
         nonRoadCount++;
-        consecutiveNonRoad++;
-        if (consecutiveNonRoad > 2 || (nonRoadCount / numSamples) > 0.14) {
+        // Si más de una muestra cae fuera de la calzada, se rechaza la línea directa
+        // para garantizar que la ruta no corte manzanas residenciales ni casas
+        if (nonRoadCount > 1) {
           return false;
         }
-      } else {
-        consecutiveNonRoad = 0;
       }
     }
 
@@ -2428,7 +2425,7 @@ export class RpgMapEngine {
   public isStraightRoadSegmentClear(
     p1: { x: number; y: number },
     p2: { x: number; y: number },
-    roadToleranceRadius: number = 8,
+    roadToleranceRadius: number = 5,
   ): boolean {
     return this.isDirectLineOnRoad(p1, p2, roadToleranceRadius);
   }
@@ -2477,7 +2474,7 @@ export class RpgMapEngine {
     const roadEnd = this.findNearestRoadWorldPixel(wEnd.x, wEnd.y, 48);
 
     // 2. Si entre roadStart y roadEnd ya se puede trazar una línea recta limpia por la calle/avenida:
-    if (this.isDirectLineOnRoad(roadStart, roadEnd, 8)) {
+    if (this.isDirectLineOnRoad(roadStart, roadEnd, 5)) {
       const waypoints = [
         { ...startCoords },
         this.worldPixelsToLatLng(roadStart.x, roadStart.y, this.zoom),
@@ -2488,7 +2485,7 @@ export class RpgMapEngine {
     }
 
     // 3. Búsqueda A* sobre la red vial real guiada por calles y avenidas
-    const pad = 64;
+    const pad = 48;
     const minX = Math.min(roadStart.x, roadEnd.x) - pad;
     const maxX = Math.max(roadStart.x, roadEnd.x) + pad;
     const minY = Math.min(roadStart.y, roadEnd.y) - pad;
@@ -2498,7 +2495,7 @@ export class RpgMapEngine {
     const spanY = Math.abs(roadEnd.y - roadStart.y);
     const maxSpan = Math.max(spanX, spanY);
 
-    const step = Math.max(6, Math.min(10, Math.floor(maxSpan / 40)));
+    const step = Math.max(5, Math.min(8, Math.floor(maxSpan / 45)));
 
     const cols = Math.floor((maxX - minX) / step) + 1;
     const rows = Math.floor((maxY - minY) / step) + 1;
@@ -2521,7 +2518,7 @@ export class RpgMapEngine {
     const isRoadCell = (c: number, r: number): boolean => {
       const wx = minX + c * step;
       const wy = minY + r * step;
-      return this.isRoadNearWorldPixel(wx, wy, Math.max(4, Math.floor(step / 2)));
+      return this.isRoadNearWorldPixel(wx, wy, 4);
     };
 
     const startIndex = startRow * cols + startCol;
@@ -2556,7 +2553,7 @@ export class RpgMapEngine {
     let closestNode = startIndex;
     let minH = startH;
     let iters = 0;
-    const maxIters = 5000;
+    const maxIters = 6000;
 
     while (heap.size > 0 && iters < maxIters) {
       iters++;
@@ -2588,8 +2585,8 @@ export class RpgMapEngine {
         if (closed[neighbor]) continue;
 
         const onRoad = isRoadCell(nCol, nRow);
-        // Costo vial preferencial: 1x sobre pista/avenida vs 50x fuera de vía
-        const terrainCost = onRoad ? 1.0 : 50.0;
+        // Costo vial preferencial: 1x sobre pista/avenida vs 80x fuera de vía
+        const terrainCost = onRoad ? 1.0 : 80.0;
         const tentativeG = currentG + step * dDists[i] * terrainCost;
 
         if (tentativeG < gScore[neighbor]) {
@@ -2636,7 +2633,7 @@ export class RpgMapEngine {
 
       // Buscar desde el punto más lejano posible hacia atrás el que mantenga visibilidad directa por pista
       for (let nextIdx = rawPoints.length - 1; nextIdx > currentIdx; nextIdx--) {
-        if (this.isDirectLineOnRoad(rawPoints[currentIdx], rawPoints[nextIdx], 8)) {
+        if (this.isDirectLineOnRoad(rawPoints[currentIdx], rawPoints[nextIdx], 5)) {
           furthestIdx = nextIdx;
           break;
         }

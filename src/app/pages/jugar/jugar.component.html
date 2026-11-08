@@ -228,52 +228,6 @@
                 <span class="compass-needle-label">N</span>
               </div>
 
-              <!-- Barra de Filtros de Lugares Cercanos (Círculos Flotantes) -->
-              <div class="pokemon-poi-filter-bar" role="toolbar" aria-label="Filtrar lugares de interés">
-                <button
-                  type="button"
-                  class="poi-filter-chip"
-                  [class.active]="activePoiCategory() === 'all'"
-                  (click)="filterPoiCategory('all')"
-                  title="Todos los lugares cercanos">
-                  <span>📍 Todos ({{ nearbyPois().length }})</span>
-                </button>
-                <button
-                  type="button"
-                  class="poi-filter-chip chip-pharmacy"
-                  [class.active]="activePoiCategory() === 'pharmacy'"
-                  (click)="filterPoiCategory('pharmacy')"
-                  title="Boticas y Farmacias">
-                  <span>💊 Boticas</span>
-                </button>
-                <button
-                  type="button"
-                  class="poi-filter-chip chip-park"
-                  [class.active]="activePoiCategory() === 'park'"
-                  (click)="filterPoiCategory('park')"
-                  title="Parques y Áreas Verdes">
-                  <span>🌳 Parques</span>
-                </button>
-                <button
-                  type="button"
-                  class="poi-filter-chip chip-school"
-                  [class.active]="activePoiCategory() === 'school'"
-                  (click)="filterPoiCategory('school')"
-                  title="Escuelas y Colegios">
-                  <span>🏫 Escuelas</span>
-                </button>
-                <button
-                  type="button"
-                  class="poi-filter-chip chip-hotel"
-                  [class.active]="activePoiCategory() === 'hotel'"
-                  (click)="filterPoiCategory('hotel')"
-                  title="Hoteles y Hospedajes">
-                  <span>🏨 Hoteles</span>
-                </button>
-              </div>
-
-
-
               <!-- HUD INFERIOR: Indicador de Manito de Arrastre & Auto-Seguimiento -->
               <div class="map-overlay-drag-hint">
                 <div class="drag-indicator-pill">

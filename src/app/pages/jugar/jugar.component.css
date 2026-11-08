@@ -1191,13 +1191,8 @@
     gap: 0.5rem;
   }
 
-  .pokemon-poi-filter-bar {
-    top: 68px;
-    right: 44px;
-  }
-
   .poi-floating-card {
-    top: 104px;
+    top: 76px;
     max-width: calc(100% - 24px);
   }
 }
@@ -1422,84 +1417,6 @@
   .reward-xp-pill .xp-val {
     font-size: 0.68rem;
   }
-}
-
-/* ==========================================================================
-   POI Filter Bar
-   ========================================================================== */
-.pokemon-poi-filter-bar {
-  position: absolute;
-  top: 76px;
-  left: 12px;
-  right: 50px;
-  z-index: 16;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.pokemon-poi-filter-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.poi-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1.5px solid #475569;
-  border-radius: 12px;
-  color: #e2e8f0;
-  font-family: var(--font-pixel), monospace;
-  font-size: 0.58rem;
-  font-weight: bold;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-}
-
-.poi-filter-chip:hover {
-  border-color: #facc15;
-  color: #facc15;
-  transform: translateY(-1px);
-}
-
-.poi-filter-chip.active {
-  background: #0f172a;
-  border-color: #facc15;
-  color: #facc15;
-  box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
-}
-
-.poi-filter-chip.chip-pharmacy.active {
-  border-color: #ef4444;
-  color: #fca5a5;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
-}
-
-.poi-filter-chip.chip-park.active {
-  border-color: #10b981;
-  color: #6ee7b7;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-}
-
-.poi-filter-chip.chip-school.active {
-  border-color: #3b82f6;
-  color: #93c5fd;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
-}
-
-.poi-filter-chip.chip-hotel.active {
-  border-color: #f59e0b;
-  color: #fde68a;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
 }
 
 /* ==========================================================================
