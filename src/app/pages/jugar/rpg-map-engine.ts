@@ -2684,6 +2684,17 @@ export class RpgMapEngine {
       );
 
       const distMeters = RpgMapEngine.calculateDistanceMeters(refCoords, poi.coords);
+
+      // REGLA ESTRICTA DE PROXIMIDAD:
+      // Los lugares deben estar cerca a la ubicación en tiempo real (máximo 1 km / 1000m).
+      // Si pasa de 1 km, no se muestran ni en el mapa ni en los bordes del HUD.
+      const MAX_POI_DISPLAY_DISTANCE_METERS = 1000;
+      if (distMeters > MAX_POI_DISPLAY_DISTANCE_METERS) {
+        display.container.visible = false;
+        return;
+      }
+      display.container.visible = true;
+
       const distStr = RpgMapEngine.formatDistance(distMeters);
 
       const catConfig = RpgMapEngine.getCategoryConfig(poi.category);

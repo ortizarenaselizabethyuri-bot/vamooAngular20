@@ -426,7 +426,8 @@ export function getNearbyPois(
     return MASTER_POI_CATALOG.slice(0, options?.limit || 10);
   }
 
-  const maxRadius = options?.maxRadiusMeters || 2500;
+  // Regla estricta: radio máximo por defecto de 1 km (1000m). Si un lugar supera esa distancia, no se muestra.
+  const maxRadius = options?.maxRadiusMeters !== undefined ? options.maxRadiusMeters : 1000;
   const limit = options?.limit || 10;
 
   // 1. Mapear todos los POIs del catálogo maestro con su distancia exacta al usuario
@@ -438,7 +439,7 @@ export function getNearbyPois(
     };
   });
 
-  // 2. Filtrar únicamente los que se encuentran dentro del radio especificado
+  // 2. Filtrar únicamente los que se encuentran dentro del radio especificado (máx 1km)
   const inRadius = withDistance.filter((item) => item.distanceMeters <= maxRadius);
 
   // 3. Ordenar por cercanía geométrica ascendente (más cercanos primero)
@@ -446,8 +447,8 @@ export function getNearbyPois(
 
   let resultPois = inRadius.map((item) => item.poi);
 
-  // 4. Si la ubicación actual está en una zona con pocos POIs catalogados (menos de 5 lugares cercanos),
-  // generar complementos locales deterministas anclados a su vecindario para que siempre tenga POIs cercanos
+  // 4. Si la ubicación actual está en una zona con pocos POIs catalogados dentro del radio de 1 km (menos de 5 lugares cercanos),
+  // generar complementos locales deterministas anclados a su vecindario inmediato (< 600m) para que siempre tenga POIs cercanos
   if (resultPois.length < 5) {
     const needed = Math.max(0, 8 - resultPois.length);
     const synthesized = generateLocalNeighborhoodPois(userCoords, needed);
@@ -461,7 +462,12 @@ export function getNearbyPois(
     });
   }
 
-  // 5. Retornar el límite solicitado de lugares más cercanos
+  // 5. Filtrado estricto final para garantizar que NINGÚN lugar supere el radio máximo (1 km)
+  resultPois = resultPois.filter(
+    (poi) => RpgMapEngine.calculateDistanceMeters(userCoords, poi.coords) <= maxRadius,
+  );
+
+  // 6. Retornar el límite solicitado de lugares más cercanos
   return resultPois.slice(0, limit);
 }
 

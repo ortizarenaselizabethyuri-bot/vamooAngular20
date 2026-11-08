@@ -3,6 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { JugarComponent } from './jugar.component.js';
+import { RpgMapEngine } from './rpg-map-engine.js';
 
 describe('JugarComponent', () => {
   let component: JugarComponent;
@@ -176,5 +177,15 @@ describe('JugarComponent', () => {
     // Los lugares cercanos en El Tambo deben ser distintos a los del Centro
     expect(poisTambo[0].id).not.toBe(poisCentro[0].id);
     expect(poisTambo.some((p) => p.name.includes('El Tambo') || p.name.includes('Castilla'))).toBe(true);
+
+    // Todos los lugares devueltos deben estar estrictamente dentro del radio de 1 km (1000m)
+    for (const p of poisCentro) {
+      const d = RpgMapEngine.calculateDistanceMeters({ lat: -12.0681, lng: -75.2100 }, p.coords);
+      expect(d).toBeLessThanOrEqual(1000);
+    }
+    for (const p of poisTambo) {
+      const d = RpgMapEngine.calculateDistanceMeters({ lat: -12.0482, lng: -75.2215 }, p.coords);
+      expect(d).toBeLessThanOrEqual(1000);
+    }
   });
 });

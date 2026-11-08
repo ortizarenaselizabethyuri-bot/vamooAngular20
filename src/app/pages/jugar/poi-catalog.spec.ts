@@ -94,4 +94,16 @@ describe('PoiCatalog & Dynamic Nearby Places', () => {
     expect(gen1[0].coords.lat).toBe(gen2[0].coords.lat);
     expect(gen1[0].coords.lng).toBe(gen2[0].coords.lng);
   });
+
+  it('debe respetar el límite por defecto estricto de máximo 1 km (1000m) y excluir lugares fuera de ese radio', () => {
+    const userLocation = { lat: -12.0681, lng: -75.2100 };
+    // Sin especificar maxRadiusMeters, debe aplicar 1000 metros (1 km)
+    const nearby = getNearbyPois(userLocation);
+
+    expect(nearby.length).toBeGreaterThan(0);
+    for (const poi of nearby) {
+      const dist = RpgMapEngine.calculateDistanceMeters(userLocation, poi.coords);
+      expect(dist).toBeLessThanOrEqual(1000);
+    }
+  });
 });

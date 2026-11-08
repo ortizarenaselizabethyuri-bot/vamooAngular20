@@ -146,8 +146,8 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.getFaunaEmoji(rank);
   });
 
-  /** Lista reactiva de puntos de interés (POIs) más cercanos a la ubicación del usuario */
-  readonly nearbyPois = signal<RpgPoiLocation[]>(getNearbyPois({ lat: -12.0681, lng: -75.2100 }));
+  /** Lista reactiva de puntos de interés (POIs) más cercanos a la ubicación del usuario (máximo 1 km estricto) */
+  readonly nearbyPois = signal<RpgPoiLocation[]>(getNearbyPois({ lat: -12.0681, lng: -75.2100 }, { maxRadiusMeters: 1000, limit: 10 }));
 
   /** Coordenadas del último anclaje utilizado para calcular lugares cercanos */
   private lastPoiAnchorCoords: GeoCoordinates | null = null;
@@ -329,6 +329,11 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
           },
           onDragEnd: () => {
             this.isDragging.set(false);
+            // Si no hay señal GPS en tiempo real activa (ej. pruebas en escritorio navegando el mapa),
+            // actualizar los POIs cercanos respecto al nuevo centro del mapa inspeccionado
+            if (!this.geoService.currentPosition()) {
+              this.updateNearbyPoisForLocation(this.mapCenter());
+            }
           },
           onPoiClick: (poi) => {
             this.selectPoi(poi);
@@ -522,8 +527,8 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /**
    * Actualiza reactivamente los círculos flotantes de lugares (POIs) más cercanos a la ubicación del usuario.
-   * Si el usuario se ha desplazado más de 50 metros desde el último cálculo, resuelve los POIs más cercanos
-   * y refresca los marcadores del motor gráfico RPG.
+   * Si el usuario se ha desplazado más de 25 metros desde el último cálculo, resuelve los POIs más cercanos
+   * (con radio máximo estricto de 1 km / 1000m) y refresca los marcadores del motor gráfico RPG.
    *
    * @param coords - Coordenadas actuales del usuario o centro del mapa.
    * @param force - Forzar la actualización sin evaluar la distancia mínima de desplazamiento.
@@ -534,13 +539,13 @@ export class JugarComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!force && this.lastPoiAnchorCoords) {
       const movedDist = RpgMapEngine.calculateDistanceMeters(this.lastPoiAnchorCoords, coords);
-      if (movedDist < 50) {
-        return; // Evita recalcular innecesariamente ante micro-movimientos de GPS
+      if (movedDist < 25) {
+        return; // Evita recalcular innecesariamente ante micro-movimientos de GPS (< 25m)
       }
     }
 
     this.lastPoiAnchorCoords = { ...coords };
-    const resolved = getNearbyPois(coords, { maxRadiusMeters: 2500, limit: 10 });
+    const resolved = getNearbyPois(coords, { maxRadiusMeters: 1000, limit: 10 });
     this.nearbyPois.set(resolved);
     this.rpgEngine?.setPoiLocations(this.filteredPois());
   }
